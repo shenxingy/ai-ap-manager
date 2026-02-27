@@ -17,7 +17,7 @@ class FakeUser:
     role = "ADMIN"
     is_active = True
     deleted_at = None
-    password_hash = "$2b$12$placeholder"  # will be mocked
+    password_hash = "$2b$12$fnEsFUu4644SOYPYVgIfrOPwnMCIdfxBB8WCaIJq7FAXrtaJgZZjW"  # bcrypt hash of "changeme123"
 
 
 # ─── Login Tests ──────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ async def test_login_valid_credentials_returns_jwt():
     async def override_get_session():
         yield mock_session
 
-    with patch("app.core.security.verify_password", return_value=True):
+    with patch("app.api.v1.auth.verify_password", return_value=True):
         from app.db.session import get_session
         app.dependency_overrides[get_session] = override_get_session
         try:
