@@ -31,6 +31,7 @@ async def seed():
         admin = await _upsert_user(db, "admin@example.com", "Admin User", "ADMIN")
         await _upsert_user(db, "clerk@example.com", "AP Clerk", "AP_CLERK")
         await _upsert_user(db, "analyst@example.com", "AP Analyst", "AP_ANALYST")
+        await _upsert_user(db, "approver@example.com", "Finance Approver", "APPROVER")
         await db.commit()
 
         # ── Vendor ──
@@ -83,6 +84,7 @@ async def seed():
         print("  admin@example.com / changeme123 (ADMIN)")
         print("  clerk@example.com / changeme123 (AP_CLERK)")
         print("  analyst@example.com / changeme123 (AP_ANALYST)")
+        print("  approver@example.com / changeme123 (APPROVER)")
         print(f"  Vendor: Acme Corp (id={vendor.id})")
         print(f"  PO: {po1.po_number} (total=$4,800.00)")
         print(f"  PO: {po2.po_number} (total=$12,500.00)")
