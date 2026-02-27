@@ -37,7 +37,7 @@
   - [x] Sidebar navigation component
   - [x] Sidebar items by role: Dashboard · Invoices · Exceptions · Approvals · Vendors · Admin
   - [x] Top header: breadcrumb, user avatar, logout button
-  - [ ] Mobile: collapsible sidebar (hamburger)
+  - [x] Mobile: collapsible sidebar (hamburger)
   - [x] Role-aware nav: APPROVER sees only Invoices + Approvals; AP_CLERK sees Invoices only
 - [x] API client (`lib/api.ts`)
   - [x] Axios instance with `baseURL = process.env.NEXT_PUBLIC_API_URL`
