@@ -65,14 +65,33 @@ async def list_exceptions(
     total_result = await db.execute(count_stmt)
     total = total_result.scalar_one()
 
-    # Paginated results
+    # Correlated subquery: comment count per exception
+    comment_count_sq = (
+        select(func.count(ExceptionComment.id))
+        .where(ExceptionComment.exception_id == ExceptionRecord.id)
+        .correlate(ExceptionRecord)
+        .scalar_subquery()
+    )
+
+    # Paginated results with comment count
     offset = (page - 1) * page_size
-    stmt = stmt.order_by(ExceptionRecord.created_at.desc()).offset(offset).limit(page_size)
-    result = await db.execute(stmt)
-    exceptions = result.scalars().all()
+    paged_stmt = (
+        stmt
+        .add_columns(comment_count_sq.label("comment_count"))
+        .order_by(ExceptionRecord.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    rows = (await db.execute(paged_stmt)).all()
+
+    items = []
+    for exc, count in rows:
+        item = ExceptionListItem.model_validate(exc)
+        item.comment_count = count
+        items.append(item)
 
     return ExceptionListResponse(
-        items=[ExceptionListItem.model_validate(exc) for exc in exceptions],
+        items=items,
         total=total,
         page=page,
         page_size=page_size,

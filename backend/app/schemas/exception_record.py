@@ -17,6 +17,7 @@ class ExceptionListItem(BaseModel):
     assigned_to: uuid.UUID | None
     resolved_at: datetime | None
     created_at: datetime
+    comment_count: int = 0
 
 
 class InvoiceSummary(BaseModel):
