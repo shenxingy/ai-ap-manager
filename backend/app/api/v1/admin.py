@@ -1,8 +1,9 @@
 """Admin user management and exception routing endpoints."""
 import uuid
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -232,3 +233,59 @@ async def update_exception_routing_rule(
     await db.commit()
     await db.refresh(rule)
     return ExceptionRoutingRuleOut.model_validate(rule)
+
+
+# ─── Email Ingestion ───
+
+
+class EmailIngestionStatus(BaseModel):
+    last_polled_at: Optional[str]
+    total_ingested: int
+    configured: bool
+
+
+@router.get(
+    "/email-ingestion/status",
+    response_model=EmailIngestionStatus,
+    summary="Get email ingestion status (ADMIN only)",
+    dependencies=[Depends(require_role("ADMIN"))],
+)
+async def email_ingestion_status(
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Return email ingestion configuration status and total invoices ingested via email."""
+    from app.core.config import settings
+    from app.models.invoice import Invoice
+
+    # Count invoices ingested via email
+    count_result = await db.execute(
+        select(func.count()).select_from(Invoice).where(
+            Invoice.source == "email",
+            Invoice.deleted_at.is_(None),
+        )
+    )
+    total_ingested = count_result.scalar_one()
+
+    email_host = getattr(settings, "EMAIL_HOST", None)
+    email_user = getattr(settings, "EMAIL_USER", None)
+    email_password = getattr(settings, "EMAIL_PASSWORD", None)
+    configured = bool(email_host and email_user and email_password)
+
+    return EmailIngestionStatus(
+        last_polled_at=None,  # not persisted; Celery beat handles scheduling
+        total_ingested=total_ingested,
+        configured=configured,
+    )
+
+
+@router.post(
+    "/email-ingestion/trigger",
+    summary="Manually trigger email ingestion poll (ADMIN only)",
+    dependencies=[Depends(require_role("ADMIN"))],
+)
+async def trigger_email_ingestion():
+    """Enqueue a one-off poll_ap_mailbox Celery task."""
+    from app.workers.email_ingestion import poll_ap_mailbox
+
+    poll_ap_mailbox.delay()
+    return {"status": "triggered"}
