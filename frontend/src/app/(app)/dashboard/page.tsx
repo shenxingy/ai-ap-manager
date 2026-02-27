@@ -30,6 +30,11 @@ interface KpiSummary {
   total_exceptions: number;
 }
 
+interface SlaSummary {
+  approaching_count: number;
+  overdue_count: number;
+}
+
 interface KpiTrendPoint {
   date: string;
   touchless_rate: number;
@@ -116,6 +121,12 @@ export default function DashboardPage() {
     refetchInterval: 5 * 60 * 1000,
   });
 
+  const { data: slaSummary } = useQuery<SlaSummary>({
+    queryKey: ["kpi-sla-summary"],
+    queryFn: () => api.get("/kpi/sla-summary").then((r) => r.data),
+    refetchInterval: 5 * 60 * 1000,
+  });
+
   const isLoading = summaryLoading || summaryFetching || trendsLoading || trendsFetching;
   const isEmpty = !isLoading && (summary?.total_received ?? 0) === 0;
 
@@ -167,9 +178,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Mini KPI Cards — Total Approved / Pending / Exceptions / Fraud */}
+      {/* Mini KPI Cards — Total Approved / Pending / Exceptions / Fraud / SLA */}
       {!isLoading && summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard title="Total Approved" value={summary.total_approved.toLocaleString()} />
           <KpiCard title="Total Pending" value={summary.total_pending.toLocaleString()} />
           <KpiCard title="Total Exceptions" value={summary.total_exceptions.toLocaleString()} />
@@ -179,10 +190,31 @@ export default function DashboardPage() {
             accentColor={openFraudCount > 0 ? "red" : undefined}
             href="/admin/fraud"
           />
+          <KpiCard
+            title="SLA Alerts"
+            value={
+              slaSummary
+                ? slaSummary.overdue_count > 0
+                  ? `${slaSummary.overdue_count} overdue`
+                  : slaSummary.approaching_count > 0
+                    ? `${slaSummary.approaching_count} due soon`
+                    : "On track"
+                : "—"
+            }
+            accentColor={
+              (slaSummary?.overdue_count ?? 0) > 0
+                ? "red"
+                : (slaSummary?.approaching_count ?? 0) > 0
+                  ? "orange"
+                  : undefined
+            }
+            href="/invoices?overdue=true"
+          />
         </div>
       )}
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
