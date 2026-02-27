@@ -55,6 +55,24 @@ Initial planning complete. Full documentation suite created covering:
 
 ---
 
+## [2026-02-27] Backend review and quality fixes
+
+**Result**: success
+
+**What was done**:
+- Reviewed all 22 backend Python files for bugs, type inconsistencies, and import issues
+- Fixed `User.deleted_at` column type: was `String` instead of `DateTime(timezone=True)` — inconsistent with all other soft-delete columns
+- Removed unused imports in `auth.py` (`timedelta`, `hash_password as get_password_hash`)
+- Added `broker_connection_retry_on_startup=True` to Celery config to eliminate CPendingDeprecationWarning in worker
+- Created missing `__init__.py` for `app/`, `app/core/`, `app/db/` packages
+- Added test scaffold: `tests/__init__.py`, `tests/test_health.py`, `tests/test_auth.py`
+
+**Lessons**:
+- When reviewing models for consistency, always check that all soft-delete columns use the same type. `User.deleted_at` used `String` while all other models correctly used `DateTime(timezone=True)`.
+- Celery 5+ emits `CPendingDeprecationWarning` unless `broker_connection_retry_on_startup=True` is explicitly set — add this to all new Celery configs.
+- Docker containers own their `__pycache__` directories; using `python3 -m py_compile` from host will fail with PermissionError on cache write — use `ast.parse()` instead for host-side syntax validation.
+- The test scaffold uses `httpx.AsyncClient` with `ASGITransport` for in-process ASGI testing, and mocks `get_session` via `app.dependency_overrides` to avoid needing a real database.
+
 <!-- Future entries go here, newest first -->
 <!-- Format:
 ## [YYYY-MM-DD] Task: <what was done>
