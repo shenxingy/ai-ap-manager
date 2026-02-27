@@ -46,7 +46,7 @@
   - [ ] Global error handler: toast notification for 4xx/5xx
 - [x] React Query setup (`lib/query-client.ts`)
   - [x] `QueryClientProvider` at root
-  - [ ] Default staleTime 30s, retry 2
+  - [x] Default staleTime 30s, retry 2
 - [x] Auth store (`lib/stores/auth-store.ts`)
   - [x] Zustand slice: `user`, `accessToken`, `isAuthenticated`, `login()`, `logout()`, `refresh()`
   - [x] Persist token in `localStorage` (clear on logout)
@@ -265,12 +265,12 @@
   - [x] Exception Rate (large %, color red if >20%)
   - [x] Avg Cycle Time (hours → formatted as "2d 4h")
   - [x] Total Invoices Received (count, this period)
-  - [ ] Total Approved / Pending / Exceptions (3 mini cards)
+  - [x] Total Approved / Pending / Exceptions (3 mini cards)
 - [x] Period selector: "Last 7 days / 30 days / 90 days" (updates ?days= param)
 - [x] Trend chart (recharts LineChart) — scaffolded:
   - [x] X-axis: date, Y-axis: invoice count
   - [x] Three lines: Received (blue) · Approved (green) · Exceptions (red)
-  - [ ] Toggle: daily / weekly
+  - [x] Toggle: daily / weekly
   - [x] Tooltip on hover showing exact counts
 - [x] Auto-refresh every 5 minutes (`refetchInterval: 300000`)
 - [x] Loading skeleton while fetching

@@ -63,6 +63,7 @@ function SkeletonCard() {
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState("30");
+  const [granularity, setGranularity] = useState<"daily" | "weekly">("daily");
 
   const { data: summary, isLoading: summaryLoading, isFetching: summaryFetching } = useQuery<KpiSummary>({
     queryKey: ["kpi-summary", period],
@@ -71,8 +72,8 @@ export default function DashboardPage() {
   });
 
   const { data: trends = [], isLoading: trendsLoading, isFetching: trendsFetching } = useQuery<KpiTrendPoint[]>({
-    queryKey: ["kpi-trends", period],
-    queryFn: () => api.get(`/kpi/trends?period_days=${period}`).then((r) => r.data),
+    queryKey: ["kpi-trends", period, granularity],
+    queryFn: () => api.get(`/kpi/trends?period_days=${period}&granularity=${granularity}`).then((r) => r.data),
     refetchInterval: 5 * 60 * 1000,
   });
 
@@ -155,8 +156,30 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Trends</CardTitle>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setGranularity("daily")}
+                className={`px-3 py-1 text-sm font-medium rounded ${
+                  granularity === "daily"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                Daily
+              </button>
+              <button
+                onClick={() => setGranularity("weekly")}
+                className={`px-3 py-1 text-sm font-medium rounded ${
+                  granularity === "weekly"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                Weekly
+              </button>
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={320}>
