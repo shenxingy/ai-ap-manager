@@ -17,6 +17,8 @@ from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult
 from app.models.user import User
 from app.schemas.invoice import (
     AuditLogOut,
+    GLBulkUpdate,
+    GLBulkUpdateResponse,
     InvoiceDetail,
     InvoiceListItem,
     InvoiceListResponse,
@@ -458,6 +460,68 @@ async def update_gl_coding(
         cost_center=body.cost_center,
         status=status_str,
     )
+
+
+# ─── Bulk GL coding endpoint ───
+
+@router.put(
+    "/{invoice_id}/lines/gl-bulk",
+    response_model=GLBulkUpdateResponse,
+    summary="Bulk-update GL account coding for multiple invoice line items",
+)
+async def bulk_update_gl_coding(
+    invoice_id: uuid.UUID,
+    body: GLBulkUpdate,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
+):
+    """Update GL account coding for multiple line items in one request."""
+    # Verify invoice exists
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    updated = 0
+    errors = 0
+
+    for item in body.lines:
+        stmt = select(InvoiceLineItem).where(
+            InvoiceLineItem.id == item.line_id,
+            InvoiceLineItem.invoice_id == invoice_id,
+        )
+        line_item = (await db.execute(stmt)).scalar_one_or_none()
+        if line_item is None:
+            errors += 1
+            continue
+
+        is_confirmed = line_item.gl_account_suggested and line_item.gl_account_suggested == item.gl_account
+        status_str = "confirmed" if is_confirmed else "overridden"
+
+        old_gl_account = line_item.gl_account
+        old_cost_center = line_item.cost_center
+
+        line_item.gl_account = item.gl_account
+        if item.cost_center is not None:
+            line_item.cost_center = item.cost_center
+
+        db.add(line_item)
+
+        audit_svc.log(
+            db,
+            action="gl_coding_" + status_str,
+            entity_type="invoice_line_item",
+            entity_id=item.line_id,
+            actor_id=current_user.id,
+            actor_email=current_user.email,
+            before={"gl_account": old_gl_account, "cost_center": old_cost_center},
+            after={"gl_account": item.gl_account, "cost_center": item.cost_center},
+        )
+        updated += 1
+
+    await db.commit()
+
+    return GLBulkUpdateResponse(updated=updated, errors=errors)
 
 
 # ─── Status override endpoint ───
