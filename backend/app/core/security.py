@@ -45,6 +45,16 @@ def create_refresh_token(subject: str) -> str:
     )
 
 
+def create_vendor_access_token(vendor_id: str) -> str:
+    """Create a vendor portal JWT (type: vendor_portal). Expires in 30 days."""
+    expire = datetime.now(timezone.utc) + timedelta(days=30)
+    return jwt.encode(
+        {"vendor_id": vendor_id, "type": "vendor_portal", "exp": expire},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+
 def decode_token(token: str) -> dict:
     """Raises JWTError on invalid/expired token."""
     return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
