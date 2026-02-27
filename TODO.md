@@ -94,7 +94,7 @@
   - [x] Validate field_name is one of the allowed correctable fields
   - [x] Update invoice / invoice_line_item fields
   - [x] Log to audit_logs: action="field_corrected", before/after snapshot
-  - [ ] If invoice.status == "exception" (extraction failed), auto-trigger re-match
+  - [x] If invoice.status == "exception" (extraction failed), auto-trigger re-match
 - [x] Invoice status state machine — validation + PATCH override
   - [x] Enforce valid transitions: ingested→extracting→extracted→matching→matched/exception→approved/rejected
   - [x] `PATCH /api/v1/invoices/{id}/status` — ADMIN-only forced status override (audited)
@@ -282,10 +282,10 @@
 
 #### Backend
 - [x] GET `/api/v1/invoices/{id}/audit` — full history replay
-- [ ] Audit log immutability enforcement
-  - [ ] Alembic migration: create restricted DB role `ap_app` with no UPDATE/DELETE on audit_logs
-  - [ ] `GRANT SELECT, INSERT ON audit_logs TO ap_app`
-  - [ ] `REVOKE UPDATE, DELETE ON audit_logs FROM ap_app`
+- [x] Audit log immutability enforcement
+  - [x] Alembic migration: REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC; GRANT SELECT, INSERT
+  - [x] `GRANT SELECT, INSERT ON audit_logs TO PUBLIC`
+  - [x] `REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC`
   - [ ] Document in CLAUDE.md
 - [ ] Verify ALL state transitions are audit-logged:
   - [x] invoice_uploaded (in upload handler)
@@ -340,9 +340,9 @@
 - [x] Wired into Celery `process_invoice` pipeline (after extraction, before match)
 - [x] GET `/api/v1/invoices/{id}/fraud-score` — returns score + risk_level
 - [x] Persist `fraud_triggered_signals` to invoices table (see Data Models section)
-- [ ] CRITICAL score (≥60) → dual-authorization enforcement
-  - [ ] Backend: `approval_required_count` field on ApprovalTask (default 1, 2 for CRITICAL)
-  - [ ] Approval service: only mark invoice approved when `approved_count >= required_count`
+- [x] CRITICAL score (≥60) → dual-authorization enforcement
+  - [x] Backend: `approval_required_count` field on ApprovalTask (default 1, 2 for CRITICAL)
+  - [x] Approval service: only mark invoice approved when `approved_count >= required_count`
   - [ ] Block approval button in frontend until second ADMIN approves
 
 #### Frontend — Fraud Badge

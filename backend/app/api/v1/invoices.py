@@ -386,6 +386,21 @@ async def correct_invoice_field(
 
     await db.commit()
 
+    # Auto-trigger re-match if invoice is stuck in exception state
+    if invoice.status == "exception":
+        try:
+            from app.workers.tasks import process_invoice  # noqa: PLC0415
+            process_invoice.apply_async(args=[str(invoice_id)])
+            logger.info(
+                "correct_invoice_field: re-queued process_invoice for exception invoice %s",
+                invoice_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "correct_invoice_field: failed to re-queue process_invoice for %s: %s",
+                invoice_id, exc,
+            )
+
     return FieldCorrectionResponse(
         invoice_id=invoice_id,
         field_name=body.field_name,
