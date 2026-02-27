@@ -107,8 +107,8 @@
 - [x] Filter bar: status multi-select · vendor search · date range picker
 - [x] Upload button → drag-and-drop modal — scaffolded
   - [x] File picker (PDF, JPEG, PNG, max 20MB)
-  - [ ] Upload progress indicator
-  - [ ] Success: show new invoice ID, redirect to detail
+  - [x] Upload progress indicator
+  - [x] Success: show new invoice ID, redirect to detail
   - [x] Error: file type / size validation before upload
 - [x] Pagination controls (page, page_size)
 - [x] Row click → navigate to `/invoices/{id}`

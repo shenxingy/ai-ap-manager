@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import api from "@/lib/api";
 
@@ -63,6 +63,7 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
 // ─── Upload Dialog ───
 
 function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -73,9 +74,12 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
     try {
       const form = new FormData();
       form.append("file", file);
-      await api.post("/invoices/upload", form);
+      const response = await api.post("/invoices/upload", form);
+      const invoiceId = response.data.invoice_id;
       setOpen(false);
       onSuccess();
+      // Redirect to the new invoice detail page
+      router.push(`/invoices/${invoiceId}`);
     } catch (err) {
       console.error("Upload failed", err);
     } finally {
@@ -103,15 +107,19 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
           <DialogTitle>Upload Invoice</DialogTitle>
         </DialogHeader>
         <div
-          className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
-            dragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+          className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors ${
+            uploading ? "border-gray-300 bg-gray-50 cursor-not-allowed" : dragging ? "border-blue-500 bg-blue-50 cursor-pointer" : "border-gray-300 hover:border-gray-400 cursor-pointer"
           }`}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragOver={(e) => { if (!uploading) { e.preventDefault(); setDragging(true); } }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}
+          onClick={() => !uploading && fileRef.current?.click()}
         >
-          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-3" />
+          {uploading ? (
+            <Loader2 className="h-8 w-8 mx-auto text-blue-500 mb-3 animate-spin" />
+          ) : (
+            <Upload className="h-8 w-8 mx-auto text-gray-400 mb-3" />
+          )}
           <p className="text-sm text-gray-600">
             {uploading ? "Uploading..." : "Drag & drop or click to select"}
           </p>
@@ -121,6 +129,7 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
             type="file"
             accept=".pdf,image/*"
             className="hidden"
+            disabled={uploading}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); }}
           />
         </div>
