@@ -37,6 +37,7 @@ interface Invoice {
   currency: string;
   created_at: string;
   is_recurring?: boolean;
+  is_duplicate?: boolean;
   confidence_score?: number | null;
   extracted_fields?: Record<string, ExtractedField>;
   extraction_results?: ExtractionResult[];
@@ -547,6 +548,9 @@ export default function InvoiceDetailPage() {
           </span>
           <Badge>{invoice.status}</Badge>
           <Badge variant="outline">{fraudBadge(invoice.fraud_score)}</Badge>
+          {invoice.is_duplicate && (
+            <Badge variant="destructive">Duplicate</Badge>
+          )}
         </div>
       </div>
 
@@ -561,6 +565,13 @@ export default function InvoiceDetailPage() {
       {invoice.is_recurring && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2 rounded text-sm">
           🔄 Recurring invoice detected — 1-click approval may be available
+        </div>
+      )}
+
+      {/* Duplicate Invoice Banner */}
+      {invoice.is_duplicate && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-2 rounded text-sm">
+          ⚠️ Duplicate invoice detected — this invoice matches an existing submission and requires review before approval.
         </div>
       )}
 
