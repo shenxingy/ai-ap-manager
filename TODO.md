@@ -716,8 +716,8 @@
 
 #### Frontend
 - [x] Admin → Exception Routing page (`/admin/exception-routing`) — CRUD UI for routing rules
-  - [ ] Table: exception_code → assigned_role
-  - [ ] Edit mapping dropdowns
+  - [x] Table: exception_code → assigned_role
+  - [x] Edit mapping dropdowns
   - [ ] Priority ordering (drag to reorder)
 
 ---
