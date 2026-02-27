@@ -194,6 +194,25 @@ async def get_invoice(
     return InvoiceDetail.model_validate(invoice)
 
 
+# ─── GL suggestions endpoint ───
+
+@router.get(
+    "/{invoice_id}/gl-suggestions",
+    summary="Get GL account coding suggestions for invoice lines",
+)
+async def get_gl_suggestions(
+    invoice_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN"))],
+):
+    from app.services.gl_coding import suggest_gl_codes
+    from app.schemas.gl_coding import GLLineSuggestion, GLSuggestionResponse
+
+    raw = await suggest_gl_codes(db, invoice_id)
+    suggestions = [GLLineSuggestion(**item) for item in raw]
+    return GLSuggestionResponse(invoice_id=invoice_id, suggestions=suggestions)
+
+
 # ─── Audit history endpoint ───
 
 @router.get(
