@@ -18,12 +18,22 @@ interface ApprovalTask {
   invoice_id: string;
   invoice_number: string | null;
   vendor_name: string | null;
+  vendor_name_raw: string | null;
   total_amount: number | null;
   status: string;
   assigned_at: string;
+  created_at: string;
+  decided_at: string | null;
+  notes: string | null;
+}
+
+interface ApprovalListResponse {
+  items: ApprovalTask[];
+  total: number;
 }
 
 type DecisionType = "approve" | "reject";
+type TabType = "pending" | "past";
 
 // ─── Decision Modal ───
 
@@ -79,7 +89,7 @@ function DecisionModal({
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-3 text-sm">
               <p className="font-medium">Invoice {task.invoice_number || task.invoice_id.slice(0, 8)}</p>
-              <p className="text-gray-500">{task.vendor_name}</p>
+              <p className="text-gray-500">{task.vendor_name_raw || task.vendor_name}</p>
               {task.total_amount && (
                 <p className="text-gray-700 mt-1">
                   ${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -117,17 +127,93 @@ function DecisionModal({
   );
 }
 
+// ─── Past Decisions Table ───
+
+function PastDecisionsTable({ tasks }: { tasks: ApprovalTask[] }) {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invoice</TableHead>
+              <TableHead>Vendor</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Decision</TableHead>
+              <TableHead>Decided At</TableHead>
+              <TableHead>Notes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                  No past decisions yet.
+                </TableCell>
+              </TableRow>
+            )}
+            {tasks.map((task) => (
+              <TableRow key={task.id}>
+                <TableCell>
+                  <Link
+                    href={`/invoices/${task.invoice_id}`}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    {task.invoice_number || task.invoice_id.slice(0, 8)}
+                  </Link>
+                </TableCell>
+                <TableCell>{task.vendor_name_raw || task.vendor_name || "—"}</TableCell>
+                <TableCell className="text-right">
+                  {task.total_amount != null
+                    ? `$${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={task.status === "approved" ? "default" : "destructive"}
+                    className={task.status === "approved" ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
+                  >
+                    {task.status === "approved" ? "Approved" : "Rejected"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-gray-500">
+                  {task.decided_at
+                    ? format(new Date(task.decided_at), "MMM d, yyyy")
+                    : "—"}
+                </TableCell>
+                <TableCell className="text-sm text-gray-500 max-w-xs truncate">
+                  {task.notes || "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Page ───
 
 export default function ApprovalsPage() {
+  const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [selectedTask, setSelectedTask] = useState<ApprovalTask | null>(null);
   const [decision, setDecision] = useState<DecisionType | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const { data: tasks = [] } = useQuery<ApprovalTask[]>({
-    queryKey: ["approvals"],
+  const { data: pendingData } = useQuery<ApprovalListResponse>({
+    queryKey: ["approvals", "pending"],
     queryFn: () => api.get("/approvals").then((r) => r.data),
   });
+
+  const { data: resolvedData } = useQuery<ApprovalListResponse>({
+    queryKey: ["approvals", "resolved"],
+    queryFn: () => api.get("/approvals?include_resolved=true").then((r) => r.data),
+    enabled: activeTab === "past",
+  });
+
+  const tasks = pendingData?.items ?? [];
+  const resolvedTasks = resolvedData?.items ?? [];
 
   const openDecision = (task: ApprovalTask, d: DecisionType) => {
     setSelectedTask(task);
@@ -146,74 +232,109 @@ export default function ApprovalsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Pending Approvals</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Approvals</h2>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Assigned At</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.length === 0 && (
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "pending"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("pending")}
+        >
+          Pending
+          {tasks.length > 0 && (
+            <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              {tasks.length}
+            </span>
+          )}
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "past"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("past")}
+        >
+          Past Decisions
+        </button>
+      </div>
+
+      {/* Pending Tab */}
+      {activeTab === "pending" && (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                    No pending approvals.
-                  </TableCell>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned At</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              )}
-              {tasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell>
-                    <Link
-                      href={`/invoices/${task.invoice_id}`}
-                      className="text-blue-600 hover:underline font-medium"
-                    >
-                      {task.invoice_number || task.invoice_id.slice(0, 8)}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{task.vendor_name || "—"}</TableCell>
-                  <TableCell className="text-right">
-                    {task.total_amount != null
-                      ? `$${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{task.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {format(new Date(task.assigned_at), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => openDecision(task, "approve")}
+              </TableHeader>
+              <TableBody>
+                {tasks.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                      No pending approvals.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {tasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell>
+                      <Link
+                        href={`/invoices/${task.invoice_id}`}
+                        className="text-blue-600 hover:underline font-medium"
                       >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => openDecision(task, "reject")}
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        {task.invoice_number || task.invoice_id.slice(0, 8)}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{task.vendor_name_raw || task.vendor_name || "—"}</TableCell>
+                    <TableCell className="text-right">
+                      {task.total_amount != null
+                        ? `$${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{task.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-500">
+                      {format(new Date(task.created_at || task.assigned_at), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => openDecision(task, "approve")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openDecision(task, "reject")}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Past Decisions Tab */}
+      {activeTab === "past" && <PastDecisionsTable tasks={resolvedTasks} />}
 
       <DecisionModal task={selectedTask} decision={decision} onClose={closeModal} onSuccess={showSuccess} />
 

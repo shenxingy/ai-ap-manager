@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InboxIcon } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -23,6 +24,9 @@ interface KpiSummary {
   exception_rate: number;
   avg_cycle_time_hours: number;
   total_received: number;
+  total_approved: number;
+  total_pending: number;
+  total_exceptions: number;
 }
 
 interface KpiTrendPoint {
@@ -49,22 +53,31 @@ function KpiCard({ title, value, unit }: { title: string; value: number | string
   );
 }
 
+// ─── Skeleton Card ───
+
+function SkeletonCard() {
+  return <div className="animate-pulse bg-gray-200 rounded h-20 w-full" />;
+}
+
 // ─── Page ───
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState("30");
 
-  const { data: summary } = useQuery<KpiSummary>({
+  const { data: summary, isLoading: summaryLoading, isFetching: summaryFetching } = useQuery<KpiSummary>({
     queryKey: ["kpi-summary", period],
     queryFn: () => api.get(`/kpi/summary?period_days=${period}`).then((r) => r.data),
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const { data: trends = [] } = useQuery<KpiTrendPoint[]>({
+  const { data: trends = [], isLoading: trendsLoading, isFetching: trendsFetching } = useQuery<KpiTrendPoint[]>({
     queryKey: ["kpi-trends", period],
     queryFn: () => api.get(`/kpi/trends?period_days=${period}`).then((r) => r.data),
     refetchInterval: 5 * 60 * 1000,
   });
+
+  const isLoading = summaryLoading || summaryFetching || trendsLoading || trendsFetching;
+  const isEmpty = !isLoading && (summary?.total_received ?? 0) === 0;
 
   return (
     <div className="space-y-6">
@@ -82,62 +95,98 @@ export default function DashboardPage() {
         </Select>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Touchless Rate"
-          value={summary ? `${(summary.touchless_rate * 100).toFixed(1)}` : "—"}
-          unit="%"
-        />
-        <KpiCard
-          title="Exception Rate"
-          value={summary ? `${(summary.exception_rate * 100).toFixed(1)}` : "—"}
-          unit="%"
-        />
-        <KpiCard
-          title="Avg Cycle Time"
-          value={summary ? `${summary.avg_cycle_time_hours.toFixed(1)}` : "—"}
-          unit="hrs"
-        />
-        <KpiCard
-          title="Total Received"
-          value={summary ? summary.total_received.toLocaleString() : "—"}
-        />
-      </div>
+      {/* KPI Cards — skeleton while loading */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            title="Touchless Rate"
+            value={summary ? `${(summary.touchless_rate * 100).toFixed(1)}` : "—"}
+            unit="%"
+          />
+          <KpiCard
+            title="Exception Rate"
+            value={summary ? `${(summary.exception_rate * 100).toFixed(1)}` : "—"}
+            unit="%"
+          />
+          <KpiCard
+            title="Avg Cycle Time"
+            value={summary ? `${summary.avg_cycle_time_hours.toFixed(1)}` : "—"}
+            unit="hrs"
+          />
+          <KpiCard
+            title="Total Received"
+            value={summary ? summary.total_received.toLocaleString() : "—"}
+          />
+        </div>
+      )}
 
-      {/* Trends Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Trends</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={trends} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v: number | undefined) => v != null ? `${(v * 100).toFixed(1)}%` : "—"} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="touchless_rate"
-                name="Touchless Rate"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="exception_rate"
-                name="Exception Rate"
-                stroke="#ef4444"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Mini KPI Cards — Total Approved / Pending / Exceptions */}
+      {!isLoading && summary && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <KpiCard title="Total Approved" value={summary.total_approved.toLocaleString()} />
+          <KpiCard title="Total Pending" value={summary.total_pending.toLocaleString()} />
+          <KpiCard title="Total Exceptions" value={summary.total_exceptions.toLocaleString()} />
+        </div>
+      )}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      )}
+
+      {/* Trends Chart — skeleton while loading, empty state if no data */}
+      {isLoading ? (
+        <div className="animate-pulse bg-gray-200 rounded h-64 w-full" />
+      ) : isEmpty ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <InboxIcon className="h-12 w-12 mb-3" />
+            <p className="text-base">No invoice data for this period</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={trends} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v: number | undefined) => v != null ? `${(v * 100).toFixed(1)}%` : "—"} />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="touchless_rate"
+                  name="Touchless Rate"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="exception_rate"
+                  name="Exception Rate"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
