@@ -5,6 +5,7 @@ from app.models.goods_receipt import GoodsReceipt, GRLineItem
 from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult, RecurringInvoicePattern
 from app.models.matching import MatchResult, LineItemMatch
 from app.models.exception_record import ExceptionRecord, ExceptionComment
+from app.models.exception_routing import ExceptionRoutingRule
 from app.models.approval import ApprovalTask, ApprovalToken, VendorMessage
 from app.models.rule import Rule, RuleVersion
 from app.models.audit import AuditLog, AICallLog
@@ -17,6 +18,7 @@ __all__ = [
     "Invoice", "InvoiceLineItem", "ExtractionResult", "RecurringInvoicePattern",
     "MatchResult", "LineItemMatch",
     "ExceptionRecord", "ExceptionComment",
+    "ExceptionRoutingRule",
     "ApprovalTask", "ApprovalToken", "VendorMessage",
     "Rule", "RuleVersion",
     "AuditLog", "AICallLog",
