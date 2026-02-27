@@ -393,8 +393,8 @@
 - [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param (supports match_type=auto/2way/3way)
 
 #### Frontend
-- [-] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label — scaffolded, GRN data not yet wired
-- [ ] For 3-way: show GRN line reference in line match table
+- [x] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label — fully implemented with GRN summary, enriched line data, color-coding, and Re-run 3-Way Match button
+- [x] For 3-way: show GRN line reference in line match table
 - [ ] GRN_NOT_FOUND exception highlighted with "No GR found for this PO line" message
 
 ---
