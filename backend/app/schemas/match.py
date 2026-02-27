@@ -5,6 +5,21 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class GRLineOut(BaseModel):
+    id: uuid.UUID
+    line_number: int
+    description: str
+    qty_received: float
+    unit: str | None
+
+
+class GRNSummaryOut(BaseModel):
+    id: uuid.UUID
+    gr_number: str
+    received_at: datetime
+    lines: list[GRLineOut]
+
+
 class LineItemMatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -18,6 +33,14 @@ class LineItemMatchOut(BaseModel):
     price_variance: float | None
     price_variance_pct: float | None
     created_at: datetime
+
+    # Enriched fields (populated by endpoint)
+    description: str | None = None
+    invoice_amount: float | None = None
+    po_amount: float | None = None
+    qty_invoiced: float | None = None
+    qty_on_po: float | None = None
+    qty_received: float | None = None
 
 
 class MatchResultOut(BaseModel):
@@ -36,6 +59,11 @@ class MatchResultOut(BaseModel):
     notes: str | None
     created_at: datetime
     line_matches: list[LineItemMatchOut]
+
+    # Enriched fields (populated by endpoint)
+    po_number: str | None = None
+    gr_number: str | None = None
+    grn_data: GRNSummaryOut | None = None
 
 
 class MatchTriggerResponse(BaseModel):

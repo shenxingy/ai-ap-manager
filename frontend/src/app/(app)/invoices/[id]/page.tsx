@@ -45,22 +45,56 @@ interface LineItem {
   cost_center?: string | null;
 }
 
-interface MatchLine {
+interface GRLineOut {
   id: string;
+  line_number: number;
   description: string;
-  invoice_amount: number;
+  qty_received: number;
+  unit: string | null;
+}
+
+interface GRNSummaryOut {
+  id: string;
+  gr_number: string;
+  received_at: string;
+  lines: GRLineOut[];
+}
+
+interface LineItemMatchOut {
+  id: string;
+  match_result_id: string;
+  invoice_line_id: string;
+  po_line_id: string | null;
+  gr_line_id: string | null;
+  status: string; // matched, qty_variance, price_variance, unmatched
+  qty_variance: number | null;
+  price_variance: number | null;
+  price_variance_pct: number | null;
+  created_at: string;
+  // Enriched fields
+  description: string | null;
+  invoice_amount: number | null;
   po_amount: number | null;
-  variance_amount: number | null;
-  variance_pct: number | null;
-  status: string;
+  qty_invoiced: number | null;
+  qty_on_po: number | null;
+  qty_received: number | null;
 }
 
 interface MatchResult {
+  id: string;
+  match_type: string; // 2way, 3way, non_po
   match_status: string;
+  po_id: string | null;
+  gr_id: string | null;
+  amount_variance: number | null;
+  amount_variance_pct: number | null;
+  matched_at: string | null;
+  notes: string | null;
+  line_matches: LineItemMatchOut[];
+  // Enriched
   po_number: string | null;
   gr_number: string | null;
-  variance_pct: number | null;
-  lines?: MatchLine[];
+  grn_data: GRNSummaryOut | null;
 }
 
 interface ExceptionItem {
@@ -122,10 +156,33 @@ function fraudBadge(score: number | null): string {
 // ─── Match Row Color ───
 
 function matchLineClass(status: string): string {
-  if (status === "MATCHED") return "border-l-4 border-l-green-500 bg-green-50/50";
-  if (status === "WITHIN_TOLERANCE") return "border-l-4 border-l-yellow-400 bg-yellow-50/50";
-  if (status === "OUT_OF_TOLERANCE") return "border-l-4 border-l-red-500 bg-red-50/50";
+  if (status === "matched" || status === "MATCHED")
+    return "border-l-4 border-l-green-500 bg-green-50/50";
+  if (status === "qty_variance" || status === "price_variance" || status === "WITHIN_TOLERANCE")
+    return "border-l-4 border-l-yellow-400 bg-yellow-50/50";
+  if (status === "unmatched" || status === "OUT_OF_TOLERANCE")
+    return "border-l-4 border-l-red-500 bg-red-50/50";
   return "";
+}
+
+function matchStatusLabel(status: string): string {
+  if (status === "matched") return "Matched";
+  if (status === "qty_variance") return "Qty Variance";
+  if (status === "price_variance") return "Price Variance";
+  if (status === "unmatched") return "Unmatched";
+  return status;
+}
+
+function matchStatusClass(status: string): string {
+  if (status === "matched") return "text-green-600 font-medium text-xs";
+  if (status === "qty_variance" || status === "price_variance") return "text-yellow-600 font-medium text-xs";
+  return "text-red-600 font-medium text-xs";
+}
+
+function matchTypeBadge(matchType: string): { label: string; cls: string } {
+  if (matchType === "3way") return { label: "3-Way Match", cls: "bg-purple-100 text-purple-700 border border-purple-200" };
+  if (matchType === "2way") return { label: "2-Way Match", cls: "bg-blue-100 text-blue-700 border border-blue-200" };
+  return { label: "Non-PO", cls: "bg-gray-100 text-gray-600 border border-gray-200" };
 }
 
 // ─── Page ───
@@ -220,6 +277,20 @@ export default function InvoiceDetailPage() {
       showToast("Re-match triggered", "success");
     } catch {
       showToast("Failed to trigger re-match", "error");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function handleRerun3WayMatch() {
+    setLoadingAction("match3way");
+    try {
+      await api.post(`/invoices/${id}/match`, null, { params: { match_type: "3way" } });
+      await queryClient.invalidateQueries({ queryKey: ["invoice-match", id] });
+      await queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      showToast("3-Way match complete", "success");
+    } catch {
+      showToast("Failed to run 3-way match", "error");
     } finally {
       setLoadingAction(null);
     }
@@ -663,75 +734,164 @@ export default function InvoiceDetailPage() {
               {!match ? (
                 <p className="text-gray-400 text-sm">No match data available.</p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* Header row: match type badge + re-run button */}
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      {(() => {
+                        const { label, cls } = matchTypeBadge(match.match_type);
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
+                            {label}
+                          </span>
+                        );
+                      })()}
+                      <span
+                        className={
+                          match.match_status === "matched"
+                            ? "text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded"
+                            : match.match_status === "partial"
+                            ? "text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded"
+                            : "text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded"
+                        }
+                      >
+                        {match.match_status.toUpperCase()}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleRerun3WayMatch}
+                      disabled={loadingAction !== null}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loadingAction === "match3way" ? (
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span>⚡</span>
+                      )}
+                      Re-run 3-Way Match
+                    </button>
+                  </div>
+
+                  {/* Summary fields */}
                   <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                     {[
-                      ["Match Status", match.match_status],
                       ["PO Number", match.po_number || "—"],
-                      ["GR Number", match.gr_number || "—"],
+                      ["GR Number", match.gr_number || (match.match_type === "3way" ? "—" : null)],
                       [
-                        "Overall Variance",
-                        match.variance_pct != null
-                          ? `${(match.variance_pct * 100).toFixed(2)}%`
+                        "Matched At",
+                        match.matched_at ? format(new Date(match.matched_at), "MMM d, yyyy HH:mm") : "—",
+                      ],
+                      [
+                        "Amount Variance",
+                        match.amount_variance_pct != null
+                          ? `${(match.amount_variance_pct * 100).toFixed(2)}%`
                           : "—",
                       ],
-                    ].map(([label, value]) => (
-                      <div key={label}>
-                        <dt className="text-gray-500">{label}</dt>
-                        <dd className="font-medium mt-0.5">{value}</dd>
-                      </div>
-                    ))}
+                    ]
+                      .filter(([, v]) => v !== null)
+                      .map(([label, value]) => (
+                        <div key={label as string}>
+                          <dt className="text-gray-500">{label}</dt>
+                          <dd className="font-medium mt-0.5">{value}</dd>
+                        </div>
+                      ))}
                   </dl>
 
-                  {match.lines && match.lines.length > 0 && (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Description</TableHead>
-                          <TableHead className="text-right">Invoice Amt</TableHead>
-                          <TableHead className="text-right">PO Amt</TableHead>
-                          <TableHead className="text-right">Variance $</TableHead>
-                          <TableHead className="text-right">Variance %</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {match.lines.map((line) => (
-                          <TableRow key={line.id} className={matchLineClass(line.status)}>
-                            <TableCell>{line.description}</TableCell>
-                            <TableCell className="text-right">
-                              ${line.invoice_amount?.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {line.po_amount != null ? `$${line.po_amount.toFixed(2)}` : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {line.variance_amount != null
-                                ? `$${line.variance_amount.toFixed(2)}`
-                                : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {line.variance_pct != null
-                                ? `${(line.variance_pct * 100).toFixed(2)}%`
-                                : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <span
-                                className={
-                                  line.status === "MATCHED"
-                                    ? "text-green-600 font-medium text-xs"
-                                    : line.status === "WITHIN_TOLERANCE"
-                                    ? "text-yellow-600 font-medium text-xs"
-                                    : "text-red-600 font-medium text-xs"
-                                }
-                              >
-                                {line.status}
-                              </span>
-                            </TableCell>
+                  {/* GRN Summary (3-way only) */}
+                  {match.match_type === "3way" && match.grn_data && (
+                    <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-sm font-semibold text-purple-800">GRN Summary</span>
+                        <span className="text-xs text-purple-600 font-mono">{match.grn_data.gr_number}</span>
+                        <span className="text-xs text-gray-500">
+                          Received {format(new Date(match.grn_data.received_at), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Line#</TableHead>
+                            <TableHead className="text-xs">Description</TableHead>
+                            <TableHead className="text-right text-xs">Qty Received</TableHead>
+                            <TableHead className="text-xs">Unit</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {match.grn_data.lines.map((line) => (
+                            <TableRow key={line.id}>
+                              <TableCell className="text-xs text-gray-500">{line.line_number}</TableCell>
+                              <TableCell className="text-sm">{line.description}</TableCell>
+                              <TableCell className="text-right text-sm font-medium">{line.qty_received}</TableCell>
+                              <TableCell className="text-xs text-gray-500">{line.unit || "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {/* Line Matches */}
+                  {match.line_matches && match.line_matches.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Line Match Detail</p>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="text-right">Invoice Amt</TableHead>
+                            <TableHead className="text-right">PO Amt</TableHead>
+                            {match.match_type === "3way" && (
+                              <>
+                                <TableHead className="text-right">Qty Inv</TableHead>
+                                <TableHead className="text-right">Qty PO</TableHead>
+                                <TableHead className="text-right">Qty Recv</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-right">Price Var %</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {match.line_matches.map((line) => (
+                            <TableRow key={line.id} className={matchLineClass(line.status)}>
+                              <TableCell>{line.description || "—"}</TableCell>
+                              <TableCell className="text-right">
+                                {line.invoice_amount != null ? `$${line.invoice_amount.toFixed(2)}` : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {line.po_amount != null ? `$${line.po_amount.toFixed(2)}` : "—"}
+                              </TableCell>
+                              {match.match_type === "3way" && (
+                                <>
+                                  <TableCell className="text-right">
+                                    {line.qty_invoiced != null ? line.qty_invoiced : "—"}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {line.qty_on_po != null ? line.qty_on_po : "—"}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {line.qty_received != null ? line.qty_received : "—"}
+                                  </TableCell>
+                                </>
+                              )}
+                              <TableCell className="text-right">
+                                {line.price_variance_pct != null
+                                  ? `${(line.price_variance_pct * 100).toFixed(2)}%`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <span className={matchStatusClass(line.status)}>
+                                  {matchStatusLabel(line.status)}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                  {(!match.line_matches || match.line_matches.length === 0) && (
+                    <p className="text-sm text-gray-400">No line-level match data available.</p>
                   )}
                 </div>
               )}
