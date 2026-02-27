@@ -4,11 +4,12 @@
 
 | Role | Description | Key Permissions |
 |------|-------------|-----------------|
-| **AP Clerk** | Front-line invoice processor | Upload invoices, view queue, add comments |
-| **AP Analyst** | Senior AP, handles exceptions | All Clerk perms + resolve exceptions, correct extractions, view audit |
-| **Approver** | Business owner or finance manager | Approve/reject assigned approval tasks |
-| **Admin** | System administrator | Manage users, roles, approval matrix, tolerance rules, master data |
-| **Auditor** | Compliance / internal audit | Read-only access to all data, full audit trail, export |
+| **AP Clerk** | Front-line invoice processor | Upload invoices, view queue, add comments, message vendors |
+| **AP Analyst** | Senior AP, handles exceptions | All Clerk perms + resolve exceptions, correct extractions, view audit, GL coding review |
+| **Approver** | Business owner or finance manager | Approve/reject via in-app OR email link (no login required) |
+| **Admin** | System administrator | Manage users, roles, approval matrix, tolerance rules, GL coding rules, master data, vendor compliance docs |
+| **Auditor** | Compliance / internal audit | Read-only access to all data, full audit trail, vendor messages, export |
+| **Vendor** | Supplier (external) | Submit invoices via portal, view invoice status, reply to AP messages, upload compliance docs (W-9 etc.) |
 
 ---
 
@@ -146,6 +147,64 @@
 - Previously matched invoices are NOT retroactively re-evaluated
 - Expected: rule version tracked per match result, clear audit
 
+**S-18: Email-based approval (no login required)**
+- Invoice routes to VP for approval, $80,000 amount
+- VP receives email notification with invoice summary + line items
+- Email contains signed "Approve" and "Reject" buttons (token-based, 48h expiry)
+- VP clicks Approve from mobile email client
+- System validates token, records approval with timestamp and device info
+- Invoice proceeds to next level
+- Expected: Approver never opens the web app; full audit trail preserved
+
+**S-19: GL smart coding suggestion on non-PO invoice**
+- Vendor submits monthly software subscription invoice (no PO)
+- No PO to match against; system switches to "coding mode"
+- SmartCoding ML looks at: vendor name, line description, invoice history for this vendor
+- Suggests: GL 6210 (Software Subscriptions), Cost Center CC-IT-001, approval route: IT Manager
+- AP Analyst sees suggestions pre-filled with confidence %, reviews and confirms in one click
+- Invoice routed to IT Manager for approval
+- Expected: Non-PO invoice processed touchless after analyst one-click confirmation
+
+**S-20: Vendor communication on price dispute (Stampli-style)**
+- Price mismatch exception created ($12.50 vs PO $10.00)
+- AP Analyst types message directly on the invoice page: "Hi Acme, PO #5500 shows $10.00 unit price. Can you clarify?"
+- System sends message to vendor contact email + shows in vendor portal
+- Vendor logs into portal, replies: "Rate increase per Q1 amendment, see attached signed amendment"
+- Vendor attaches signed amendment PDF in portal
+- All messages + attachment stored in `vendor_messages`, linked to invoice
+- AP Analyst sees full thread in invoice "Communications" tab
+- Analyst resolves exception with note: "Vendor confirmed per attachment"
+- Expected: Zero emails outside the system; full vendor communication audit trail
+
+**S-21: Recurring invoice auto-detection and fast-track**
+- Monthly utility invoice from City Power Co. ($4,200 ±5%)
+- System detects pattern: same vendor, amounts within 10%, first week of each month for 6 months
+- Invoice tagged as "Recurring" in UI with badge
+- System skips full matching and immediately routes to streamlined 1-click approval
+- AP Analyst sees "Recurring Invoice — amount within expected range" card
+- One-click confirmation → approved in < 2 minutes
+- Expected: Recurring invoices never sit in exception queue
+
+**S-22: Pre-payment fraud flag — vendor bank account change**
+- Vendor updates their bank account in the vendor portal
+- System detects: bank account changed 3 days before a pending $120,000 invoice payment
+- Fraud score elevated: HIGH RISK (behavioral pattern: account change + large invoice)
+- System auto-holds payment, creates FRAUD_RISK exception, alerts AP Manager + Admin
+- Exception requires dual authorization to clear (two ADMIN users must review)
+- AP Manager calls vendor directly to verify change, confirms legitimate
+- Dual-authorized to clear hold; audit records both authorizing users
+- Expected: No payment leaves without explicit fraud clearance on high-risk changes
+
+**S-23: Dual-extraction discrepancy flagged for review**
+- Invoice uploaded, OCR extracts raw text
+- Model A extracts: total = $15,420.00, invoice_date = 2026-02-20
+- Model B extracts: total = $15,402.00, invoice_date = 2026-02-02
+- System detects: total differs by $18, date differs significantly
+- Both discrepant fields highlighted in red in the analyst review UI
+- AP Analyst manually verifies against the PDF — correct values are $15,420 and Feb 20
+- Analyst confirms correct values; system uses confirmed values for matching
+- Expected: Silent extraction errors caught before they reach the match engine
+
 **S-17: Auditor exports full audit trail**
 - Auditor requests full history for all invoices in Q4 2025
 - System exports: invoice details, extraction confidence, match results, exceptions, approvals, actor info, timestamps
@@ -157,30 +216,41 @@
 
 ### MVP (Must have for demo/pilot)
 - Invoice upload (manual only)
-- OCR + LLM extraction
+- Dual-extraction OCR (two model passes, field-level comparison for accuracy)
 - 2-way match with tolerance
 - Exception queue (view + comment + resolve)
-- Single-level approval
+- Single-level approval (in-app + email link approval)
+- GL smart coding suggestions on invoice lines (ML-based from history)
 - Basic KPI dashboard (touchless rate, exception rate, cycle time)
-- JWT auth with 5 roles
-- Audit trail (append-only)
+- JWT auth with 6 roles (including Vendor)
+- Audit trail (append-only, includes all vendor messages)
 - Seed data for demo
 
 ### V1 (Production-ready pilot)
 - 3-way match with partial receipts
-- Multi-level approval with matrix config
-- Email ingestion (monitored mailbox)
+- Multi-level approval with matrix config + out-of-office delegation
+- Email ingestion (monitored mailbox → auto-extract attachments)
 - CSV import (PO, GRN, vendors)
 - Policy/contract → rule extraction → review → publish
-- Duplicate detection
+- Duplicate detection (multi-signal)
 - Full RBAC enforcement
+- Vendor communication hub (AP↔vendor messaging on invoice, audit-logged)
+- Vendor portal (invoice status, message reply, compliance doc upload)
+- Vendor compliance doc tracking (W-9, W-8BEN status, auto-chase alerts)
+- Recurring invoice detection and fast-track processing
+- Fraud scoring (behavioral pattern analysis before payment)
+- Exception auto-routing by type (pricing → procurement, GRN → warehouse)
 - Vendor master data UI
 
 ### V2 (Intelligence layer)
 - Rule self-optimization from override history
 - Root cause analysis + narrative reports
+- Conversational AI query interface ("Ask AI: which invoices from Acme are overdue?")
 - ERP integration (SAP/Oracle)
-- Multi-currency
-- Vendor portal
+- Multi-currency + FX tolerance
+- Predictive cash flow forecasting (based on pending approvals + payment terms)
+- Industry benchmark comparison on KPI dashboard
+- Vendor invoice templating in portal (vendor drafts invoice from template)
 - SLA alerting + escalation
+- 4-way matching (adds inspection report layer)
 - Mobile approver view
