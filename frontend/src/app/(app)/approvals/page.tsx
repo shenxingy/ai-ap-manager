@@ -315,6 +315,8 @@ export default function ApprovalsPage() {
   const [selectedTask, setSelectedTask] = useState<ApprovalTask | null>(null);
   const [decision, setDecision] = useState<DecisionType | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   const { data: pendingData } = useQuery<ApprovalListResponse>({
     queryKey: ["approvals", "pending"],
@@ -329,6 +331,39 @@ export default function ApprovalsPage() {
 
   const tasks = pendingData?.items ?? [];
   const resolvedTasks = resolvedData?.items ?? [];
+
+  const allSelected = tasks.length > 0 && selectedIds.size === tasks.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(tasks.map((t) => t.id)));
+    }
+  };
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set<string>(Array.from(prev));
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkApprove = useMutation({
+    mutationFn: () =>
+      api.post("/approvals/bulk-approve", {
+        task_ids: Array.from(selectedIds),
+        comment: "Bulk approved",
+      }),
+    onSuccess: () => {
+      const count = selectedIds.size;
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      showSuccess(`${count} approval(s) submitted`);
+      setSelectedIds(new Set());
+    },
+    onError: () => showSuccess("Bulk approve failed. Please try again."),
+  });
 
   const openDecision = (task: ApprovalTask, d: DecisionType) => {
     setSelectedTask(task);
@@ -380,11 +415,38 @@ export default function ApprovalsPage() {
 
       {/* Pending Tab */}
       {activeTab === "pending" && (
-        <Card>
+        <>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <span className="text-sm font-medium text-blue-800">{selectedIds.size} selected</span>
+              <Button
+                size="sm"
+                onClick={() => bulkApprove.mutate()}
+                disabled={bulkApprove.isPending}
+              >
+                {bulkApprove.isPending ? "Approving…" : "Approve Selected"}
+              </Button>
+              <button
+                className="ml-auto text-xs text-blue-600 hover:text-blue-800"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Clear selection
+              </button>
+            </div>
+          )}
+          <Card>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                  </TableHead>
                   <TableHead>Invoice</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -396,13 +458,21 @@ export default function ApprovalsPage() {
               <TableBody>
                 {tasks.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                    <TableCell colSpan={7} className="text-center text-gray-400 py-8">
                       No pending approvals.
                     </TableCell>
                   </TableRow>
                 )}
                 {tasks.map((task) => (
                   <TableRow key={task.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(task.id)}
+                        onChange={() => toggleSelectId(task.id)}
+                        className="h-4 w-4 cursor-pointer"
+                      />
+                    </TableCell>
                     <TableCell>
                       <Link
                         href={`/invoices/${task.invoice_id}`}
@@ -457,6 +527,7 @@ export default function ApprovalsPage() {
             </Table>
           </CardContent>
         </Card>
+        </>
       )}
 
       {/* Past Decisions Tab */}
