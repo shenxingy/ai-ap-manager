@@ -25,11 +25,18 @@
 - [x] Run initial Alembic migration
 
 ### Invoice Ingestion & Extraction (MVP)
-- [ ] POST `/api/v1/invoices/upload` — PDF/image upload to MinIO
-- [ ] Celery task: OCR with Tesseract → raw text
-- [ ] **Dual-pass LLM extraction**: Pass A (structured prompt) + Pass B (document understanding prompt) → field-level comparator
-- [ ] Store extracted fields in `invoices` + `invoice_line_items`; flag mismatched fields
+- [x] POST `/api/v1/invoices/upload` — PDF/image upload to MinIO
+- [x] GET `/api/v1/invoices` — paginated list with filters (status, vendor_id, date_from, date_to)
+- [x] GET `/api/v1/invoices/{id}` — full invoice detail with line_items + extraction_results
+- [x] MinIO storage service (`app/services/storage.py`) — upload, download, presigned URL, bucket auto-create
+- [x] Audit service (`app/services/audit.py`) — log() helper for audit_logs table
+- [x] AI extractor module (`app/ai/extractor.py`) — dual-pass Claude extraction, compare, merge
+- [x] Invoice Pydantic schemas (`app/schemas/invoice.py`)
+- [x] Celery task: OCR with Tesseract → raw text
+- [x] **Dual-pass LLM extraction**: Pass A (structured prompt) + Pass B (document understanding prompt) → field-level comparator
+- [x] Store extracted fields in `invoices` + `invoice_line_items`; flag mismatched fields
 - [ ] Manual field correction UI: mismatched fields highlighted in amber, AP Analyst confirms correct value
+- [ ] Wire GET `/api/v1/invoices/{id}/audit` — full audit history for an invoice
 - [ ] Invoice status state machine: `received → extracting → extracted → matching → ...`
 
 ### 2-Way Match Engine (MVP)

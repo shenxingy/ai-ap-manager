@@ -73,6 +73,35 @@ Initial planning complete. Full documentation suite created covering:
 - Docker containers own their `__pycache__` directories; using `python3 -m py_compile` from host will fail with PermissionError on cache write — use `ast.parse()` instead for host-side syntax validation.
 - The test scaffold uses `httpx.AsyncClient` with `ASGITransport` for in-process ASGI testing, and mocks `get_session` via `app.dependency_overrides` to avoid needing a real database.
 
+## [2026-02-27] Invoice Ingestion & OCR Extraction Pipeline
+
+**Result**: success
+
+**What was done**:
+- Created `app/services/storage.py` — thin MinIO SDK wrapper (upload, download, presigned URL, delete, bucket auto-create on startup)
+- Created `app/services/audit.py` — sync `log()` helper that writes to `audit_logs`; uses `db.flush()` so caller controls commit
+- Created `app/ai/extractor.py` — dual-pass Claude extraction: `run_extraction_pass()`, `compare_passes()`, `merge_passes()`; all calls logged to `ai_call_logs`; invalid/missing API key caught gracefully (WARNING log, empty fields returned)
+- Created `app/schemas/invoice.py` — `InvoiceUploadResponse`, `InvoiceListItem`, `InvoiceDetail`, `InvoiceListResponse`, `InvoiceLineItemOut`, `ExtractionResultOut`
+- Created `app/api/v1/invoices.py` — `POST /upload` (multipart, 20MB limit, MIME validation), `GET /` (paginated, filtered), `GET /{id}` (with line_items + extraction_results eager-loaded)
+- Updated `app/api/v1/router.py` — wired invoice router
+- Updated `app/workers/tasks.py` — implemented full `process_invoice` Celery task: fetch invoice → MinIO download → OCR (pdf2image + pytesseract) → dual-pass LLM → store ExtractionResult records → update Invoice fields → set status extracted/exception → audit log
+- Updated `app/main.py` — `ensure_bucket()` called in lifespan startup
+
+**Verified end-to-end**:
+- `POST /api/v1/invoices/upload` → 201, invoice_id in response, DB record status=ingested
+- Celery worker picks up task, sets status=extracting, runs OCR + LLM, stores 2 ExtractionResult rows, sets status=exception (expected with placeholder API key)
+- `GET /api/v1/invoices` → paginated list
+- `GET /api/v1/invoices/{id}` → full detail with extraction_results
+- Swagger `/api/docs` includes all 3 invoice routes
+
+**Lessons**:
+- Celery workers don't hot-reload like uvicorn — must `docker-compose restart worker` after tasks.py changes
+- Celery tasks must use sync SQLAlchemy session (`DATABASE_URL_SYNC` + `create_engine`), not async — async sessions cannot be used in synchronous Celery workers
+- `audit_svc.log()` uses `db.flush()` not `db.commit()` — the caller controls transaction boundaries. This is the correct pattern to avoid partial commits mid-task.
+- For MinIO `put_object`, length must be computed before passing a stream — seek to end, get position, seek back to 0.
+- Worker subprocess inherits the Celery env; imports inside the task function (lazy imports) prevent import-time failures when optional packages (anthropic) are not yet available.
+- The `process_invoice` task correctly transitions to `exception` when both OCR text is empty AND both LLM passes fail — this is correct behavior for the placeholder API key scenario.
+
 <!-- Future entries go here, newest first -->
 <!-- Format:
 ## [YYYY-MM-DD] Task: <what was done>
