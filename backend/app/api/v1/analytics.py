@@ -4,7 +4,7 @@ import logging
 import statistics
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -15,6 +15,7 @@ from app.db.session import get_session
 from app.models.audit import AuditLog
 from app.models.exception_record import ExceptionRecord
 from app.models.invoice import Invoice
+from app.models.user import User
 from app.models.vendor import Vendor
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,8 @@ def _safe_utc(dt: datetime) -> datetime:
 
 @router.get("/process-mining", summary="Invoice process mining — step durations")
 async def get_process_mining(
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user: Any = Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR")),
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
 ) -> list[dict]:
     """Return median and p90 duration (hours) for each invoice processing step."""
     try:
@@ -127,8 +128,8 @@ async def get_process_mining(
 
 @router.get("/anomalies", summary="Vendor exception-rate anomaly detection")
 async def get_anomalies(
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user: Any = Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR")),
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
 ) -> list[dict]:
     """Return vendor-window combinations whose exception rate is > 2 std deviations from their mean."""
     try:

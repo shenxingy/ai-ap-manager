@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 from uuid import UUID
 
@@ -52,3 +53,28 @@ def require_role(*roles: str):
             )
         return user
     return check
+
+
+async def get_current_vendor_id(
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> uuid.UUID:
+    """Validate a vendor portal JWT and return the vendor_id.
+
+    Vendor tokens have type='vendor_portal' and a 'vendor_id' claim.
+    They are issued via POST /portal/auth/invite (ADMIN-only).
+    """
+    credentials_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate vendor credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = decode_token(token)
+        if payload.get("type") != "vendor_portal":
+            raise credentials_exc
+        vendor_id_str: str | None = payload.get("vendor_id")
+        if not vendor_id_str:
+            raise credentials_exc
+        return UUID(vendor_id_str)
+    except (JWTError, ValueError):
+        raise credentials_exc

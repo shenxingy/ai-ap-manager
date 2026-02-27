@@ -1,22 +1,30 @@
-"""Vendor portal endpoints (public, no auth required).
+"""Vendor portal endpoints.
 
 Endpoints:
-  POST /portal/invoices/{invoice_id}/reply  — vendor reply to an invoice inquiry
+  POST /portal/auth/invite              — ADMIN issues a vendor portal JWT
+  GET  /portal/invoices                 — vendor lists their own invoices
+  GET  /portal/invoices/{invoice_id}    — vendor views a single invoice (ownership-checked)
+  POST /portal/invoices/{invoice_id}/reply — vendor replies to an inquiry (HMAC token)
 """
 import hashlib
 import hmac
 import logging
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.deps import get_current_vendor_id, require_role
+from app.core.security import create_vendor_access_token
 from app.db.session import get_session
 from app.models.approval import VendorMessage
 from app.models.invoice import Invoice
+from app.models.vendor import Vendor
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +45,35 @@ class VendorReplyResponse(BaseModel):
 
     status: str
     message_id: uuid.UUID
+
+
+class VendorInviteRequest(BaseModel):
+    vendor_id: uuid.UUID
+
+
+class VendorInviteResponse(BaseModel):
+    token: str
+    vendor_id: uuid.UUID
+
+
+class VendorInvoiceItem(BaseModel):
+    """Minimal invoice view safe to expose to vendors."""
+
+    id: uuid.UUID
+    invoice_number: str | None
+    status: str
+    total_amount: float | None
+    currency: str | None
+    invoice_date: datetime | None
+    due_date: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VendorInvoiceListResponse(BaseModel):
+    items: list[VendorInvoiceItem]
+    total: int
 
 
 # ─── Token utilities ───
@@ -92,6 +129,87 @@ def verify_vendor_reply_token(raw_token: str) -> str | None:
 
 
 @router.post(
+    "/auth/invite",
+    response_model=VendorInviteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Issue a vendor portal JWT for a given vendor (ADMIN only)",
+)
+async def issue_vendor_invite(
+    body: VendorInviteRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    _current_user: Annotated[object, Depends(require_role("ADMIN"))],
+):
+    """Generate a 30-day vendor portal JWT bound to the given vendor_id.
+
+    The token is sent to the vendor (e.g. embedded in an email link).
+    Only ADMIN can issue vendor portal tokens.
+    """
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == body.vendor_id, Vendor.deleted_at.is_(None))
+    )
+    vendor = result.scalar_one_or_none()
+    if vendor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found.")
+
+    token = create_vendor_access_token(str(body.vendor_id))
+    return VendorInviteResponse(token=token, vendor_id=body.vendor_id)
+
+
+@router.get(
+    "/invoices",
+    response_model=VendorInvoiceListResponse,
+    summary="List invoices belonging to the authenticated vendor",
+)
+async def list_vendor_invoices(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    vendor_id: Annotated[uuid.UUID, Depends(get_current_vendor_id)],
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Return only invoices where vendor_id matches the token claim."""
+    base = (
+        select(Invoice)
+        .where(Invoice.vendor_id == vendor_id, Invoice.deleted_at.is_(None))
+    )
+
+    total = await db.scalar(
+        select(func.count()).select_from(
+            base.subquery()
+        )
+    ) or 0
+
+    stmt = base.order_by(Invoice.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    items = [VendorInvoiceItem.model_validate(row) for row in result.scalars().all()]
+
+    return VendorInvoiceListResponse(items=items, total=total)
+
+
+@router.get(
+    "/invoices/{invoice_id}",
+    response_model=VendorInvoiceItem,
+    summary="Get a single invoice (vendor must own it)",
+)
+async def get_vendor_invoice(
+    invoice_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    vendor_id: Annotated[uuid.UUID, Depends(get_current_vendor_id)],
+):
+    """Return invoice detail only if it belongs to the authenticated vendor."""
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.id == invoice_id,
+            Invoice.vendor_id == vendor_id,  # ownership check
+            Invoice.deleted_at.is_(None),
+        )
+    )
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+    return VendorInvoiceItem.model_validate(invoice)
+
+
+@router.post(
     "/invoices/{invoice_id}/reply",
     response_model=VendorReplyResponse,
     status_code=status.HTTP_201_CREATED,
@@ -120,8 +238,6 @@ async def vendor_reply(
         )
 
     # Verify invoice exists
-    from sqlalchemy import select
-
     stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
     result = await db.execute(stmt)
     invoice = result.scalar_one_or_none()
@@ -136,7 +252,7 @@ async def vendor_reply(
     message = VendorMessage(
         invoice_id=invoice_id,
         sender_id=None,  # External vendor
-        sender_email=None,  # Could extract from token if stored; for now, leave blank
+        sender_email=None,
         direction="inbound",
         body=body.body,
         is_internal=False,  # Vendor-visible
