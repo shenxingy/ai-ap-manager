@@ -40,6 +40,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     fraud_score: Mapped[int] = mapped_column(nullable=False, default=0)  # 0-100
     fraud_triggered_signals: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="'[]'")
     is_recurring: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_duplicate: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     recurring_pattern_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("recurring_invoice_patterns.id"), nullable=True
     )

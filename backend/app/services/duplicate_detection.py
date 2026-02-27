@@ -122,6 +122,7 @@ def check_duplicate(db: Session, invoice_id: str) -> list[dict]:
                     break  # one fuzzy exception is sufficient
 
     if matches:
+        invoice.is_duplicate = True
         db.commit()
 
     return matches

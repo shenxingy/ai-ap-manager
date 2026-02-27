@@ -122,6 +122,7 @@ class InvoiceDetail(BaseModel):
     fraud_score: int
     fraud_triggered_signals: list = []
     is_recurring: bool
+    is_duplicate: bool = False
     notes: str | None
     created_at: datetime
     updated_at: datetime
