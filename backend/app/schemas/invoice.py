@@ -118,6 +118,23 @@ class StatusOverrideResponse(BaseModel):
     message: str
 
 
+# ─── GL bulk update ───
+
+class GLBulkLineUpdate(BaseModel):
+    line_id: uuid.UUID
+    gl_account: str
+    cost_center: str | None = None
+
+
+class GLBulkUpdate(BaseModel):
+    lines: list[GLBulkLineUpdate]
+
+
+class GLBulkUpdateResponse(BaseModel):
+    updated: int
+    errors: int
+
+
 # ─── Audit log ───
 
 class AuditLogOut(BaseModel):
