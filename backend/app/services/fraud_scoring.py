@@ -2,7 +2,9 @@
 
 Evaluates deterministic signals on invoices. No LLM — all rules are explicit.
 Auto-creates FRAUD_FLAG exception when score >= HIGH threshold.
+Auto-creates FraudIncident when score >= 40.
 """
+import hashlib
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -17,12 +19,16 @@ logger = logging.getLogger(__name__)
 
 # ─── Signal weights ───
 SIGNAL_WEIGHTS = {
-    "round_amount": 10,        # total_amount ends in .00 AND > $1000
-    "amount_spike": 20,        # total > 2x vendor historical avg
-    "potential_duplicate": 30, # same vendor + same amount within 7 days
-    "stale_invoice_date": 10,  # invoice_date older than 90 days
-    "new_vendor": 5,           # vendor has < 3 approved invoices ever
+    "round_amount": 10,           # total_amount ends in .00 AND > $1000
+    "amount_spike": 20,           # total > 2x vendor historical avg
+    "potential_duplicate": 30,    # same vendor + same amount within 7 days
+    "stale_invoice_date": 10,     # invoice_date older than 90 days
+    "new_vendor": 5,              # vendor has < 3 approved invoices ever
+    "bank_account_changed": 25,   # vendor bank account changed in last 30 days
+    "ghost_vendor": 30,           # same bank account used by a different vendor
 }
+
+FRAUD_INCIDENT_THRESHOLD = 40
 
 
 def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
@@ -106,6 +112,39 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
             triggered.append("new_vendor")
             total_score += SIGNAL_WEIGHTS["new_vendor"]
 
+    # ── Signal 6: Bank account changed within 30 days ──
+    if vendor_id:
+        from app.models.fraud_incident import VendorBankHistory
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        bank_change = db.execute(
+            select(VendorBankHistory).where(
+                VendorBankHistory.vendor_id == vendor_id,
+                VendorBankHistory.changed_at > thirty_days_ago,
+            )
+        ).scalars().first()
+        if bank_change:
+            triggered.append("bank_account_changed")
+            total_score += SIGNAL_WEIGHTS["bank_account_changed"]
+
+    # ── Signal 7: Ghost vendor (same bank account used by different vendor) ──
+    if vendor_id:
+        from app.models.fraud_incident import VendorBankHistory
+        from app.models.vendor import Vendor
+        vendor_row = db.execute(
+            select(Vendor).where(Vendor.id == vendor_id)
+        ).scalars().first()
+        if vendor_row and vendor_row.bank_account:
+            bank_hash = hashlib.sha256(vendor_row.bank_account.encode()).hexdigest()
+            ghost_match = db.execute(
+                select(VendorBankHistory).where(
+                    VendorBankHistory.bank_account_number == bank_hash,
+                    VendorBankHistory.vendor_id != vendor_id,
+                )
+            ).scalars().first()
+            if ghost_match:
+                triggered.append("ghost_vendor")
+                total_score += SIGNAL_WEIGHTS["ghost_vendor"]
+
     # ── Update invoice.fraud_score and triggered signals ──
     prev_score = invoice.fraud_score or 0
     invoice.fraud_score = total_score
@@ -117,6 +156,10 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
     if total_score >= settings.FRAUD_SCORE_HIGH_THRESHOLD:
         _ensure_fraud_exception(db, invoice_id, total_score, triggered)
         created_exception = True
+
+    # ── Auto-create FraudIncident if score >= threshold ──
+    if total_score >= FRAUD_INCIDENT_THRESHOLD:
+        _ensure_fraud_incident(db, invoice_id, total_score, triggered)
 
     # ── Audit log ──
     audit_svc.log(
@@ -166,4 +209,30 @@ def _ensure_fraud_exception(
         status="open",
     )
     db.add(exc)
+    db.flush()
+
+
+def _ensure_fraud_incident(
+    db: Session,
+    invoice_id: uuid.UUID,
+    score: int,
+    signals: list[str],
+) -> None:
+    """Create FraudIncident if one doesn't already exist for this invoice."""
+    from app.models.fraud_incident import FraudIncident
+
+    existing = db.execute(
+        select(FraudIncident).where(FraudIncident.invoice_id == invoice_id)
+    ).scalars().first()
+
+    if existing:
+        return
+
+    incident = FraudIncident(
+        invoice_id=invoice_id,
+        score_at_flag=score,
+        triggered_signals=signals,
+        outcome="pending",
+    )
+    db.add(incident)
     db.flush()

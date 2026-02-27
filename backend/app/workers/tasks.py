@@ -313,3 +313,123 @@ def run_ocr(self, invoice_id: str, storage_path: str) -> dict:
     """Extract text from invoice file using Tesseract."""
     logger.info("run_ocr for invoice %s", invoice_id)
     return {"invoice_id": invoice_id, "status": "delegated_to_process_invoice"}
+
+
+# ─── Recurring pattern detection ───
+
+@celery_app.task(bind=True, name="tasks.detect_recurring_patterns", max_retries=2)
+def detect_recurring_patterns(self) -> dict:
+    """Detect recurring invoice patterns per vendor and upsert RecurringInvoicePattern rows.
+
+    Algorithm:
+    1. For each vendor with >= 3 approved invoices in the last 12 months
+    2. Sort by invoice_date; compute day intervals between consecutive invoices
+    3. If intervals cluster near {7, 14, 30, 60, 90} days (±20%), record as recurring
+    4. Compute avg_amount; upsert RecurringInvoicePattern
+    """
+    from datetime import date, timedelta as td
+    from decimal import Decimal
+    from sqlalchemy import select, text, func
+    from app.models.invoice import Invoice
+    from app.models.vendor import Vendor
+    from app.models.recurring_pattern import RecurringInvoicePattern
+
+    logger.info("detect_recurring_patterns started")
+    db = _get_sync_session()
+
+    CANDIDATE_FREQUENCIES = [7, 14, 30, 60, 90]
+    TOLERANCE = 0.20  # ±20%
+    MIN_INVOICES = 3
+    LOOKBACK_DAYS = 365
+
+    updated = 0
+    skipped = 0
+
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
+
+        # Get all vendors with enough approved invoices in the window
+        vendors_result = db.execute(
+            select(Vendor.id).where(Vendor.deleted_at.is_(None))
+        ).scalars().all()
+
+        for vendor_id in vendors_result:
+            invoices = db.execute(
+                select(Invoice).where(
+                    Invoice.vendor_id == vendor_id,
+                    Invoice.status == "approved",
+                    Invoice.deleted_at.is_(None),
+                    Invoice.invoice_date.isnot(None),
+                    Invoice.created_at >= cutoff,
+                ).order_by(Invoice.invoice_date)
+            ).scalars().all()
+
+            if len(invoices) < MIN_INVOICES:
+                skipped += 1
+                continue
+
+            # Compute day intervals between consecutive invoice dates
+            dates = sorted([
+                inv.invoice_date.date() if hasattr(inv.invoice_date, 'date') else inv.invoice_date
+                for inv in invoices
+            ])
+            intervals = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
+            if not intervals:
+                skipped += 1
+                continue
+
+            avg_interval = sum(intervals) / len(intervals)
+
+            # Find best matching canonical frequency
+            best_freq = None
+            for freq in CANDIDATE_FREQUENCIES:
+                low, high = freq * (1 - TOLERANCE), freq * (1 + TOLERANCE)
+                matching = sum(1 for iv in intervals if low <= iv <= high)
+                if matching >= len(intervals) * 0.6:  # 60% of intervals must cluster
+                    best_freq = freq
+                    break
+
+            if best_freq is None:
+                skipped += 1
+                continue
+
+            amounts = [float(inv.total_amount) for inv in invoices if inv.total_amount]
+            avg_amount = sum(amounts) / len(amounts) if amounts else 0.0
+
+            # Upsert pattern
+            existing = db.execute(
+                select(RecurringInvoicePattern).where(
+                    RecurringInvoicePattern.vendor_id == vendor_id
+                )
+            ).scalars().first()
+
+            now_utc = datetime.now(timezone.utc)
+
+            if existing:
+                existing.frequency_days = best_freq
+                existing.avg_amount = Decimal(str(round(avg_amount, 4)))
+                existing.last_detected_at = now_utc
+            else:
+                pattern = RecurringInvoicePattern(
+                    vendor_id=vendor_id,
+                    frequency_days=best_freq,
+                    avg_amount=Decimal(str(round(avg_amount, 4))),
+                    tolerance_pct=0.10,
+                    auto_fast_track=False,
+                    last_detected_at=now_utc,
+                )
+                db.add(pattern)
+
+            updated += 1
+
+        db.commit()
+        logger.info("detect_recurring_patterns done: updated=%d skipped=%d", updated, skipped)
+        return {"updated": updated, "skipped": skipped}
+
+    except Exception as exc:
+        db.rollback()
+        logger.exception("detect_recurring_patterns failed: %s", exc)
+        raise self.retry(exc=exc, countdown=60)
+
+    finally:
+        db.close()
