@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,9 +20,10 @@ class ApprovalTask(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
     step_order: Mapped[int] = mapped_column(nullable=False, default=1)
+    approval_required_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
-    )  # pending, approved, rejected, delegated, expired
+    )  # pending, partially_approved, approved, rejected, delegated, expired
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     decision_channel: Mapped[str | None] = mapped_column(String(50), nullable=True)  # web, email
