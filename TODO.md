@@ -20,38 +20,38 @@
   - [x] Seed default published matching_tolerance rule
 
 #### Frontend Scaffold (Next.js 14)
-- [ ] Initialize Next.js 14 (App Router) in `frontend/`
-  - [ ] `npx create-next-app@latest frontend --ts --tailwind --app --src-dir`
-  - [ ] Install and configure shadcn/ui (`npx shadcn-ui@latest init`)
+- [x] Initialize Next.js 14 (App Router) in `frontend/`
+  - [x] `npx create-next-app@latest frontend --ts --tailwind --app --src-dir`
+  - [x] Install and configure shadcn/ui (`npx shadcn-ui@latest init`)
   - [ ] Custom brand colors in `tailwind.config.ts`
   - [ ] Dark mode support via `class` strategy
-- [ ] Install dependencies:
-  - [ ] `@tanstack/react-query` — server state
-  - [ ] `zustand` — client state (auth, UI toggles)
-  - [ ] `axios` — HTTP client
-  - [ ] `recharts` — KPI charts
+- [x] Install dependencies:
+  - [x] `@tanstack/react-query` — server state
+  - [x] `zustand` — client state (auth, UI toggles)
+  - [x] `axios` — HTTP client
+  - [x] `recharts` — KPI charts
   - [ ] `react-hook-form` + `zod` — forms + validation
-  - [ ] `date-fns` — date formatting
-  - [ ] `lucide-react` — icons
-- [ ] App shell layout (`app/layout.tsx`)
-  - [ ] Sidebar navigation component
-  - [ ] Sidebar items by role: Dashboard · Invoices · Exceptions · Approvals · Vendors · Admin
-  - [ ] Top header: breadcrumb, user avatar, logout button
+  - [x] `date-fns` — date formatting
+  - [x] `lucide-react` — icons
+- [x] App shell layout (`app/layout.tsx`)
+  - [x] Sidebar navigation component
+  - [x] Sidebar items by role: Dashboard · Invoices · Exceptions · Approvals · Vendors · Admin
+  - [x] Top header: breadcrumb, user avatar, logout button
   - [ ] Mobile: collapsible sidebar (hamburger)
-  - [ ] Role-aware nav: APPROVER sees only Invoices + Approvals; AP_CLERK sees Invoices only
-- [ ] API client (`lib/api.ts`)
-  - [ ] Axios instance with `baseURL = process.env.NEXT_PUBLIC_API_URL`
-  - [ ] Request interceptor: attach `Authorization: Bearer <token>` from auth store
-  - [ ] Response interceptor: on 401, attempt token refresh; on refresh fail, redirect to /login
+  - [x] Role-aware nav: APPROVER sees only Invoices + Approvals; AP_CLERK sees Invoices only
+- [x] API client (`lib/api.ts`)
+  - [x] Axios instance with `baseURL = process.env.NEXT_PUBLIC_API_URL`
+  - [x] Request interceptor: attach `Authorization: Bearer <token>` from auth store
+  - [x] Response interceptor: on 401, attempt token refresh; on refresh fail, redirect to /login
   - [ ] Global error handler: toast notification for 4xx/5xx
-- [ ] React Query setup (`lib/query-client.ts`)
-  - [ ] `QueryClientProvider` at root
+- [x] React Query setup (`lib/query-client.ts`)
+  - [x] `QueryClientProvider` at root
   - [ ] Default staleTime 30s, retry 2
-- [ ] Auth store (`lib/stores/auth-store.ts`)
-  - [ ] Zustand slice: `user`, `accessToken`, `isAuthenticated`, `login()`, `logout()`, `refresh()`
-  - [ ] Persist token in `localStorage` (clear on logout)
-- [ ] Route guard HOC / middleware (`middleware.ts`)
-  - [ ] Redirect unauthenticated users to `/login`
+- [x] Auth store (`lib/stores/auth-store.ts`)
+  - [x] Zustand slice: `user`, `accessToken`, `isAuthenticated`, `login()`, `logout()`, `refresh()`
+  - [x] Persist token in `localStorage` (clear on logout)
+- [x] Route guard HOC / middleware (`middleware.ts`)
+  - [x] Redirect unauthenticated users to `/login`
   - [ ] Redirect authenticated users away from `/login`
 - [ ] Docker: add frontend service to `docker-compose.yml` (port 3000, hot reload)
 
@@ -101,49 +101,49 @@
   - [ ] Prevent invalid jumps (e.g., approved→extracting) with 422 response
 
 #### Frontend — Invoice List Page (`/invoices`)
-- [ ] Paginated data table: invoice_number · vendor · total_amount · status · created_at · fraud badge
-- [ ] Status badge: color-coded chip (ingested=gray, extracting=blue, matched=green, exception=red, approved=emerald)
-- [ ] Fraud score badge: 🟢 <20 · 🟡 20-39 · 🔴 40-59 · 🔴🔴 60+
-- [ ] Filter bar: status multi-select · vendor search · date range picker
-- [ ] Upload button → drag-and-drop modal
-  - [ ] File picker (PDF, JPEG, PNG, max 20MB)
+- [x] Paginated data table: invoice_number · vendor · total_amount · status · created_at · fraud badge
+- [x] Status badge: color-coded chip (ingested=gray, extracting=blue, matched=green, exception=red, approved=emerald)
+- [x] Fraud score badge: 🟢 <20 · 🟡 20-39 · 🔴 40-59 · 🔴🔴 60+
+- [x] Filter bar: status multi-select · vendor search · date range picker
+- [x] Upload button → drag-and-drop modal
+  - [x] File picker (PDF, JPEG, PNG, max 20MB)
   - [ ] Upload progress indicator
   - [ ] Success: show new invoice ID, redirect to detail
   - [ ] Error: file type / size validation before upload
-- [ ] Pagination controls (page, page_size)
-- [ ] Row click → navigate to `/invoices/{id}`
+- [x] Pagination controls (page, page_size)
+- [x] Row click → navigate to `/invoices/{id}`
 
 #### Frontend — Invoice Detail Page (`/invoices/{id}`)
-- [ ] Header section: invoice_number · vendor_name · total_amount · currency · status badge · fraud badge
+- [x] Header section: invoice_number · vendor_name · total_amount · currency · status badge · fraud badge
 - [ ] Action bar:
   - [ ] "Re-run Extraction" button (AP_ANALYST+)
   - [ ] "Trigger Re-match" button (AP_ANALYST+)
   - [ ] "Download Original" button (presigned URL)
-- [ ] Tab layout: **Details** | **Line Items** | **Match** | **Exceptions** | **Approvals** | **Audit Log**
-- [ ] **Details tab**:
-  - [ ] Fields: invoice_number, vendor, invoice_date, due_date, subtotal, tax_amount, total_amount, payment_terms
+- [x] Tab layout: **Details** | **Line Items** | **Match** | **Exceptions** | **Approvals** | **Audit Log**
+- [x] **Details tab**:
+  - [x] Fields: invoice_number, vendor, invoice_date, due_date, subtotal, tax_amount, total_amount, payment_terms
   - [ ] Extraction confidence indicator per field (color dot: green/amber/red)
   - [ ] Amber highlight + edit icon for mismatched fields (discrepancy_fields from ExtractionResult)
   - [ ] Inline edit → save → calls PATCH /invoices/{id}/fields
   - [ ] Extraction pass comparison: Pass A vs Pass B values shown side-by-side for discrepant fields
-- [ ] **Line Items tab**:
-  - [ ] Table: line# · description · qty · unit_price · line_total · GL account · GL suggestion
+- [x] **Line Items tab**:
+  - [x] Table: line# · description · qty · unit_price · line_total · GL account · GL suggestion
   - [ ] GL account cell: grey suggestion text + confidence badge
   - [ ] Click suggestion → auto-fills field
   - [ ] "Confirm All Coding" button → PUT each line's gl_account (AP_ANALYST+)
-- [ ] **Match tab**:
-  - [ ] Match status card: matched/partial/exception, match_type, rule_version used
-  - [ ] Header variance: invoice total vs PO total, variance amount + %
+- [x] **Match tab**:
+  - [x] Match status card: matched/partial/exception, match_type, rule_version used
+  - [x] Header variance: invoice total vs PO total, variance amount + %
   - [ ] Line match table: each invoice line vs matched PO line, qty variance, price variance
   - [ ] Color coding: matched=green, variance=amber, unmatched=red
-- [ ] **Exceptions tab**: list of open exceptions for this invoice (link to exception detail)
-- [ ] **Approvals tab**:
-  - [ ] Current approval task status (pending/approved/rejected)
-  - [ ] Approver name, due date, decision channel
-  - [ ] Decision history (all tasks for this invoice)
-- [ ] **Audit Log tab**:
-  - [ ] Timeline component: event · actor · timestamp · before/after diff
-  - [ ] Data from GET /invoices/{id}/audit
+- [x] **Exceptions tab**: list of open exceptions for this invoice (link to exception detail)
+- [x] **Approvals tab**:
+  - [x] Current approval task status (pending/approved/rejected)
+  - [x] Approver name, due date, decision channel
+  - [x] Decision history (all tasks for this invoice)
+- [x] **Audit Log tab**:
+  - [x] Timeline component: event · actor · timestamp · before/after diff
+  - [x] Data from GET /invoices/{id}/audit
 
 ---
 
@@ -178,15 +178,15 @@
   - [ ] Include comment_count in ExceptionListItem response
 
 #### Frontend — Exception Queue Page (`/exceptions`)
-- [ ] Filterable table: code · severity badge · status · assigned_to · invoice link · created_at
-- [ ] Severity badge: critical=red, high=orange, medium=yellow, low=gray
-- [ ] Row click → slide-out detail panel
-- [ ] Detail panel:
-  - [ ] Exception info: code, description, AI root cause (if available)
-  - [ ] Invoice mini-card: invoice#, vendor, amount, current status
-  - [ ] Comment thread (chronological list)
-  - [ ] Add comment textarea + Submit button
-  - [ ] Status update dropdown (open/in_progress/resolved/waived)
+- [x] Filterable table: code · severity badge · status · assigned_to · invoice link · created_at
+- [x] Severity badge: critical=red, high=orange, medium=yellow, low=gray
+- [x] Row click → slide-out detail panel
+- [x] Detail panel:
+  - [x] Exception info: code, description, AI root cause (if available)
+  - [x] Invoice mini-card: invoice#, vendor, amount, current status
+  - [x] Comment thread (chronological list)
+  - [x] Add comment textarea + Submit button
+  - [x] Status update dropdown (open/in_progress/resolved/waived)
   - [ ] Assign to selector (autocomplete users)
   - [ ] Resolution notes textarea
   - [ ] Save button → PATCH /exceptions/{id}
@@ -209,14 +209,14 @@
 - [x] GET `/api/v1/approvals/email?token=xxx` — email token (no auth), returns HTML confirmation
 
 #### Frontend — Approvals Page (`/approvals`)
-- [ ] List of pending approval tasks for the logged-in APPROVER
-- [ ] Each item: invoice# · vendor · amount · due_at countdown · status
-- [ ] Click → Approval detail modal / page
-  - [ ] Invoice summary card (all key fields)
+- [x] List of pending approval tasks for the logged-in APPROVER
+- [x] Each item: invoice# · vendor · amount · due_at countdown · status
+- [x] Click → Approval detail modal / page
+  - [x] Invoice summary card (all key fields)
   - [ ] Match result summary: status, variances
-  - [ ] Notes textarea
-  - [ ] Approve button (green) + Reject button (red)
-  - [ ] Confirmation dialog before submitting
+  - [x] Notes textarea
+  - [x] Approve button (green) + Reject button (red)
+  - [x] Confirmation dialog before submitting
 - [ ] Success: mark task as decided, remove from list, show toast
 - [ ] Past decisions tab: history of approved/rejected invoices
 
@@ -243,11 +243,11 @@
 - [ ] GET `/api/v1/users/me` — return current user info (role, name, email)
 
 #### Frontend — Login Page (`/login`)
-- [ ] Email + password form (react-hook-form + zod validation)
-- [ ] POST /api/v1/auth/token on submit
-- [ ] Store access token + user role in auth Zustand store
-- [ ] On success: redirect to `/dashboard`
-- [ ] On failure: show "Invalid credentials" toast
+- [x] Email + password form (react-hook-form + zod validation)
+- [x] POST /api/v1/auth/token on submit
+- [x] Store access token + user role in auth Zustand store
+- [x] On success: redirect to `/dashboard`
+- [x] On failure: show "Invalid credentials" toast
 - [ ] "Remember me" checkbox (persist token in localStorage vs session)
 
 ---
@@ -259,19 +259,19 @@
 - [x] GET `/api/v1/kpi/trends` — daily/weekly bucketed invoices_received, invoices_approved, invoices_exceptions
 
 #### Frontend — KPI Dashboard Page (`/dashboard`)
-- [ ] Summary metric cards row:
-  - [ ] Touchless Rate (large %, color green if >70%)
-  - [ ] Exception Rate (large %, color red if >20%)
-  - [ ] Avg Cycle Time (hours → formatted as "2d 4h")
-  - [ ] Total Invoices Received (count, this period)
+- [x] Summary metric cards row:
+  - [x] Touchless Rate (large %, color green if >70%)
+  - [x] Exception Rate (large %, color red if >20%)
+  - [x] Avg Cycle Time (hours → formatted as "2d 4h")
+  - [x] Total Invoices Received (count, this period)
   - [ ] Total Approved / Pending / Exceptions (3 mini cards)
-- [ ] Period selector: "Last 7 days / 30 days / 90 days" (updates ?days= param)
-- [ ] Trend chart (recharts LineChart):
-  - [ ] X-axis: date, Y-axis: invoice count
-  - [ ] Three lines: Received (blue) · Approved (green) · Exceptions (red)
+- [x] Period selector: "Last 7 days / 30 days / 90 days" (updates ?days= param)
+- [x] Trend chart (recharts LineChart):
+  - [x] X-axis: date, Y-axis: invoice count
+  - [x] Three lines: Received (blue) · Approved (green) · Exceptions (red)
   - [ ] Toggle: daily / weekly
-  - [ ] Tooltip on hover showing exact counts
-- [ ] Auto-refresh every 5 minutes (`refetchInterval: 300000`)
+  - [x] Tooltip on hover showing exact counts
+- [x] Auto-refresh every 5 minutes (`refetchInterval: 300000`)
 - [ ] Loading skeleton while fetching
 - [ ] Empty state if no data in period
 
