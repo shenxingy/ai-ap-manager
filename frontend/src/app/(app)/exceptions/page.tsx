@@ -450,6 +450,8 @@ function ExceptionsContent() {
   const searchParams = useSearchParams();
   const { toast, showToast } = useToast();
   const [selected, setSelected] = useState<Exception | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   // Read filters from URL search params
   const urlStatuses = searchParams.getAll("status");
@@ -501,6 +503,42 @@ function ExceptionsContent() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20) || 1;
 
+  const allSelected = exceptions.length > 0 && selectedIds.size === exceptions.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(exceptions.map((e) => e.id)));
+    }
+  };
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set<string>(Array.from(prev));
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkResolve = useMutation({
+    mutationFn: () =>
+      api.post("/exceptions/bulk-update", {
+        items: Array.from(selectedIds).map((id) => ({
+          exception_id: id,
+          action: "resolve",
+          resolution: "Bulk resolved",
+        })),
+      }),
+    onSuccess: () => {
+      const count = selectedIds.size;
+      queryClient.invalidateQueries({ queryKey: ["exceptions"] });
+      showToast(`${count} exception(s) resolved`, "success");
+      setSelectedIds(new Set());
+    },
+    onError: () => showToast("Failed to resolve exceptions", "error"),
+  });
+
   return (
     <div className="space-y-4">
       <ToastBanner toast={toast} />
@@ -518,11 +556,38 @@ function ExceptionsContent() {
         onAssignedToChange={(s) => updateParams({ assigned_to: s })}
       />
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-800">{selectedIds.size} selected</span>
+          <Button
+            size="sm"
+            onClick={() => bulkResolve.mutate()}
+            disabled={bulkResolve.isPending}
+          >
+            {bulkResolve.isPending ? "Resolving…" : "Resolve Selected"}
+          </Button>
+          <button
+            className="ml-auto text-xs text-blue-600 hover:text-blue-800"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                </TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Severity</TableHead>
                 <TableHead>Status</TableHead>
@@ -534,14 +599,14 @@ function ExceptionsContent() {
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                  <TableCell colSpan={7} className="text-center text-gray-400 py-8">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!isLoading && exceptions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                  <TableCell colSpan={7} className="text-center text-gray-400 py-8">
                     No exceptions found.
                   </TableCell>
                 </TableRow>
@@ -552,6 +617,14 @@ function ExceptionsContent() {
                   className="cursor-pointer hover:bg-gray-50"
                   onClick={() => setSelected(ex)}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(ex.id)}
+                      onChange={() => toggleSelectId(ex.id)}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{ex.code}</TableCell>
                   <TableCell>
                     <Badge
