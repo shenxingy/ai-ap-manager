@@ -62,6 +62,7 @@ function DecisionModal({
 }) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const { data: matchResult } = useQuery<MatchResult>({
     queryKey: ["match", task?.invoice_id],
@@ -84,7 +85,14 @@ function DecisionModal({
       }
       onSuccess(action);
       setNotes("");
+      setSubmitError(null);
       onClose();
+    },
+    onError: (error: unknown) => {
+      const msg =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? "An unexpected error occurred. Please try again.";
+      setSubmitError(msg);
     },
   });
 
@@ -112,7 +120,7 @@ function DecisionModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { setSubmitError(null); onClose(); } }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -204,6 +212,11 @@ function DecisionModal({
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
+            {submitError && (
+              <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                {submitError}
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={onClose} disabled={submit.isPending}>
                 Cancel
