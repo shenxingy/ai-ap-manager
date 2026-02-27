@@ -168,13 +168,13 @@
 - [x] GET `/api/v1/exceptions` — list with filters (status, exception_code, invoice_id, assigned_to, severity)
 - [x] GET `/api/v1/exceptions/{id}` — detail with invoice summary
 - [x] PATCH `/api/v1/exceptions/{id}` — update status, assigned_to, resolution_notes (AP_ANALYST+, audit-logged)
-- [ ] Exception comments/thread
-  - [ ] DB: `exception_comments` table (id, exception_id FK, author_id FK, body TEXT, created_at)
-  - [ ] Alembic migration for exception_comments
-  - [ ] SQLAlchemy model `ExceptionComment` in `app/models/exception_record.py`
-  - [ ] Schema: `ExceptionCommentIn(body: str)`, `ExceptionCommentOut(id, author_id, body, created_at)`
-  - [ ] POST `/api/v1/exceptions/{id}/comments` — add comment (AP_ANALYST+, audit-logged)
-  - [ ] GET `/api/v1/exceptions/{id}/comments` — list comments (AP_CLERK+)
+- [x] Exception comments/thread
+  - [x] DB: `exception_comments` table (id, exception_id FK, author_id FK, body TEXT, created_at)
+  - [x] Alembic migration for exception_comments
+  - [x] SQLAlchemy model `ExceptionComment` in `app/models/exception_record.py`
+  - [x] Schema: `ExceptionCommentIn(body: str)`, `ExceptionCommentOut(id, author_id, body, created_at)`
+  - [x] POST `/api/v1/exceptions/{id}/comments` — add comment (AP_ANALYST+, audit-logged)
+  - [x] GET `/api/v1/exceptions/{id}/comments` — list comments (AP_CLERK+)
   - [ ] Include comment_count in ExceptionListItem response
 
 #### Frontend — Exception Queue Page (`/exceptions`)
