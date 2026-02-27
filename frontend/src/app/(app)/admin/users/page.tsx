@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuthStore } from "@/store/auth";
 import {
   Table,
   TableBody,
@@ -332,7 +334,15 @@ function EditUserDialog({ user, onClose, onSuccess, onError }: EditDialogProps) 
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { user } = useAuthStore();
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (user && user.role !== "ADMIN") {
+      router.push("/unauthorized");
+    }
+  }, [user, router]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const { toast, showToast } = useToast();

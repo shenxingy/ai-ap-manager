@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -326,6 +328,15 @@ function ImportTab({ config }: { config: TabConfig }) {
 // ─── Page ───
 
 export default function ImportPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user && user.role !== "ADMIN") {
+      router.push("/unauthorized");
+    }
+  }, [user, router]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
