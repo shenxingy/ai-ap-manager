@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -267,6 +269,16 @@ function RuleDetailSheet({ rule, onClose, onSuccess, onError }: RuleSheetProps) 
 
   const effectiveConfig = Object.keys(config).length > 0 ? config : parsedConfig;
 
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      api.patch(`/rules/${rule!.id}`, { config_json: JSON.stringify(effectiveConfig) }).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-rules"] });
+      onSuccess("Changes saved");
+    },
+    onError: (err) => onError(extractApiError(err)),
+  });
+
   const publishMutation = useMutation({
     mutationFn: () =>
       api.post(`/rules/${rule!.id}/publish`).then((r) => r.data),
@@ -391,31 +403,33 @@ function RuleDetailSheet({ rule, onClose, onSuccess, onError }: RuleSheetProps) 
         )}
 
         {rule && (
-          <SheetFooter className="mt-8 gap-2">
+          <SheetFooter className="mt-8 gap-2 flex-wrap">
             <Button
               variant="outline"
-              onClick={() => rejectMutation.mutate()}
-              disabled={
-                rejectMutation.isPending ||
-                publishMutation.isPending ||
-                rule.status === "rejected" ||
-                rule.status === "published"
-              }
-              className="text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
             >
-              {rejectMutation.isPending ? "Rejecting…" : "Reject"}
+              {saveMutation.isPending ? "Saving…" : "Save Changes"}
             </Button>
-            <Button
-              onClick={() => publishMutation.mutate()}
-              disabled={
-                publishMutation.isPending ||
-                rejectMutation.isPending ||
-                rule.status === "published" ||
-                rule.status === "rejected"
-              }
-            >
-              {publishMutation.isPending ? "Publishing…" : "Approve & Publish"}
-            </Button>
+            {rule.status === "in_review" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => rejectMutation.mutate()}
+                  disabled={rejectMutation.isPending || publishMutation.isPending}
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  {rejectMutation.isPending ? "Rejecting…" : "Reject"}
+                </Button>
+                <Button
+                  onClick={() => publishMutation.mutate()}
+                  disabled={publishMutation.isPending || rejectMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {publishMutation.isPending ? "Publishing…" : "Approve & Publish"}
+                </Button>
+              </>
+            )}
           </SheetFooter>
         )}
       </SheetContent>
@@ -427,9 +441,17 @@ function RuleDetailSheet({ rule, onClose, onSuccess, onError }: RuleSheetProps) 
 
 export default function AdminRulesPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { user } = useAuthStore();
   const [page, setPage] = useState(1);
   const [selectedRule, setSelectedRule] = useState<RuleVersion | null>(null);
   const { toast, showToast } = useToast();
+
+  useEffect(() => {
+    if (user && user.role !== "ADMIN") {
+      router.push("/unauthorized");
+    }
+  }, [user, router]);
 
   const { data, isLoading } = useQuery<RuleListResponse>({
     queryKey: ["admin-rules", page],
@@ -438,6 +460,10 @@ export default function AdminRulesPage() {
         .get(`/rules?skip=${(page - 1) * 20}&limit=20`)
         .then((r) => r.data),
     retry: false,
+    refetchInterval: (query) => {
+      const d = query.state.data as RuleListResponse | undefined;
+      return d?.items.some((r) => r.status === "draft") ? 10000 : false;
+    },
   });
 
   const rules = data?.items ?? [];
