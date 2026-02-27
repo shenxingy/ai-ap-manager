@@ -218,7 +218,7 @@
   - [x] Notes textarea
   - [x] Approve button (green) + Reject button (red)
   - [x] Confirmation dialog before submitting
-- [ ] Success: mark task as decided, remove from list, show toast
+- [x] Success: mark task as decided, remove from list, show toast
 - [ ] Past decisions tab: history of approved/rejected invoices
 
 ---
@@ -249,7 +249,7 @@
 - [x] Store access token + user role in auth Zustand store
 - [x] On success: redirect to `/dashboard`
 - [x] On failure: show "Invalid credentials" toast
-- [ ] "Remember me" checkbox (persist token in localStorage vs session)
+- [x] "Remember me" checkbox (persist token in localStorage vs session)
 
 ---
 
@@ -348,8 +348,8 @@
 #### Frontend — Fraud Badge
 - [ ] Fraud risk badge on invoice list and detail header
   - [ ] 🟢 Low (<20) · 🟡 Medium (20-39) · 🔴 High (40-59) · 🔴🔴 Critical (60+)
-  - [ ] Tooltip on hover: list triggered signals with their point values
-- [ ] CRITICAL score → red warning banner on invoice detail page
+  - [x] Tooltip on hover: list triggered signals with their point values
+- [x] CRITICAL score → red warning banner on invoice detail page
   - [ ] "⚠️ Dual authorization required — this invoice requires 2 ADMIN approvals"
   - [ ] Approve button disabled until second admin approves
 
