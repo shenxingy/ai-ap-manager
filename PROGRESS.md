@@ -161,6 +161,26 @@ Initial planning complete. Full documentation suite created covering:
 - `GET /approvals/email` route must be declared BEFORE `GET /approvals/{task_id}` to avoid FastAPI routing conflict (path "email" being captured as task_id UUID)
 - Approval service correctly separates "web" (actor_id + role check) vs "email" (token HMAC check) channels
 
+## [2026-02-26] P0 Backend Features: KPI Dashboard + GL Smart Coding + Fraud Scoring + Audit Endpoint
+
+**Result**: success
+
+**What was done**:
+- `GET /api/v1/kpi/summary` — touchless rate, exception rate, avg cycle time, all computed via async SQLAlchemy aggregates
+- `GET /api/v1/kpi/trends` — daily/weekly bucketed counts using date_trunc, joined with exception data
+- `GET /api/v1/invoices/{id}/gl-suggestions` — frequency-based GL account lookup from vendor invoice history, PO line fallback, category default fallback
+- `GET /api/v1/invoices/{id}/fraud-score` — read fraud_score from invoice model
+- `GET /api/v1/invoices/{id}/audit` — query audit_logs by entity_type=invoice AND entity_id
+- `backend/app/services/fraud_scoring.py` — 5 rule-based signals: round_amount, amount_spike, potential_duplicate, stale_invoice_date, new_vendor; auto-creates FRAUD_FLAG exception on HIGH threshold
+- Fraud scoring wired into Celery process_invoice pipeline (runs after extraction)
+- KPI endpoints wired in router at /api/v1/kpi
+
+**Lessons**:
+- KPI cycle time: no dedicated approved_at column — used (updated_at - created_at) as proxy for approved invoices
+- date_trunc("day", ...) in PostgreSQL requires the column to be TIMESTAMP WITH TIME ZONE
+- GL coding service is fully async; fraud scoring service is sync (Celery compatible)
+- Touchless rate = auto-approved / total; auto-approved = approved with no ApprovalTask row
+
 <!-- Future entries go here, newest first -->
 <!-- Format:
 ## [YYYY-MM-DD] Task: <what was done>
