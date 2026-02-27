@@ -128,9 +128,9 @@
   - [ ] Extraction pass comparison: Pass A vs Pass B values shown side-by-side for discrepant fields
 - [x] **Line Items tab** — scaffolded:
   - [x] Table: line# · description · qty · unit_price · line_total · GL account · GL suggestion
-  - [ ] GL account cell: grey suggestion text + confidence badge
-  - [ ] Click suggestion → auto-fills field
-  - [ ] "Confirm All Coding" button → PUT each line's gl_account (AP_ANALYST+)
+  - [x] GL account cell: grey suggestion text + confidence badge
+  - [x] Click suggestion → auto-fills field
+  - [x] "Confirm All Coding" button → PUT each line's gl_account (AP_ANALYST+)
 - [x] **Match tab** — scaffolded:
   - [x] Match status card: matched/partial/exception, match_type, rule_version used
   - [x] Header variance: invoice total vs PO total, variance amount + %
@@ -311,19 +311,19 @@
   - [x] Update `invoice_line_item.gl_account` (and `cost_center`)
   - [x] Log to audit: action="gl_coding_confirmed" (user accepted suggestion) OR "gl_coding_overridden" (user entered different value)
   - [x] Compare submitted gl_account vs gl_account_suggested to determine confirmed vs overridden
-- [ ] PUT `/api/v1/invoices/{id}/lines/gl-bulk` — bulk confirm all GL suggestions (AP_ANALYST+)
-  - [ ] Accept all suggestions for all lines in one call
-  - [ ] Log each line as "gl_coding_confirmed"
+- [x] PUT `/api/v1/invoices/{id}/lines/gl-bulk` — bulk confirm all GL suggestions (AP_ANALYST+)
+  - [x] Accept all suggestions for all lines in one call
+  - [x] Log each line as "gl_coding_confirmed"
 
 #### Frontend — GL Coding UI (inside Invoice Detail → Line Items tab)
-- [ ] GL account column in line items table
-- [ ] Show `gl_account_suggested` in grey italic below the editable field
-- [ ] Confidence badge next to suggestion (e.g., "87% — vendor history")
-- [ ] Click suggestion → fills the field and marks as "to confirm"
+- [x] GL account column in line items table
+- [x] Show `gl_account_suggested` in grey italic below the editable field
+- [x] Confidence badge next to suggestion (e.g., "87% — vendor history")
+- [x] Click suggestion → fills the field and marks as "to confirm"
 - [ ] Manual override: type a different value (field turns amber)
-- [ ] "Confirm All Coding" button → calls PUT /lines/gl-bulk
-- [ ] Individual confirm: checkmark icon per line
-- [ ] After confirmation: field turns solid, confidence badge disappears
+- [x] "Confirm All Coding" button → calls PUT /lines/gl-bulk
+- [x] Individual confirm: checkmark icon per line
+- [x] After confirmation: field turns solid, confidence badge disappears
 
 ---
 
