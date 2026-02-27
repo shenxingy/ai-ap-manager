@@ -409,6 +409,66 @@ def auto_create_approval_task(db: Session, invoice_id: uuid.UUID) -> "ApprovalTa
     )
 
 
+# ─── Build approval chain from matrix ───
+
+def build_approval_chain(db: Session, invoice) -> list[dict]:
+    """Return ordered approval steps for an invoice based on the approval matrix.
+
+    Queries ApprovalMatrixRule rows where:
+      - amount_min <= invoice.total_amount <= amount_max (nulls treated as unbounded)
+      - department matches (if rule has one set)
+      - category matches (if rule has one set)
+
+    Sorted by step_order ascending.
+
+    Args:
+        db: Sync SQLAlchemy session.
+        invoice: Invoice ORM object with total_amount, department, category attributes.
+
+    Returns:
+        List of dicts with keys: step_order, approver_role.
+    """
+    from app.models.approval_matrix import ApprovalMatrixRule
+    from sqlalchemy import and_, or_
+
+    amount = invoice.total_amount
+
+    filters = [
+        ApprovalMatrixRule.is_active.is_(True),
+        or_(ApprovalMatrixRule.amount_min.is_(None), ApprovalMatrixRule.amount_min <= amount),
+        or_(ApprovalMatrixRule.amount_max.is_(None), ApprovalMatrixRule.amount_max >= amount),
+    ]
+
+    # Optional department/category match
+    dept = getattr(invoice, "department", None)
+    if dept:
+        filters.append(
+            or_(ApprovalMatrixRule.department.is_(None), ApprovalMatrixRule.department == dept)
+        )
+    else:
+        filters.append(ApprovalMatrixRule.department.is_(None))
+
+    cat = getattr(invoice, "category", None)
+    if cat:
+        filters.append(
+            or_(ApprovalMatrixRule.category.is_(None), ApprovalMatrixRule.category == cat)
+        )
+    else:
+        filters.append(ApprovalMatrixRule.category.is_(None))
+
+    stmt = (
+        select(ApprovalMatrixRule)
+        .where(and_(*filters))
+        .order_by(ApprovalMatrixRule.step_order)
+    )
+    rules = list(db.execute(stmt).scalars().all())
+
+    return [
+        {"step_order": rule.step_order, "approver_role": rule.approver_role}
+        for rule in rules
+    ]
+
+
 # ─── Internal helper ───
 
 def _compute_token_hash(raw_token: str) -> str:
