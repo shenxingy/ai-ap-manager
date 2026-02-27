@@ -26,7 +26,7 @@ class Rule(Base, UUIDMixin, TimestampMixin):
 
 
 class RuleVersion(Base, UUIDMixin, TimestampMixin):
-    """Versioned rule configuration. Lifecycle: draft → in_review → published."""
+    """Versioned rule configuration. Lifecycle: draft → in_review → published → superseded/rejected."""
 
     __tablename__ = "rule_versions"
 
@@ -36,8 +36,13 @@ class RuleVersion(Base, UUIDMixin, TimestampMixin):
     version_number: Mapped[int] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="draft"
-    )  # draft, in_review, published, archived
-    config_json: Mapped[str] = mapped_column(Text, nullable=False)  # JSON blob of rule parameters
+    )  # draft, in_review, published, superseded, rejected, archived
+    source: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # policy_upload, manual
+    config_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")  # JSON blob of rule parameters
+    ai_extracted: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_shadow_mode: Mapped[bool] = mapped_column(nullable=False, default=False)
     change_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
