@@ -1,11 +1,27 @@
+import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+
+class ComplianceDocType(str, enum.Enum):
+    W9 = "W9"
+    W8BEN = "W8BEN"
+    VAT = "VAT"
+    insurance = "insurance"
+    other = "other"
+
+
+class ComplianceDocStatus(str, enum.Enum):
+    active = "active"
+    expired = "expired"
+    missing = "missing"
 
 
 class Vendor(Base, UUIDMixin, TimestampMixin):
@@ -48,12 +64,16 @@ class VendorComplianceDoc(Base, UUIDMixin, TimestampMixin):
     vendor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=False, index=True
     )
-    doc_type: Mapped[str] = mapped_column(String(50), nullable=False)  # W9, W8BEN, VAT_REG, etc.
-    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    doc_type: Mapped[str] = mapped_column(String(50), nullable=False)  # W9, W8BEN, VAT, insurance, other
+    file_key: Mapped[str | None] = mapped_column(String(500), nullable=True)  # MinIO object key
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False, server_default="''")
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending_review"
-    )  # pending_review, approved, expired, rejected
-    expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    )  # pending_review, approved, expired, rejected, active, missing
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
