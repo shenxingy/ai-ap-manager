@@ -273,6 +273,18 @@ def get_pending_tasks_for_approver(db: Session, approver_id: uuid.UUID) -> list:
     return list(db.execute(stmt).scalars().all())
 
 
+def get_resolved_tasks_for_approver(db: Session, approver_id: uuid.UUID) -> list:
+    """Return all resolved (approved/rejected) ApprovalTasks for the given approver."""
+    from app.models.approval import ApprovalTask
+
+    stmt = select(ApprovalTask).where(
+        ApprovalTask.approver_id == approver_id,
+        ApprovalTask.status.in_(["approved", "rejected"]),
+    ).order_by(ApprovalTask.decided_at.desc())
+
+    return list(db.execute(stmt).scalars().all())
+
+
 # ─── Auto-create approval task after match ───
 
 def auto_create_approval_task(db: Session, invoice_id: uuid.UUID) -> "ApprovalTask | None":

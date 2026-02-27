@@ -53,15 +53,19 @@ def _get_sync_session() -> Session:
     summary="List pending approval tasks for the current user",
 )
 async def list_my_approvals(
+    include_resolved: bool = Query(False, description="If true, return resolved (approved/rejected) tasks instead of pending"),
     current_user=Depends(require_role("APPROVER", "ADMIN")),
 ):
-    """Return all pending ApprovalTasks assigned to the authenticated user."""
-    from app.services.approval import get_pending_tasks_for_approver
+    """Return pending or resolved ApprovalTasks assigned to the authenticated user."""
+    from app.services.approval import get_pending_tasks_for_approver, get_resolved_tasks_for_approver
     from app.models.invoice import Invoice
 
     db = _get_sync_session()
     try:
-        tasks = get_pending_tasks_for_approver(db, current_user.id)
+        if include_resolved:
+            tasks = get_resolved_tasks_for_approver(db, current_user.id)
+        else:
+            tasks = get_pending_tasks_for_approver(db, current_user.id)
         items: list[ApprovalTaskOut] = []
         for task in tasks:
             invoice = db.execute(
