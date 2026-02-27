@@ -170,6 +170,18 @@ async def approve_task(
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
+        # Insert override log for manual approval decision
+        from app.models.override_log import OverrideLog  # noqa: PLC0415
+        db.add(OverrideLog(
+            invoice_id=task.invoice_id,
+            field_name="approval_decision",
+            old_value={"decision": "pending"},
+            new_value={"decision": "approved"},
+            overridden_by=current_user.id,
+            reason=body.notes,
+        ))
+        db.commit()
+
         invoice = db.execute(
             select(Invoice).where(Invoice.id == task.invoice_id)
         ).scalars().first()
@@ -214,6 +226,18 @@ async def reject_task(
             )
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+        # Insert override log for manual rejection decision
+        from app.models.override_log import OverrideLog  # noqa: PLC0415
+        db.add(OverrideLog(
+            invoice_id=task.invoice_id,
+            field_name="approval_decision",
+            old_value={"decision": "pending"},
+            new_value={"decision": "rejected"},
+            overridden_by=current_user.id,
+            reason=body.notes,
+        ))
+        db.commit()
 
         invoice = db.execute(
             select(Invoice).where(Invoice.id == task.invoice_id)
