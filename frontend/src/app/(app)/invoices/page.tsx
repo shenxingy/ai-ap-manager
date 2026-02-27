@@ -23,6 +23,7 @@ interface Invoice {
   status: string;
   fraud_score: number | null;
   created_at: string;
+  source?: string;
   is_recurring?: boolean;
   unread_vendor_messages?: number;
 }
@@ -225,7 +226,12 @@ export default function InvoicesPage() {
                   className="cursor-pointer hover:bg-gray-50"
                   onClick={() => router.push(`/invoices/${inv.id}`)}
                 >
-                  <TableCell className="font-medium">{inv.invoice_number || "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {inv.invoice_number || "—"}
+                    {inv.source === "email" && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">Email</span>
+                    )}
+                  </TableCell>
                   <TableCell>{inv.vendor_name_raw || "—"}</TableCell>
                   <TableCell className="text-right">
                     {inv.total_amount != null
