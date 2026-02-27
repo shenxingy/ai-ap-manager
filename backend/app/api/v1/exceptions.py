@@ -37,7 +37,7 @@ router = APIRouter()
 )
 async def list_exceptions(
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     exc_status: str | None = Query(default=None, alias="status"),
@@ -108,7 +108,7 @@ async def list_exceptions(
 async def get_exception(
     exception_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
 ):
     stmt = (
         select(ExceptionRecord)
