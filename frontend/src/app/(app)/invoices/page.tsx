@@ -23,6 +23,8 @@ interface Invoice {
   status: string;
   fraud_score: number | null;
   created_at: string;
+  is_recurring?: boolean;
+  unread_vendor_messages?: number;
 }
 
 interface InvoicesResponse {
@@ -235,7 +237,18 @@ export default function InvoicesPage() {
                       {inv.status}
                     </Badge>
                   </TableCell>
-                  <TableCell title={inv.fraud_score != null ? `Fraud score: ${inv.fraud_score}%` : "No fraud data"}>{fraudBadge(inv.fraud_score)}</TableCell>
+                  <TableCell>
+                    <span title={inv.fraud_score != null ? `Fraud score: ${inv.fraud_score}%` : "No fraud data"}>{fraudBadge(inv.fraud_score)}</span>
+                    {inv.is_recurring && (
+                      <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">🔄 Recurring</span>
+                    )}
+                    {(inv.unread_vendor_messages ?? 0) > 0 && (
+                      <span
+                        className="inline-block w-2 h-2 rounded-full bg-orange-500 ml-1"
+                        title="Unread vendor messages"
+                      />
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm text-gray-500">
                     {format(new Date(inv.created_at), "MMM d, yyyy")}
                   </TableCell>
