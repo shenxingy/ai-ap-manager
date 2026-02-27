@@ -115,16 +115,16 @@
 
 #### Frontend — Invoice Detail Page (`/invoices/{id}`)
 - [x] Header section: invoice_number · vendor_name · total_amount · currency · status badge · fraud badge
-- [ ] Action bar:
-  - [ ] "Re-run Extraction" button (AP_ANALYST+)
-  - [ ] "Trigger Re-match" button (AP_ANALYST+)
-  - [ ] "Download Original" button (presigned URL)
+- [x] Action bar:
+  - [x] "Re-run Extraction" button (AP_ANALYST+)
+  - [x] "Trigger Re-match" button (AP_ANALYST+)
+  - [x] "Download Original" button (presigned URL)
 - [x] Tab layout: **Details** | **Line Items** | **Match** | **Exceptions** | **Approvals** | **Audit Log**
 - [x] **Details tab** — scaffolded (basic field display):
   - [x] Fields: invoice_number, vendor, invoice_date, due_date, subtotal, tax_amount, total_amount, payment_terms
-  - [ ] Extraction confidence indicator per field (color dot: green/amber/red)
-  - [ ] Amber highlight + edit icon for mismatched fields (discrepancy_fields from ExtractionResult)
-  - [ ] Inline edit → save → calls PATCH /invoices/{id}/fields
+  - [x] Extraction confidence indicator per field (color dot: green/amber/red)
+  - [x] Amber highlight + edit icon for mismatched fields (discrepancy_fields from ExtractionResult)
+  - [x] Inline edit → save → calls PATCH /invoices/{id}/fields
   - [ ] Extraction pass comparison: Pass A vs Pass B values shown side-by-side for discrepant fields
 - [x] **Line Items tab** — scaffolded:
   - [x] Table: line# · description · qty · unit_price · line_total · GL account · GL suggestion
@@ -134,8 +134,8 @@
 - [x] **Match tab** — scaffolded:
   - [x] Match status card: matched/partial/exception, match_type, rule_version used
   - [x] Header variance: invoice total vs PO total, variance amount + %
-  - [ ] Line match table: each invoice line vs matched PO line, qty variance, price variance
-  - [ ] Color coding: matched=green, variance=amber, unmatched=red
+  - [x] Line match table: each invoice line vs matched PO line, qty variance, price variance
+  - [x] Color coding: matched=green, variance=amber, unmatched=red
 - [x] **Exceptions tab** — scaffolded:
   - [x] List of open exceptions for this invoice (link to exception detail)
 - [x] **Approvals tab** — scaffolded:
@@ -320,7 +320,7 @@
 - [x] Show `gl_account_suggested` in grey italic below the editable field
 - [x] Confidence badge next to suggestion (e.g., "87% — vendor history")
 - [x] Click suggestion → fills the field and marks as "to confirm"
-- [ ] Manual override: type a different value (field turns amber)
+- [x] Manual override: type a different value (field turns amber)
 - [x] "Confirm All Coding" button → calls PUT /lines/gl-bulk
 - [x] Individual confirm: checkmark icon per line
 - [x] After confirmation: field turns solid, confidence badge disappears
@@ -346,8 +346,8 @@
   - [ ] Block approval button in frontend until second ADMIN approves
 
 #### Frontend — Fraud Badge
-- [ ] Fraud risk badge on invoice list and detail header
-  - [ ] 🟢 Low (<20) · 🟡 Medium (20-39) · 🔴 High (40-59) · 🔴🔴 Critical (60+)
+- [x] Fraud risk badge on invoice list and detail header
+  - [x] 🟢 Low (<20) · 🟡 Medium (20-39) · 🔴 High (40-59) · 🔴🔴 Critical (60+)
   - [x] Tooltip on hover: list triggered signals with their point values
 - [x] CRITICAL score → red warning banner on invoice detail page
   - [ ] "⚠️ Dual authorization required — this invoice requires 2 ADMIN approvals"
