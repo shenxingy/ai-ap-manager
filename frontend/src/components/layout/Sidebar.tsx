@@ -11,6 +11,10 @@ import {
   Building2,
   GitBranch,
   BarChart2,
+  Upload,
+  Layers,
+  RepeatIcon,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -27,6 +31,10 @@ const adminItems = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/vendors", label: "Vendors", icon: Building2 },
   { href: "/admin/exception-routing", label: "Exception Routing", icon: GitBranch },
+  { href: "/admin/approval-matrix", label: "Approval Matrix", icon: Layers },
+  { href: "/admin/recurring-patterns", label: "Recurring Patterns", icon: RepeatIcon },
+  { href: "/admin/fraud", label: "Fraud Incidents", icon: ShieldAlert },
+  { href: "/admin/import", label: "Import", icon: Upload },
 ];
 
 interface SidebarProps {
