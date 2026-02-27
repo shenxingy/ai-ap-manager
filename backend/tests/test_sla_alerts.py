@@ -1,165 +1,244 @@
-"""Unit tests for SLA alert detection.
+"""Tests for SLA alerts service.
 
-Tests SLA violations and near-violations based on invoice due dates
-and approval status.
+Tests overdue and approaching invoice deadline detection. Uses mocked
+database sessions following the existing test patterns.
 """
 import uuid
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from app.models.invoice import Invoice
+from app.models.sla_alert import SLAAlert
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _make_invoice(
-    status: str = "matched",
+    invoice_id: uuid.UUID | None = None,
+    invoice_number: str = "INV-001",
     due_date: datetime | None = None,
-    created_at: datetime | None = None,
-    vendor_id=None,
+    status: str = "pending",
 ) -> MagicMock:
-    """Create a mock Invoice object for SLA testing."""
-    inv = MagicMock()
-    inv.id = uuid.uuid4()
-    inv.status = status
+    """Create a mock Invoice object for testing."""
+    inv = MagicMock(spec=Invoice)
+    inv.id = invoice_id or uuid.uuid4()
+    inv.invoice_number = invoice_number
     inv.due_date = due_date
-    inv.created_at = created_at or datetime.now(timezone.utc)
-    inv.vendor_id = vendor_id or uuid.uuid4()
-    inv.total_amount = Decimal("1000.00")
+    inv.status = status
     inv.deleted_at = None
     return inv
 
 
-def _make_alert(alert_type: str, invoice_id=None) -> MagicMock:
-    """Create a mock SLAAlert object."""
-    alert = MagicMock()
-    alert.id = uuid.uuid4()
-    alert.invoice_id = invoice_id or uuid.uuid4()
-    alert.alert_type = alert_type  # "overdue" or "approaching"
-    alert.triggered_at = datetime.now(timezone.utc)
-    alert.is_resolved = False
-    return alert
+def _mock_db_for_sla_check(
+    invoice: MagicMock,
+    existing_alert: MagicMock | None = None,
+) -> MagicMock:
+    """Build a DB mock for SLA alert checking.
 
-
-def _db_for_sla_check(invoices: list) -> MagicMock:
-    """Build a DB mock for SLA check that returns a list of invoices."""
+    Returns:
+        - First execute: scalar result with the invoice
+        - Second execute: scalar result with existing alert (or None)
+    """
     db = MagicMock()
 
-    # Query to fetch non-approved invoices (matched/pending/exception status)
-    result = MagicMock()
-    result.scalars.return_value.all.return_value = invoices
+    # First query: get the invoice
+    inv_result = MagicMock()
+    inv_result.scalars.return_value.first.return_value = invoice
 
-    db.execute = MagicMock(return_value=result)
+    # Second query: check for existing alert
+    alert_result = MagicMock()
+    alert_result.scalars.return_value.first.return_value = existing_alert
+
+    db.execute.side_effect = [inv_result, alert_result]
     db.add = MagicMock()
     db.flush = MagicMock()
-    db.commit = MagicMock()
 
     return db
 
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
-@patch("app.services.audit.log")
-def test_overdue_invoice_flagged(mock_audit_log):
-    """Invoice with due_date=yesterday, non-approved status → overdue alert created.
+@patch("app.services.sla_alerts._ensure_alert")
+def test_overdue_invoice_flagged(mock_ensure_alert):
+    """Overdue invoice: due_date < now + status PENDING → alert created.
 
-    This test verifies that when an invoice is past its due date and hasn't been
-    approved, the SLA check creates an "overdue" alert.
+    An invoice with a due date in the past and status PENDING should be
+    flagged as overdue. An alert record should be created with alert_type='overdue'.
     """
-    try:
-        from app.services import sla_alerts  # Lazy import to handle missing module
-    except ImportError:
-        pytest.skip("sla_alerts service not yet implemented")
+    from app.services.sla_alerts import check_sla_alerts
 
-    now = datetime.now(timezone.utc)
-    yesterday = now - timedelta(days=1)
+    inv_id = uuid.uuid4()
+    alert_id = uuid.uuid4()
 
-    # Create invoice: due yesterday, not yet approved
+    # Create invoice with due_date = yesterday
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
     invoice = _make_invoice(
-        status="matched",  # Not approved yet
+        invoice_id=inv_id,
+        invoice_number="INV-001",
         due_date=yesterday,
+        status="pending",
     )
 
-    db = _db_for_sla_check([invoice])
+    # Mock alert creation
+    mock_alert = MagicMock()
+    mock_alert.id = alert_id
+    mock_ensure_alert.return_value = mock_alert
 
-    # Call the SLA check (if it exists)
-    try:
-        alerts = sla_alerts.check_and_create_sla_alerts(db)
+    db = _mock_db_for_sla_check(invoice)
 
-        # Verify overdue alert was created
-        assert len(alerts) >= 1
-        assert any(a["alert_type"] == "overdue" for a in alerts)
-        db.commit.assert_called()
-    except AttributeError:
-        # Function doesn't exist yet; skip this test gracefully
-        pytest.skip("sla_alerts.check_and_create_sla_alerts not yet implemented")
+    # Run SLA check
+    result = check_sla_alerts(db, str(inv_id))
+
+    # Verify overdue alert was created
+    assert len(result) == 1
+    assert result[0]["alert_type"] == "overdue"
+    assert result[0]["alert_id"] == str(alert_id)
+
+    # Verify _ensure_alert was called with correct parameters
+    mock_ensure_alert.assert_called_once()
+    call_kwargs = mock_ensure_alert.call_args[1]
+    assert call_kwargs["alert_type"] == "overdue"
+    assert "overdue" in call_kwargs["description"].lower()
 
 
-@patch("app.services.audit.log")
-def test_upcoming_invoice_flagged(mock_audit_log):
-    """Invoice with due_date=3 days from now, non-approved → approaching alert created.
+@patch("app.services.sla_alerts._ensure_alert")
+def test_upcoming_invoice_flagged(mock_ensure_alert):
+    """Approaching deadline: due_date = tomorrow + status PENDING → alert created.
 
-    This test verifies that invoices approaching their due date (within SLA window)
-    are flagged with an "approaching" alert for proactive management.
+    An invoice with a due date approaching (within 1 day) and status PENDING
+    should be flagged as approaching. An alert record should be created
+    with alert_type='approaching'.
     """
-    try:
-        from app.services import sla_alerts  # Lazy import to handle missing module
-    except ImportError:
-        pytest.skip("sla_alerts service not yet implemented")
+    from app.services.sla_alerts import check_sla_alerts
 
-    now = datetime.now(timezone.utc)
-    three_days_ahead = now + timedelta(days=3)
+    inv_id = uuid.uuid4()
+    alert_id = uuid.uuid4()
 
-    # Create invoice: due in 3 days, not yet approved
+    # Create invoice with due_date = tomorrow
+    tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
     invoice = _make_invoice(
-        status="matched",  # Not approved yet
-        due_date=three_days_ahead,
+        invoice_id=inv_id,
+        invoice_number="INV-002",
+        due_date=tomorrow,
+        status="pending",
     )
 
-    db = _db_for_sla_check([invoice])
+    # Mock alert creation
+    mock_alert = MagicMock()
+    mock_alert.id = alert_id
+    mock_ensure_alert.return_value = mock_alert
 
-    # Call the SLA check (if it exists)
-    try:
-        alerts = sla_alerts.check_and_create_sla_alerts(db)
+    db = _mock_db_for_sla_check(invoice)
 
-        # Verify approaching alert was created
-        assert len(alerts) >= 1
-        assert any(a["alert_type"] == "approaching" for a in alerts)
-        db.commit.assert_called()
-    except AttributeError:
-        # Function doesn't exist yet; skip this test gracefully
-        pytest.skip("sla_alerts.check_and_create_sla_alerts not yet implemented")
+    # Run SLA check
+    result = check_sla_alerts(db, str(inv_id))
+
+    # Verify approaching alert was created
+    assert len(result) == 1
+    assert result[0]["alert_type"] == "approaching"
+    assert result[0]["alert_id"] == str(alert_id)
+
+    # Verify _ensure_alert was called with correct parameters
+    mock_ensure_alert.assert_called_once()
+    call_kwargs = mock_ensure_alert.call_args[1]
+    assert call_kwargs["alert_type"] == "approaching"
+    assert "approaching" in call_kwargs["description"].lower()
 
 
-def test_approved_invoice_no_alert():
-    """Invoice with status=approved (past due) → NO alert created.
+def test_no_alert_for_matched_invoice():
+    """No alert: status MATCHED (not PENDING) → no alert created.
 
-    Once an invoice is approved, it's no longer subject to SLA checks.
+    Only invoices with status PENDING or MATCHING should be checked for
+    SLA violations. Matched or approved invoices should not trigger alerts.
     """
-    try:
-        from app.services import sla_alerts  # Lazy import to handle missing module
-    except ImportError:
-        pytest.skip("sla_alerts service not yet implemented")
+    from app.services.sla_alerts import check_sla_alerts
 
-    now = datetime.now(timezone.utc)
-    yesterday = now - timedelta(days=1)
+    inv_id = uuid.uuid4()
 
-    # Create invoice: due yesterday, BUT already approved
+    # Create invoice with due_date = yesterday but status MATCHED
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
     invoice = _make_invoice(
-        status="approved",  # Already approved!
+        invoice_id=inv_id,
+        invoice_number="INV-003",
         due_date=yesterday,
+        status="matched",  # Not PENDING
     )
 
-    db = _db_for_sla_check([invoice])
+    # Mock DB
+    db = MagicMock()
+    inv_result = MagicMock()
+    inv_result.scalars.return_value.first.return_value = invoice
+    db.execute.side_effect = [inv_result]
 
-    # Call the SLA check (if it exists)
-    try:
-        alerts = sla_alerts.check_and_create_sla_alerts(db)
+    # Run SLA check
+    result = check_sla_alerts(db, str(inv_id))
 
-        # No alert should be created for approved invoices
-        if alerts:
-            assert all(a["invoice_id"] != invoice.id for a in alerts)
-    except AttributeError:
-        # Function doesn't exist yet; skip this test gracefully
-        pytest.skip("sla_alerts.check_and_create_sla_alerts not yet implemented")
+    # Verify no alerts were created
+    assert result == []
+
+
+def test_no_alert_without_due_date():
+    """No alert: invoice has no due_date → no alert created.
+
+    Invoices without a due date cannot be checked for SLA violations.
+    The service should skip them gracefully.
+    """
+    from app.services.sla_alerts import check_sla_alerts
+
+    inv_id = uuid.uuid4()
+
+    # Create invoice with no due_date
+    invoice = _make_invoice(
+        invoice_id=inv_id,
+        invoice_number="INV-004",
+        due_date=None,  # No deadline
+        status="pending",
+    )
+
+    # Mock DB
+    db = MagicMock()
+    inv_result = MagicMock()
+    inv_result.scalars.return_value.first.return_value = invoice
+    db.execute.side_effect = [inv_result]
+
+    # Run SLA check
+    result = check_sla_alerts(db, str(inv_id))
+
+    # Verify no alerts were created
+    assert result == []
+
+
+def test_no_duplicate_alert_for_existing_open_alert():
+    """No duplicate alert: existing open alert for same type → _ensure_alert returns None.
+
+    If an open alert already exists for the invoice and alert type,
+    _ensure_alert should return None, and check_sla_alerts should not
+    add it to the result list.
+    """
+    from app.services.sla_alerts import check_sla_alerts
+
+    inv_id = uuid.uuid4()
+
+    # Create invoice with due_date = yesterday
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    invoice = _make_invoice(
+        invoice_id=inv_id,
+        invoice_number="INV-005",
+        due_date=yesterday,
+        status="pending",
+    )
+
+    # Mock _ensure_alert to return None (existing alert found)
+    with patch("app.services.sla_alerts._ensure_alert", return_value=None):
+        db = MagicMock()
+        inv_result = MagicMock()
+        inv_result.scalars.return_value.first.return_value = invoice
+        db.execute.side_effect = [inv_result]
+
+        # Run SLA check
+        result = check_sla_alerts(db, str(inv_id))
+
+        # Verify no alerts in result (since _ensure_alert returned None)
+        assert result == []

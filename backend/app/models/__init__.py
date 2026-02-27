@@ -14,7 +14,8 @@ from app.models.fraud_incident import VendorBankHistory, FraudIncident
 from app.models.approval_matrix import ApprovalMatrixRule, UserDelegation
 from app.models.feedback import AiFeedback, RuleRecommendation
 from app.models.analytics_report import AnalyticsReport
-from app.models.sla_alert import SlaAlert
+from app.models.sla_alert import SLAAlert
+from app.models.override_log import OverrideLog
 
 __all__ = [
     "User",
@@ -33,5 +34,6 @@ __all__ = [
     "ApprovalMatrixRule", "UserDelegation",
     "AiFeedback", "RuleRecommendation",
     "AnalyticsReport",
-    "SlaAlert",
+    "SLAAlert",
+    "OverrideLog",
 ]
