@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   CheckSquare,
   Users,
+  Building2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const navItems = [
 
 const adminItems = [
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/vendors", label: "Vendors", icon: Building2 },
 ];
 
 interface SidebarProps {
