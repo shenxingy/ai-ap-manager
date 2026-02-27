@@ -29,6 +29,7 @@ class InvoiceListItem(BaseModel):
     currency: str | None
     file_name: str
     created_at: datetime
+    unread_vendor_messages: int = 0
 
 
 # ─── Line item detail ───
