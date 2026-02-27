@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 
 // ─── Types ───
 
@@ -68,6 +70,15 @@ function ConfiguredBadge({ configured }: { configured: boolean }) {
 // ─── Page ───
 
 export default function AdminSettingsPage() {
+  const { user } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && user.role !== "ADMIN") {
+      router.push("/unauthorized");
+    }
+  }, [user, router]);
+
   const { toast, showToast } = useToast();
 
   const {

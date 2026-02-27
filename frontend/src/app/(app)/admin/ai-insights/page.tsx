@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -369,6 +371,15 @@ function OverrideHistorySection() {
 // ─── Page ───
 
 export default function AdminAIInsightsPage() {
+  const { user } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && user.role !== "ADMIN") {
+      router.push("/unauthorized");
+    }
+  }, [user, router]);
+
   const { toast, showToast } = useToast();
 
   return (

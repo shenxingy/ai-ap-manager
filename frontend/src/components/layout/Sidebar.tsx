@@ -55,7 +55,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/analytics", label: "Analytics", icon: BarChart2 },
       { href: "/admin/fraud", label: "Fraud Incidents", icon: ShieldAlert },
       { href: "/admin/recurring-patterns", label: "Recurring Patterns", icon: RepeatIcon },
-      { href: "/admin/ai-insights", label: "AI Insights", icon: Sparkles },
       { href: "/admin/vendors", label: "Vendors", icon: Building2 },
     ],
   },
@@ -65,10 +64,11 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/approval-matrix", label: "Approval Matrix", icon: Layers },
-      { href: "/admin/rules", label: "Policy Rules", icon: BookOpen },
+      { href: "/admin/rules", label: "Rules", icon: BookOpen },
       { href: "/admin/import", label: "Import", icon: Upload },
-      { href: "/admin/settings", label: "Email Settings", icon: Settings },
+      { href: "/admin/settings", label: "Settings", icon: Settings },
       { href: "/admin/exception-routing", label: "Exception Routing", icon: GitBranch },
+      { href: "/admin/ai-insights", label: "AI Insights", icon: Sparkles },
     ],
   },
 ];
