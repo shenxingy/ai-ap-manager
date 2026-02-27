@@ -43,7 +43,7 @@
   - [x] Axios instance with `baseURL = process.env.NEXT_PUBLIC_API_URL`
   - [x] Request interceptor: attach `Authorization: Bearer <token>` from auth store
   - [x] Response interceptor: on 401, attempt token refresh; on refresh fail, redirect to /login
-  - [ ] Global error handler: toast notification for 4xx/5xx
+  - [x] Global error handler: toast notification for 4xx/5xx
 - [x] React Query setup (`lib/query-client.ts`)
   - [x] `QueryClientProvider` at root
   - [x] Default staleTime 30s, retry 2
@@ -214,7 +214,7 @@
 - [x] Each item: invoice# · vendor · amount · due_at countdown · status
 - [x] Click → Approval detail modal / page — scaffolded
   - [x] Invoice summary card (all key fields)
-  - [ ] Match result summary: status, variances
+  - [x] Match result summary: status, variances
   - [x] Notes textarea
   - [x] Approve button (green) + Reject button (red)
   - [x] Confirmation dialog before submitting

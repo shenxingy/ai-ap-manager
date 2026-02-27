@@ -32,6 +32,17 @@ interface ApprovalListResponse {
   total: number;
 }
 
+interface MatchResult {
+  id: string;
+  invoice_id: string;
+  match_type: string;
+  match_status: string;
+  amount_variance_pct: number | null;
+  po_number: string | null;
+  gr_number: string | null;
+  line_matches: Array<{ status: string }>;
+}
+
 type DecisionType = "approve" | "reject";
 type TabType = "pending" | "past";
 
@@ -51,6 +62,13 @@ function DecisionModal({
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
 
+  const { data: matchResult } = useQuery<MatchResult>({
+    queryKey: ["match", task?.invoice_id],
+    queryFn: () =>
+      api.get(`/invoices/${task!.invoice_id}/match`).then((r) => r.data),
+    enabled: !!task,
+  });
+
   const submit = useMutation({
     mutationFn: () =>
       api.post(`/approvals/${task!.id}/${decision}`, { notes }),
@@ -65,6 +83,13 @@ function DecisionModal({
 
   const isOpen = !!task && !!decision;
   const canSubmit = decision === "approve" || (decision === "reject" && notes.trim());
+
+  const getStatusColor = (status: string) => {
+    if (status === "matched") return "bg-green-100 text-green-800";
+    if (status === "partial") return "bg-amber-100 text-amber-800";
+    if (status === "exception") return "bg-red-100 text-red-800";
+    return "bg-gray-100 text-gray-800";
+  };
 
   const handleSubmit = () => {
     const confirmMsg =
@@ -96,6 +121,49 @@ function DecisionModal({
                 </p>
               )}
             </div>
+
+            {/* Match Result Summary */}
+            {matchResult ? (
+              <div className="bg-blue-50 rounded-lg p-3 text-sm border border-blue-100">
+                <p className="font-medium text-blue-900 mb-2">Match Summary</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Type:</span>
+                    <Badge className="bg-blue-600">
+                      {matchResult.match_type === "2way" ? "2-Way" : matchResult.match_type === "3way" ? "3-Way" : matchResult.match_type}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Status:</span>
+                    <Badge className={getStatusColor(matchResult.match_status)}>
+                      {matchResult.match_status.charAt(0).toUpperCase() + matchResult.match_status.slice(1)}
+                    </Badge>
+                  </div>
+                  {matchResult.amount_variance_pct !== null && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">Variance:</span>
+                      <span className="text-gray-800">
+                        {matchResult.amount_variance_pct > 0 ? "+" : ""}{matchResult.amount_variance_pct.toFixed(2)}%
+                      </span>
+                    </div>
+                  )}
+                  {matchResult.po_number && (
+                    <div className="text-xs text-gray-600">
+                      PO: {matchResult.po_number}
+                    </div>
+                  )}
+                  {matchResult.gr_number && (
+                    <div className="text-xs text-gray-600">
+                      GR: {matchResult.gr_number}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                Match data unavailable
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">
                 Notes {decision === "reject" && <span className="text-red-500">*</span>}
