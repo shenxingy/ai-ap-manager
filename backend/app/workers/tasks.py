@@ -241,7 +241,7 @@ def process_invoice(self, invoice_id: str) -> dict:
 
         db.commit()
 
-        # 7. Audit log — final status
+        # 7. Audit log — extraction complete
         audit_svc.log(
             db=db,
             action="invoice.status_changed",
@@ -252,6 +252,38 @@ def process_invoice(self, invoice_id: str) -> dict:
             notes=f"Dual-pass extraction complete. Discrepant fields: {discrepancies}",
         )
         db.commit()
+
+        # 8. Run 2-way match (only if extraction succeeded)
+        if final_status == "extracted":
+            try:
+                from app.rules.match_engine import run_2way_match
+                invoice.status = "matching"
+                db.commit()
+
+                audit_svc.log(
+                    db=db,
+                    action="invoice.status_changed",
+                    entity_type="invoice",
+                    entity_id=inv_uuid,
+                    before={"status": "extracted"},
+                    after={"status": "matching"},
+                    notes="2-way match started",
+                )
+                db.commit()
+
+                match_result = run_2way_match(db, inv_uuid)
+                # match engine sets invoice.status and commits
+                final_status = invoice.status
+                logger.info(
+                    "2-way match complete for %s: match_status=%s invoice.status=%s",
+                    invoice_id, match_result.match_status, final_status
+                )
+            except Exception as match_exc:
+                logger.exception("Match engine failed for %s: %s", invoice_id, match_exc)
+                # Don't fail the whole task; leave status as extracted
+                invoice.status = "extracted"
+                db.commit()
+                final_status = "extracted"
 
         logger.info("process_invoice complete: %s → %s", invoice_id, final_status)
         return {"invoice_id": invoice_id, "status": final_status}
