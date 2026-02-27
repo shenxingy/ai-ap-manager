@@ -1,5 +1,22 @@
 # Progress — AI AP Operations Manager
 
+## [2026-02-27] Vendor Management CRUD
+
+**Result**: success — all 6 endpoints implemented and verified.
+
+**What was done**:
+- `backend/app/schemas/vendor.py`: `VendorListItem`, `VendorDetail`, `VendorCreate`, `VendorUpdate`, `VendorAliasCreate`, `VendorAliasOut`, `InvoiceStub`
+- `backend/app/api/v1/vendors.py`: full CRUD (list, detail, create, patch, add alias, delete alias)
+- Router already had `vendors` imported; no router.py change needed
+- `invoice_count` computed via outerjoin with a subquery (COUNT of non-deleted invoices per vendor)
+- `bank_account_changed` fires as a SEPARATE audit log entry in addition to `vendor_updated`
+
+**Patterns confirmed**:
+- Use `select(Model, func.coalesce(...).label("col")).outerjoin(subquery)` pattern when you need aggregated counts alongside ORM objects — rows come back as tuples `(model, count)`, not scalars
+- `body.model_dump(exclude_unset=True)` for partial update (vs `exclude_none` which would clear nullable fields)
+
+---
+
 ## [2026-02-27] fraud_triggered_signals + invoice status override
 
 **Result**: success — both features implemented and verified.
