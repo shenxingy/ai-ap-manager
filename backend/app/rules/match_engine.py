@@ -409,6 +409,210 @@ def run_2way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     return match_result
 
 
+# ─── 3-Way match ───
+
+def run_3way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
+    """3-way match: Invoice qty must not exceed total qty received via GRNs for the PO.
+
+    Steps:
+    1. Load invoice + line items
+    2. Find PO (same helpers as 2-way)
+    3. Load all GoodsReceipts for that po_id
+    4. Load all GRLineItems for those GRNs
+    5. Aggregate total_grn_qty per PO line item
+    6. If no GRNs found → GRN_NOT_FOUND exception (severity HIGH)
+    7. Per invoice line: invoice qty must not exceed total received qty + tolerance
+       → QTY_OVER_RECEIPT exception (severity HIGH) if violated
+    8. Persist MatchResult with match_type="3way"
+    9. Auto-approve if no exceptions (same threshold logic as 2-way)
+    """
+    from app.models.invoice import Invoice, InvoiceLineItem
+    from app.models.goods_receipt import GoodsReceipt, GRLineItem
+    from app.services import audit as audit_svc
+
+    # ── 1. Load invoice ──
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = db.execute(stmt).scalars().first()
+    if invoice is None:
+        raise ValueError(f"Invoice {invoice_id} not found")
+
+    line_items_stmt = (
+        select(InvoiceLineItem)
+        .where(InvoiceLineItem.invoice_id == invoice_id)
+        .order_by(InvoiceLineItem.line_number)
+    )
+    inv_lines = db.execute(line_items_stmt).scalars().all()
+
+    # ── Load active rules ──
+    tolerance, rule_version_id = get_active_match_rules(db)
+    qty_tol_pct = float(tolerance["qty_tolerance_pct"])
+    auto_approve_threshold = float(tolerance["auto_approve_threshold"])
+    auto_approve_requires_match = bool(tolerance.get("auto_approve_requires_match", True))
+
+    # ── 2. Find PO ──
+    po = _find_po_for_invoice(db, invoice)
+
+    if po is None:
+        match_result = MatchResult(
+            invoice_id=invoice_id,
+            po_id=None,
+            match_status="exception",
+            match_type="3way",
+            rule_version_id=rule_version_id,
+            notes="No matching PO found",
+            exception_codes=["MISSING_PO"],
+        )
+        _persist_match_result(
+            db=db, invoice=invoice, result=match_result,
+            rule_version_id=rule_version_id, audit_svc=audit_svc,
+        )
+        return match_result
+
+    po_lines = list(po.line_items)
+
+    # ── 3. Load all GoodsReceipts for this PO ──
+    grn_stmt = select(GoodsReceipt).where(
+        GoodsReceipt.po_id == po.id,
+        GoodsReceipt.deleted_at.is_(None),
+    )
+    grns = db.execute(grn_stmt).scalars().all()
+
+    # ── 6. If no GRNs found → exception ──
+    if not grns:
+        match_result = MatchResult(
+            invoice_id=invoice_id,
+            po_id=po.id,
+            match_status="exception",
+            match_type="3way",
+            rule_version_id=rule_version_id,
+            notes="No goods receipts found for PO",
+            exception_codes=["GRN_NOT_FOUND"],
+        )
+        _persist_match_result(
+            db=db, invoice=invoice, result=match_result,
+            rule_version_id=rule_version_id, audit_svc=audit_svc,
+            po=po,
+            auto_approve_threshold=auto_approve_threshold,
+            auto_approve_requires_match=auto_approve_requires_match,
+        )
+        return match_result
+
+    # ── 4. Load all GRLineItems for those GRNs ──
+    grn_ids = [grn.id for grn in grns]
+    gr_lines_stmt = select(GRLineItem).where(GRLineItem.gr_id.in_(grn_ids))
+    gr_lines = db.execute(gr_lines_stmt).scalars().all()
+
+    # ── 5. Aggregate total received qty per PO line item ──
+    # GR lines with po_line_item_id → aggregate directly.
+    # GR lines without → match by line_number/description to PO lines and aggregate.
+    grn_qty_by_po_line_id: dict[uuid.UUID, float] = {}
+    for grl in gr_lines:
+        if grl.po_line_item_id is not None:
+            grn_qty_by_po_line_id[grl.po_line_item_id] = (
+                grn_qty_by_po_line_id.get(grl.po_line_item_id, 0.0)
+                + float(grl.quantity or 0)
+            )
+        else:
+            best_pl, score = _find_best_po_line(grl, po_lines)
+            if best_pl is not None and score >= 0.1:
+                grn_qty_by_po_line_id[best_pl.id] = (
+                    grn_qty_by_po_line_id.get(best_pl.id, 0.0)
+                    + float(grl.quantity or 0)
+                )
+
+    # ── 7. For each invoice line: check invoice qty vs total received ──
+    line_details: list[LineMatchDetail] = []
+    exception_codes: set[str] = set()
+    out_of_tolerance_count = 0
+    unmatched_count = 0
+
+    for inv_line in inv_lines:
+        po_line, similarity = _find_best_po_line(inv_line, po_lines)
+
+        if po_line is None or similarity < 0.1:
+            detail = LineMatchDetail(
+                invoice_line_id=inv_line.id,
+                po_line_id=None,
+                status="unmatched",
+                qty_variance=None,
+                price_variance=None,
+                price_variance_pct=None,
+                exception_code="MISSING_PO",
+            )
+            unmatched_count += 1
+            exception_codes.add("MISSING_PO")
+        else:
+            inv_qty = float(inv_line.quantity or 0)
+            total_received = grn_qty_by_po_line_id.get(po_line.id, 0.0)
+            qty_var = inv_qty - total_received
+
+            # Over-receipt: invoice qty must not exceed received qty + tolerance
+            if total_received > 0:
+                qty_ok = inv_qty <= total_received * (1.0 + qty_tol_pct)
+            else:
+                # Nothing received yet; any positive invoice qty is over-receipt
+                qty_ok = inv_qty <= 0
+
+            if qty_ok:
+                line_status = "matched"
+                exc_code = None
+            else:
+                line_status = "qty_variance"
+                exc_code = "QTY_OVER_RECEIPT"
+                out_of_tolerance_count += 1
+                exception_codes.add("QTY_OVER_RECEIPT")
+
+            detail = LineMatchDetail(
+                invoice_line_id=inv_line.id,
+                po_line_id=po_line.id,
+                status=line_status,
+                qty_variance=qty_var,
+                price_variance=None,
+                price_variance_pct=None,
+                exception_code=exc_code,
+            )
+
+        line_details.append(detail)
+
+    # ── Determine overall match_status ──
+    total_lines = len(inv_lines)
+    matched_lines = sum(1 for d in line_details if d.status == "matched")
+
+    if total_lines == 0 or (out_of_tolerance_count == 0 and unmatched_count == 0):
+        overall_status = "matched"
+    elif matched_lines == 0:
+        overall_status = "exception"
+    else:
+        overall_status = "partial"
+
+    match_result = MatchResult(
+        invoice_id=invoice_id,
+        po_id=po.id,
+        match_status=overall_status,
+        match_type="3way",
+        rule_version_id=rule_version_id,
+        line_details=line_details,
+        exception_codes=sorted(exception_codes),
+        notes=(
+            f"3-way match: {matched_lines}/{total_lines} lines matched against GRNs "
+            f"({len(grns)} GRN(s), {len(gr_lines)} GR line(s))."
+        ),
+    )
+
+    _persist_match_result(
+        db=db,
+        invoice=invoice,
+        result=match_result,
+        rule_version_id=rule_version_id,
+        audit_svc=audit_svc,
+        po=po,
+        auto_approve_threshold=auto_approve_threshold,
+        auto_approve_requires_match=auto_approve_requires_match,
+    )
+
+    return match_result
+
+
 # ─── Persistence helper ───
 
 def _persist_match_result(
@@ -479,6 +683,9 @@ def _persist_match_result(
     if result.match_status == "exception" and "MISSING_PO" in result.exception_codes:
         _create_exception(db, invoice.id, "MISSING_PO", "No matching PO found for this invoice")
 
+    if result.match_status == "exception" and "GRN_NOT_FOUND" in result.exception_codes:
+        _create_exception(db, invoice.id, "GRN_NOT_FOUND", "No goods receipts found for this PO")
+
     # ── Determine auto-approve or set status ──
     inv_total = float(invoice.total_amount or 0)
     can_auto_approve = (
@@ -527,7 +734,7 @@ def _persist_match_result(
             "amount_variance": result.amount_variance,
             "exception_codes": result.exception_codes,
         },
-        notes=f"2-way match run. Status={result.match_status}.{notes_suffix}",
+        notes=f"{result.match_type} match run. Status={result.match_status}.{notes_suffix}",
     )
 
     db.commit()
@@ -564,6 +771,8 @@ def _create_exception(
         "QTY_VARIANCE": "medium",
         "DUPLICATE_INVOICE": "high",
         "FRAUD_FLAG": "critical",
+        "GRN_NOT_FOUND": "high",
+        "QTY_OVER_RECEIPT": "high",
     }
     severity = severity_map.get(exception_code, "medium")
 

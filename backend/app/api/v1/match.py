@@ -3,7 +3,7 @@ import uuid
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -70,12 +70,25 @@ async def trigger_match(
     invoice_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
+    match_type: str = Query(
+        default="auto",
+        description=(
+            "Match strategy: 'auto' selects 3-way if GRNs exist for the PO, "
+            "else 2-way. '2way' forces 2-way. '3way' forces 3-way."
+        ),
+    ),
 ):
     """Trigger a synchronous re-match for the invoice.
 
     Uses a sync DB session internally (match engine is sync).
     Updates invoice status in place and returns the result.
     """
+    if match_type not in ("auto", "2way", "3way"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="match_type must be 'auto', '2way', or '3way'.",
+        )
+
     # Verify invoice exists
     inv_result = await db.execute(
         select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
@@ -88,10 +101,11 @@ async def trigger_match(
     # (match_engine uses sync SQLAlchemy; we cannot call it from async context directly
     #  without running in an executor — here we use a simple sync session)
     try:
-        from sqlalchemy import create_engine
+        from sqlalchemy import create_engine, update
         from sqlalchemy.orm import sessionmaker
         from app.core.config import settings
-        from app.rules.match_engine import run_2way_match
+        from app.rules.match_engine import run_2way_match, run_3way_match
+        from app.models.goods_receipt import GoodsReceipt
 
         sync_engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
         SyncSession = sessionmaker(bind=sync_engine, expire_on_commit=False)
@@ -99,13 +113,34 @@ async def trigger_match(
 
         try:
             # Set status to matching
-            from sqlalchemy import update
             sync_db.execute(
                 update(Invoice).where(Invoice.id == invoice_id).values(status="matching")
             )
             sync_db.commit()
 
-            match_result = run_2way_match(sync_db, invoice_id)
+            # ── Auto-select match strategy ──
+            if match_type == "auto":
+                # Reload invoice in sync session to access po_id
+                inv_sync = sync_db.execute(
+                    select(Invoice).where(Invoice.id == invoice_id)
+                ).scalars().first()
+                use_3way = False
+                if inv_sync and inv_sync.po_id:
+                    grn_exists = sync_db.execute(
+                        select(GoodsReceipt).where(
+                            GoodsReceipt.po_id == inv_sync.po_id,
+                            GoodsReceipt.deleted_at.is_(None),
+                        )
+                    ).scalars().first()
+                    use_3way = grn_exists is not None
+                resolved_type = "3way" if use_3way else "2way"
+            else:
+                resolved_type = match_type
+
+            if resolved_type == "3way":
+                match_result = run_3way_match(sync_db, invoice_id)
+            else:
+                match_result = run_2way_match(sync_db, invoice_id)
             # match engine commits and sets invoice.status
         finally:
             sync_db.close()
@@ -122,7 +157,7 @@ async def trigger_match(
     await db.refresh(invoice)
 
     return MatchTriggerResponse(
-        message=f"Re-match complete. Match status: {match_result.match_status}.",
+        message=f"Re-match complete ({resolved_type}). Match status: {match_result.match_status}.",
         match_status=match_result.match_status,
         invoice_status=invoice.status,
     )
