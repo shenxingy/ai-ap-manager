@@ -1,5 +1,35 @@
 # Progress — AI AP Operations Manager
 
+## [2026-02-27] Feature 4 Backend: Vendor Communications Endpoints
+
+**Result**: success — vendor portal reply endpoint and unread message counting implemented.
+
+**What was done**:
+- Added `unread_vendor_messages: int = 0` field to `InvoiceListItem` Pydantic schema
+- Updated `GET /api/v1/invoices` list endpoint to compute unread message count per invoice:
+  - Counts inbound `VendorMessage` rows created after the latest outbound message (or all inbound if no outbound exists)
+  - Uses SQLAlchemy subquery pattern: `outbound_max = select(func.max(VendorMessage.created_at)).where(...)`
+  - Executed per-invoice with correlated subquery
+- Created `backend/app/api/v1/portal.py` with vendor portal reply endpoint:
+  - `POST /api/v1/portal/invoices/{invoice_id}/reply` — public endpoint (no auth required)
+  - Token-based auth using HMAC-SHA256 pattern (same as approval tokens)
+  - Token format: `vendor_reply:{invoice_id}:{uuid4}`
+  - `verify_vendor_reply_token()` extracts and validates invoice_id
+  - Creates `VendorMessage` record with `direction=inbound`, `is_internal=False`, `sender_id=None` (external vendor)
+- Registered portal router in `app/api/v1/router.py`
+- Verified: endpoint registered at `/api/v1/portal/invoices/{invoice_id}/reply`, schema validation works, token generation/verification tested
+
+**Patterns confirmed**:
+- Unread count: use subquery for max(created_at) of one direction, then count rows of opposite direction with `created_at > subquery`
+- Public vendor endpoints: same HMAC-SHA256 token pattern as approval tokens, format encode invoice_id in token
+- Schema fields with defaults: `unread_vendor_messages: int = 0` works in Pydantic list responses
+
+**Lessons**:
+- Token verification doesn't require storing token_hash in DB for simple public endpoints; can decode and validate structure inline
+- Correlated subqueries in async SQLAlchemy: use `outbound_max.correlate(VendorMessage)` when referencing the same table in WHERE clause to avoid ambiguous column references
+
+---
+
 ## [2026-02-27] TODO.md Audit & Completion Status
 
 **Result**: success — all P0 features complete, P1 partially complete.
