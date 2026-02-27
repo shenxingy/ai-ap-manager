@@ -426,10 +426,10 @@
   - [ ] DELETE `/api/v1/approval-matrix/{id}` — soft delete (ADMIN)
 
 #### Frontend
-- [ ] Approval matrix config UI (Admin Settings → Approval Matrix)
-  - [ ] Table of rules: amount band · department · category → approver role · step
-  - [ ] Add/edit/delete rows
-  - [ ] Preview: "Invoice of $8,000 in Procurement → Step 1: AP_ANALYST → Step 2: ADMIN"
+- [x] Approval matrix config UI (Admin Settings → Approval Matrix)
+  - [x] Table of rules: amount band · department · category → approver role · step
+  - [x] Add/edit/delete rows
+  - [x] Preview: "Invoice of $8,000 in Procurement → Step 1: AP_ANALYST → Step 2: ADMIN"
 - [ ] Approval chain visible in invoice detail → Approvals tab
   - [ ] Timeline showing each step with status
 
@@ -523,10 +523,10 @@
   - [ ] Alert AP Analyst via email notification (console mock)
 
 #### Frontend
-- [ ] Vendor detail page: Compliance Documents section
-  - [ ] List of docs with type, status badge (active/expired/missing), expiry date
-  - [ ] Upload button per doc type
-  - [ ] Status: green (active) · orange (expiring in 30 days) · red (expired/missing)
+- [x] Vendor detail page: Compliance Documents section
+  - [x] List of docs with type, status badge (active/expired/missing), expiry date
+  - [x] Upload button per doc type
+  - [x] Status: green (active) · orange (expiring in 30 days) · red (expired/missing)
 - [ ] Invoice detail: compliance warning banner if vendor has expired docs
 
 ---
@@ -667,12 +667,12 @@
   - [ ] Table: name · tax_id · invoice count · compliance status · is_active
   - [ ] Search by name/tax_id
   - [ ] Create vendor button
-- [ ] Vendor detail page (`/vendors/{id}`)
-  - [ ] Header: name, tax_id, bank account, payment_terms, currency
+- [x] Vendor detail page (`/vendors/{id}`)
+  - [x] Header: name, tax_id, bank account, payment_terms, currency
   - [ ] Edit button → inline form
   - [ ] Bank account change warning: "⚠️ Changing bank account will trigger fraud signal"
   - [ ] Aliases section: list + add/remove
-  - [ ] Compliance docs section (W-9, W-8BEN, VAT)
+  - [x] Compliance docs section (W-9, W-8BEN, VAT)
   - [ ] Recent invoices mini-list (last 10)
 
 ---
