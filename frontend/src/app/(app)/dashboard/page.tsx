@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,20 +38,47 @@ interface KpiTrendPoint {
 
 // ─── KPI Card ───
 
-function KpiCard({ title, value, unit }: { title: string; value: number | string; unit?: string }) {
-  return (
-    <Card>
+function KpiCard({
+  title,
+  value,
+  unit,
+  accentColor,
+  href,
+}: {
+  title: string;
+  value: number | string;
+  unit?: string;
+  accentColor?: "red" | "orange";
+  href?: string;
+}) {
+  const valueClass =
+    accentColor === "red"
+      ? "text-red-600"
+      : accentColor === "orange"
+        ? "text-orange-500"
+        : "";
+
+  const card = (
+    <Card className={href ? "hover:shadow-md transition-shadow cursor-pointer" : ""}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-gray-500">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-bold">
+        <p className={`text-3xl font-bold ${valueClass}`}>
           {value}
           {unit && <span className="text-lg font-medium text-gray-400 ml-1">{unit}</span>}
         </p>
+        {href && (
+          <p className="text-xs text-blue-500 mt-1">View →</p>
+        )}
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href}>{card}</Link>;
+  }
+  return card;
 }
 
 // ─── Skeleton Card ───
@@ -74,6 +102,17 @@ export default function DashboardPage() {
   const { data: trends = [], isLoading: trendsLoading, isFetching: trendsFetching } = useQuery<KpiTrendPoint[]>({
     queryKey: ["kpi-trends", period, granularity],
     queryFn: () => api.get(`/kpi/trends?period_days=${period}&granularity=${granularity}`).then((r) => r.data),
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const { data: openFraudCount = 0 } = useQuery<number>({
+    queryKey: ["fraud-incidents-open"],
+    queryFn: () =>
+      api
+        .get("/fraud-incidents?outcome=pending")
+        .then((r) =>
+          Array.isArray(r.data) ? r.data.length : (r.data.total ?? 0)
+        ),
     refetchInterval: 5 * 60 * 1000,
   });
 
@@ -128,16 +167,23 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Mini KPI Cards — Total Approved / Pending / Exceptions */}
+      {/* Mini KPI Cards — Total Approved / Pending / Exceptions / Fraud */}
       {!isLoading && summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <KpiCard title="Total Approved" value={summary.total_approved.toLocaleString()} />
           <KpiCard title="Total Pending" value={summary.total_pending.toLocaleString()} />
           <KpiCard title="Total Exceptions" value={summary.total_exceptions.toLocaleString()} />
+          <KpiCard
+            title="Open Fraud Incidents"
+            value={openFraudCount}
+            accentColor={openFraudCount > 0 ? "red" : undefined}
+            href="/admin/fraud"
+          />
         </div>
       )}
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />

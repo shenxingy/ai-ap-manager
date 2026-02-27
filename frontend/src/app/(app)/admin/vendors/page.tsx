@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -608,7 +609,15 @@ export default function AdminVendorsPage() {
               )}
               {vendors.map((v) => (
                 <TableRow key={v.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setEditVendorId(v.id)}>
-                  <TableCell className="font-medium">{v.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/admin/vendors/${v.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="hover:underline text-blue-600"
+                    >
+                      {v.name}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-sm text-gray-500">
                     {v.tax_id ?? <span className="text-gray-300">—</span>}
                   </TableCell>
@@ -625,16 +634,23 @@ export default function AdminVendorsPage() {
                     {v.invoice_count}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditVendorId(v.id);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Link href={`/admin/vendors/${v.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="ghost">
+                          View
+                        </Button>
+                      </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditVendorId(v.id);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
