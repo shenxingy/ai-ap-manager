@@ -182,7 +182,7 @@ function RuleDialog({
 
   useEffect(() => {
     setForm(editRule ? ruleToForm(editRule) : EMPTY_FORM);
-  }, [open, editRule?.id]);
+  }, [open, editRule]);
 
   const mutation = useMutation({
     mutationFn: async () => {
