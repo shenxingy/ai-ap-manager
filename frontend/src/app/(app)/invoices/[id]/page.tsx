@@ -124,6 +124,8 @@ interface ApprovalTask {
   assigned_at: string;
   decided_at: string | null;
   notes: string | null;
+  chain_step: number | null;
+  chain_total: number | null;
 }
 
 interface AuditEntry {
@@ -1098,6 +1100,70 @@ export default function InvoiceDetailPage() {
 
         {/* Approvals */}
         <TabsContent value="approvals">
+          {/* Chain timeline — only shown when chain_step is set */}
+          {approvals.some((t) => t.chain_step !== null) && (() => {
+            const chainTotal = approvals.find((t) => t.chain_total !== null)?.chain_total ?? 0;
+            const steps = Array.from({ length: chainTotal }, (_, i) => {
+              const stepNum = i + 1;
+              const stepTasks = approvals.filter((t) => t.chain_step === stepNum);
+              const isCompleted = stepTasks.length > 0 && stepTasks.every(
+                (t) => t.status === "approved" || t.status === "rejected"
+              );
+              const isPending = stepTasks.some((t) => t.status === "pending");
+              const assignees = stepTasks.map((t) => t.assignee_name).join(", ");
+              return { stepNum, isCompleted, isPending, assignees };
+            });
+
+            return (
+              <Card className="mb-4">
+                <CardContent className="pt-5 pb-4">
+                  <div className="flex items-start justify-center gap-0">
+                    {steps.map((step, idx) => (
+                      <React.Fragment key={step.stepNum}>
+                        {/* Step node */}
+                        <div className="flex flex-col items-center w-24">
+                          <div
+                            className={`flex items-center justify-center w-9 h-9 rounded-full border-2 text-sm font-semibold ${
+                              step.isCompleted
+                                ? "border-green-500 bg-green-50 text-green-600"
+                                : step.isPending
+                                ? "border-yellow-400 bg-yellow-50 text-yellow-600"
+                                : "border-gray-300 bg-white text-gray-400"
+                            }`}
+                          >
+                            {step.isCompleted ? (
+                              <span>✓</span>
+                            ) : step.isPending ? (
+                              <span>⏳</span>
+                            ) : (
+                              <span>○</span>
+                            )}
+                          </div>
+                          <p className="mt-1.5 text-xs font-medium text-gray-600 text-center">
+                            Step {step.stepNum}
+                          </p>
+                          {step.assignees && (
+                            <p className="text-xs text-gray-400 text-center leading-tight mt-0.5 max-w-full truncate">
+                              {step.assignees}
+                            </p>
+                          )}
+                        </div>
+                        {/* Connector */}
+                        {idx < steps.length - 1 && (
+                          <div
+                            className={`flex-1 h-0.5 mt-4 mx-1 ${
+                              steps[idx].isCompleted ? "bg-green-400" : "bg-gray-200"
+                            }`}
+                          />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           <Card>
             <CardContent className="p-0">
               <Table>
