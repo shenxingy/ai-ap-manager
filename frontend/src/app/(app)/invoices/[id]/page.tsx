@@ -146,6 +146,7 @@ export default function InvoiceDetailPage() {
   // GL editing state
   const [glEdits, setGlEdits] = useState<Record<string, { gl_account: string; cost_center: string }>>({});
   const [savingGl, setSavingGl] = useState<string | null>(null);
+  const [confirmedLineIds, setConfirmedLineIds] = useState<Set<string>>(new Set());
 
   function showToast(message: string, type: "success" | "error") {
     setToast({ message, type });
@@ -164,13 +165,13 @@ export default function InvoiceDetailPage() {
     queryFn: () => api.get(`/invoices/${id}/line-items`).then((r) => r.data),
   });
 
-  const { data: glSuggestions } = useQuery<Record<string, string>>({
+  const { data: glSuggestions } = useQuery<Record<string, { gl_account: string; confidence_pct: number }>>({
     queryKey: ["invoice-gl", id],
     queryFn: () =>
       api.get(`/invoices/${id}/gl-suggestions`).then((r) => {
-        const map: Record<string, string> = {};
-        (r.data.suggestions ?? []).forEach((s: { line_item_id: string; gl_code: string }) => {
-          map[s.line_item_id] = s.gl_code;
+        const map: Record<string, { gl_account: string; confidence_pct: number }> = {};
+        (r.data.suggestions ?? []).forEach((s: { line_id: string; gl_account: string; confidence_pct: number }) => {
+          map[s.line_id] = { gl_account: s.gl_account, confidence_pct: s.confidence_pct };
         });
         return map;
       }),
@@ -265,6 +266,7 @@ export default function InvoiceDetailPage() {
     try {
       await api.put(`/invoices/${id}/lines/${lineId}/gl`, edit);
       await queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
+      setConfirmedLineIds((prev) => { const next = new Set(prev); next.add(lineId); return next; });
       showToast("GL code confirmed", "success");
     } catch {
       showToast("Failed to save GL code", "error");
@@ -280,18 +282,25 @@ export default function InvoiceDetailPage() {
       return;
     }
     setSavingGl("all");
-    let errors = 0;
-    for (const lineId of lineIds) {
-      try {
-        await api.put(`/invoices/${id}/lines/${lineId}/gl`, glEdits[lineId]);
-      } catch {
-        errors++;
-      }
+    try {
+      const payload = {
+        lines: lineIds.map((lineId) => ({
+          line_id: lineId,
+          gl_account: glEdits[lineId].gl_account,
+          cost_center: glEdits[lineId].cost_center || null,
+        })),
+      };
+      const res = await api.put(`/invoices/${id}/lines/gl-bulk`, payload);
+      await queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
+      setConfirmedLineIds((prev) => { const next = new Set(prev); lineIds.forEach((lid) => next.add(lid)); return next; });
+      const { updated, errors } = res.data;
+      if (errors === 0) showToast(`All ${updated} GL codes confirmed`, "success");
+      else showToast(`${errors} failed, ${updated} saved`, "error");
+    } catch {
+      showToast("Failed to confirm GL codes", "error");
+    } finally {
+      setSavingGl(null);
     }
-    await queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-    setSavingGl(null);
-    if (errors === 0) showToast(`All ${lineIds.length} GL codes confirmed`, "success");
-    else showToast(`${errors} failed, ${lineIds.length - errors} saved`, "error");
   }
 
   if (!invoice) {
@@ -546,11 +555,14 @@ export default function InvoiceDetailPage() {
                 </TableHeader>
                 <TableBody>
                   {lineItems.map((li) => {
-                    const suggestion = glSuggestions?.[li.id] ?? li.gl_suggestion;
+                    const suggEntry = glSuggestions?.[li.id];
+                    const suggestion = suggEntry?.gl_account ?? li.gl_suggestion ?? null;
+                    const suggestionConfidence = suggEntry?.confidence_pct ?? li.gl_suggestion_confidence;
                     const glEdit = glEdits[li.id] ?? {
                       gl_account: li.gl_code ?? "",
                       cost_center: li.cost_center ?? "",
                     };
+                    const isConfirmed = confirmedLineIds.has(li.id);
                     return (
                       <TableRow key={li.id}>
                         <TableCell>{li.description}</TableCell>
@@ -559,22 +571,31 @@ export default function InvoiceDetailPage() {
                         <TableCell className="text-right">${li.total_price?.toFixed(2)}</TableCell>
                         <TableCell>
                           <div className="space-y-1 min-w-[140px]">
-                            <input
-                              className="border border-gray-200 rounded px-2 py-0.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              placeholder="GL Account"
-                              value={glEdit.gl_account}
-                              onChange={(e) =>
-                                setGlEdits((prev) => ({
-                                  ...prev,
-                                  [li.id]: { ...glEdit, gl_account: e.target.value },
-                                }))
-                              }
-                            />
-                            {suggestion && (
+                            <div className="relative">
+                              <input
+                                className={`border rounded px-2 py-0.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                  isConfirmed
+                                    ? "border-green-400 bg-green-50 text-gray-900"
+                                    : "border-gray-200"
+                                }`}
+                                placeholder="GL Account"
+                                value={glEdit.gl_account}
+                                onChange={(e) => {
+                                  setConfirmedLineIds((prev) => { const next = new Set(prev); next.delete(li.id); return next; });
+                                  setGlEdits((prev) => ({
+                                    ...prev,
+                                    [li.id]: { ...glEdit, gl_account: e.target.value },
+                                  }));
+                                }}
+                              />
+                              {isConfirmed && (
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500 text-xs">✓</span>
+                              )}
+                            </div>
+                            {!isConfirmed && suggestion && (
                               <div className="flex items-center gap-1 flex-wrap">
-                                <span className="text-xs text-gray-400">Suggest:</span>
-                                <span className="text-xs text-gray-500 font-mono">{suggestion}</span>
-                                <GlConfBadge score={li.gl_suggestion_confidence} />
+                                <span className="text-xs text-gray-400 italic">{suggestion}</span>
+                                <GlConfBadge score={suggestionConfidence} />
                                 <button
                                   onClick={() =>
                                     setGlEdits((prev) => ({
@@ -584,7 +605,7 @@ export default function InvoiceDetailPage() {
                                   }
                                   className="text-xs text-blue-500 hover:text-blue-700 underline"
                                 >
-                                  Use suggestion
+                                  Use
                                 </button>
                               </div>
                             )}
@@ -594,10 +615,16 @@ export default function InvoiceDetailPage() {
                           <button
                             onClick={() => handleConfirmGl(li.id)}
                             disabled={savingGl !== null || !glEdit.gl_account}
-                            className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded disabled:opacity-40 whitespace-nowrap"
+                            className={`text-xs px-2 py-1 rounded disabled:opacity-40 whitespace-nowrap ${
+                              isConfirmed
+                                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                : "bg-gray-100 hover:bg-gray-200"
+                            }`}
                           >
                             {savingGl === li.id ? (
                               <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" />
+                            ) : isConfirmed ? (
+                              "✓ Confirmed"
                             ) : (
                               "Confirm GL"
                             )}
