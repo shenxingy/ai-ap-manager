@@ -1,4 +1,5 @@
 """Vendor management API endpoints — CRUD for vendors, aliases, and compliance docs."""
+import re
 import uuid
 import logging
 from datetime import date, datetime
@@ -172,6 +173,27 @@ async def create_vendor(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
 ):
+    # EIN format validation for USD vendors
+    if body.currency == "USD" and body.tax_id:
+        if not re.fullmatch(r"\d{2}-\d{7}", body.tax_id):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="For USD currency, tax_id must be in EIN format (XX-XXXXXXX).",
+            )
+
+    # 409 if tax_id already exists
+    if body.tax_id:
+        existing = (
+            await db.execute(
+                select(Vendor).where(Vendor.tax_id == body.tax_id, Vendor.deleted_at.is_(None))
+            )
+        ).scalar_one_or_none()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A vendor with tax_id '{body.tax_id}' already exists.",
+            )
+
     vendor = Vendor(
         name=body.name,
         tax_id=body.tax_id,
