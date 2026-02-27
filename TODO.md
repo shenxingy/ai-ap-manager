@@ -368,6 +368,9 @@
 - [x] `DELETE /api/v1/vendors/{id}/aliases/{alias_id}` — remove alias (AP_ANALYST+)
 - [x] Pydantic schemas: `VendorListItem`, `VendorDetail`, `VendorCreate`, `VendorUpdate`, `VendorAliasCreate`
 
+#### Frontend
+- [x] Vendor management page (`/admin/vendors`) — list, create, edit, aliases UI
+
 ---
 
 ### 3-Way Match Engine
@@ -390,7 +393,7 @@
 - [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param (supports match_type=auto/2way/3way)
 
 #### Frontend
-- [ ] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label
+- [-] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label — scaffolded, GRN data not yet wired
 - [ ] For 3-way: show GRN line reference in line match table
 - [ ] GRN_NOT_FOUND exception highlighted with "No GR found for this PO line" message
 
@@ -633,11 +636,11 @@
 - [ ] DELETE `/api/v1/admin/users/{id}` — soft delete (ADMIN)
 
 #### Frontend
-- [ ] Admin panel (`/admin/users`)
-  - [ ] User table: email · name · role · status (active/inactive)
-  - [ ] Create user form (modal)
-  - [ ] Edit user: role change dropdown, deactivate toggle
-  - [ ] Role badge: color-coded (ADMIN=red, ANALYST=blue, CLERK=gray, APPROVER=green)
+- [x] Admin panel (`/admin/users`) — scaffolded with user table, create/edit forms, role badges
+  - [x] User table: email · name · role · status (active/inactive)
+  - [x] Create user form (modal)
+  - [x] Edit user: role change dropdown, deactivate toggle
+  - [x] Role badge: color-coded (ADMIN=red, ANALYST=blue, CLERK=gray, APPROVER=green)
 - [ ] Per-role route guards:
   - [ ] `/admin/*` — ADMIN only
   - [ ] `/approvals` — APPROVER+ (AP_ANALYST, ADMIN can also view)
@@ -713,7 +716,7 @@
   - [x] PATCH `/api/v1/admin/exception-routing/{id}` — update (ADMIN)
 
 #### Frontend
-- [ ] Admin → Exception Routing page
+- [ ] Admin → Exception Routing page (`/admin/exception-routing`) — CRUD UI for routing rules
   - [ ] Table: exception_code → assigned_role
   - [ ] Edit mapping dropdowns
   - [ ] Priority ordering (drag to reorder)
