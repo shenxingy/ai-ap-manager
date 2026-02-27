@@ -26,6 +26,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="upload")  # upload, email, api
+    source_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     subtotal: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
     tax_amount: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
