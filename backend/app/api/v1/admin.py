@@ -1,4 +1,4 @@
-"""Admin user management endpoints."""
+"""Admin user management and exception routing endpoints."""
 import uuid
 from typing import Annotated
 
@@ -10,11 +10,17 @@ from app.core.deps import get_current_user, require_role
 from app.core.security import hash_password
 from app.db.session import get_session
 from app.models.user import User
+from app.models.exception_routing import ExceptionRoutingRule
 from app.schemas.admin_user import (
     AdminUserCreate,
     AdminUserListResponse,
     AdminUserOut,
     AdminUserUpdate,
+)
+from app.schemas.exception_routing import (
+    ExceptionRoutingRuleIn,
+    ExceptionRoutingRuleOut,
+    ExceptionRoutingRuleUpdate,
 )
 
 router = APIRouter()
@@ -138,3 +144,91 @@ async def update_user(
     await db.refresh(user)
 
     return AdminUserOut.model_validate(user)
+
+
+# ─── GET /admin/exception-routing ───
+
+
+@router.get(
+    "/exception-routing",
+    response_model=list[ExceptionRoutingRuleOut],
+    summary="List all exception routing rules (ADMIN only)",
+    dependencies=[Depends(require_role("ADMIN"))],
+)
+async def list_exception_routing_rules(
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Return all exception routing rules ordered by exception_code then priority."""
+    result = await db.execute(
+        select(ExceptionRoutingRule).order_by(
+            ExceptionRoutingRule.exception_code,
+            ExceptionRoutingRule.priority.desc(),
+        )
+    )
+    rules = result.scalars().all()
+    return [ExceptionRoutingRuleOut.model_validate(r) for r in rules]
+
+
+# ─── POST /admin/exception-routing ───
+
+
+@router.post(
+    "/exception-routing",
+    response_model=ExceptionRoutingRuleOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new exception routing rule (ADMIN only)",
+    dependencies=[Depends(require_role("ADMIN"))],
+)
+async def create_exception_routing_rule(
+    rule_data: ExceptionRoutingRuleIn,
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Create a new exception routing rule. ADMIN only."""
+    rule = ExceptionRoutingRule(
+        exception_code=rule_data.exception_code,
+        target_role=rule_data.target_role,
+        priority=rule_data.priority,
+        is_active=rule_data.is_active,
+    )
+    db.add(rule)
+    await db.commit()
+    await db.refresh(rule)
+    return ExceptionRoutingRuleOut.model_validate(rule)
+
+
+# ─── PATCH /admin/exception-routing/{id} ───
+
+
+@router.patch(
+    "/exception-routing/{rule_id}",
+    response_model=ExceptionRoutingRuleOut,
+    summary="Update an exception routing rule (ADMIN only)",
+    dependencies=[Depends(require_role("ADMIN"))],
+)
+async def update_exception_routing_rule(
+    rule_id: uuid.UUID,
+    rule_data: ExceptionRoutingRuleUpdate,
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Update target_role, priority, or is_active on a routing rule. ADMIN only."""
+    result = await db.execute(
+        select(ExceptionRoutingRule).where(ExceptionRoutingRule.id == rule_id)
+    )
+    rule = result.scalar_one_or_none()
+
+    if not rule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Routing rule not found",
+        )
+
+    if rule_data.target_role is not None:
+        rule.target_role = rule_data.target_role
+    if rule_data.priority is not None:
+        rule.priority = rule_data.priority
+    if rule_data.is_active is not None:
+        rule.is_active = rule_data.is_active
+
+    await db.commit()
+    await db.refresh(rule)
+    return ExceptionRoutingRuleOut.model_validate(rule)

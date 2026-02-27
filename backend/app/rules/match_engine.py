@@ -744,6 +744,38 @@ def _persist_match_result(
     )
 
 
+def _resolve_assignee(db: Session, exception_code: str) -> uuid.UUID | None:
+    """Look up routing rules for exception_code and return the first matching user's id.
+
+    Finds the highest-priority active routing rule, then the first active user
+    with the target_role. Returns None if no rule or user is found.
+    """
+    from app.models.exception_routing import ExceptionRoutingRule
+    from app.models.user import User
+
+    rule = db.execute(
+        select(ExceptionRoutingRule)
+        .where(
+            ExceptionRoutingRule.exception_code == exception_code,
+            ExceptionRoutingRule.is_active.is_(True),
+        )
+        .order_by(ExceptionRoutingRule.priority.desc())
+    ).scalars().first()
+
+    if rule is None:
+        return None
+
+    user = db.execute(
+        select(User).where(
+            User.role == rule.target_role,
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+        )
+    ).scalars().first()
+
+    return user.id if user else None
+
+
 def _create_exception(
     db: Session,
     invoice_id: uuid.UUID,
@@ -776,12 +808,15 @@ def _create_exception(
     }
     severity = severity_map.get(exception_code, "medium")
 
+    assigned_to = _resolve_assignee(db, exception_code)
+
     exc_rec = ExceptionRecord(
         invoice_id=invoice_id,
         exception_code=exception_code,
         description=description,
         severity=severity,
         status="open",
+        assigned_to=assigned_to,
     )
     db.add(exc_rec)
     db.flush()
