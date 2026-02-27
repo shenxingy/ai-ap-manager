@@ -35,3 +35,8 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Local runtime / Claude loop state
+.claude/
+logs/
+tasks.txt
