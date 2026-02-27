@@ -4,9 +4,9 @@ import logging
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
@@ -35,6 +35,11 @@ class RecurringPatternOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RecurringPatternListResponse(BaseModel):
+    items: list[RecurringPatternOut]
+    total: int
+
+
 class RecurringPatternUpdate(BaseModel):
     auto_fast_track: bool | None = None
     tolerance_pct: float | None = None
@@ -44,17 +49,29 @@ class RecurringPatternUpdate(BaseModel):
 
 @router.get(
     "/recurring-patterns",
-    response_model=list[RecurringPatternOut],
+    response_model=RecurringPatternListResponse,
     summary="List all recurring invoice patterns (ADMIN, AP_ANALYST)",
 )
 async def list_recurring_patterns(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("ADMIN", "AP_ANALYST"))],
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=50, ge=1, le=500, description="Number of records to return"),
 ):
-    result = await db.execute(
-        select(RecurringInvoicePattern).order_by(RecurringInvoicePattern.created_at.desc())
+    # Get total count
+    total = await db.scalar(select(func.count()).select_from(RecurringInvoicePattern)) or 0
+
+    # Get paginated results
+    stmt = (
+        select(RecurringInvoicePattern)
+        .order_by(RecurringInvoicePattern.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
-    return [RecurringPatternOut.model_validate(row) for row in result.scalars().all()]
+    result = await db.execute(stmt)
+    items = [RecurringPatternOut.model_validate(row) for row in result.scalars().all()]
+
+    return RecurringPatternListResponse(items=items, total=total)
 
 
 # ─── PATCH /admin/recurring-patterns/{id} ───
