@@ -28,7 +28,8 @@ def _make_invoice(total_amount: float, vendor_id=None, invoice_date=None) -> Mag
 
 
 def _db_for_score(invoice, hist_invoices=None, dup_invoice=None,
-                   approved_invoices=None) -> MagicMock:
+                   approved_invoices=None, bank_change=None,
+                   vendor_row=None) -> MagicMock:
     """Build a DB mock with appropriate side_effects for score_invoice.
 
     Call order inside score_invoice:
@@ -37,6 +38,10 @@ def _db_for_score(invoice, hist_invoices=None, dup_invoice=None,
       2. hist_invoices (amount_spike) → scalars().all()
       3. dup query (potential_duplicate) → scalars().first()
       4. approved_count (new_vendor) → scalars().all()
+      5. bank_change (bank_account_changed) → scalars().first()
+      6. vendor_row (ghost_vendor) → scalars().first()
+         [only if vendor_row has bank_account:]
+      7. ghost_match → scalars().first()
     """
     db = MagicMock()
 
@@ -56,7 +61,23 @@ def _db_for_score(invoice, hist_invoices=None, dup_invoice=None,
     r_approved = MagicMock()
     r_approved.scalars.return_value.all.return_value = approved_invoices or []
 
-    db.execute.side_effect = [r_inv, r_hist, r_dup, r_approved]
+    # Signal 6: bank_account_changed — default None (not triggered)
+    r_bank = MagicMock()
+    r_bank.scalars.return_value.first.return_value = bank_change
+
+    # Signal 7: ghost_vendor — default None vendor_row (not triggered; avoids 7th query)
+    r_vendor = MagicMock()
+    r_vendor.scalars.return_value.first.return_value = vendor_row
+
+    side_effects = [r_inv, r_hist, r_dup, r_approved, r_bank, r_vendor]
+
+    # If vendor_row has a bank_account, score_invoice fires one more query
+    if vendor_row is not None and getattr(vendor_row, "bank_account", None):
+        r_ghost = MagicMock()
+        r_ghost.scalars.return_value.first.return_value = None
+        side_effects.append(r_ghost)
+
+    db.execute.side_effect = side_effects
     return db
 
 
