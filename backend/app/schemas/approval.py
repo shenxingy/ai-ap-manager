@@ -15,6 +15,7 @@ class ApprovalTaskOut(BaseModel):
     invoice_id: uuid.UUID
     approver_id: uuid.UUID
     step_order: int
+    approval_required_count: int
     status: str
     due_at: datetime | None
     decided_at: datetime | None
