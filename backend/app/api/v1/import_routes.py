@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -82,9 +82,9 @@ async def import_pos(
     if rows:
         missing = _missing_cols(list(rows[0].keys()), required)
         if missing:
-            return ImportResult(
-                created=0, updated=0, skipped=0,
-                errors=[ImportRowError(row=0, field=col, message=f"Required column '{col}' missing") for col in missing],
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Missing required columns: {', '.join(missing)}",
             )
 
     created = updated = skipped = 0
@@ -179,9 +179,9 @@ async def import_grns(
     if rows:
         missing = _missing_cols(list(rows[0].keys()), required)
         if missing:
-            return ImportResult(
-                created=0, updated=0, skipped=0,
-                errors=[ImportRowError(row=0, field=col, message=f"Required column '{col}' missing") for col in missing],
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Missing required columns: {', '.join(missing)}",
             )
 
     created = updated = skipped = 0
@@ -267,9 +267,9 @@ async def import_vendors(
     if rows:
         missing = _missing_cols(list(rows[0].keys()), required)
         if missing:
-            return ImportResult(
-                created=0, updated=0, skipped=0,
-                errors=[ImportRowError(row=0, field=col, message=f"Required column '{col}' missing") for col in missing],
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Missing required columns: {', '.join(missing)}",
             )
 
     created = updated = skipped = 0
