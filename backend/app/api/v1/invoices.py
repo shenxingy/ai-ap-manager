@@ -2,9 +2,10 @@
 import uuid
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -22,6 +23,7 @@ from app.schemas.invoice import (
     InvoiceUploadResponse,
 )
 from app.services import storage as storage_svc
+from app.services import audit as audit_svc
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,42 @@ ALLOWED_MIME_TYPES = {
     "image/png",
 }
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
+
+
+# ─── Request/Response schemas ───
+
+
+class FieldCorrectionRequest(BaseModel):
+    """Request to correct an invoice or line item field."""
+
+    field_name: str
+    corrected_value: Any
+
+
+class FieldCorrectionResponse(BaseModel):
+    """Response after field correction."""
+
+    invoice_id: uuid.UUID
+    field_name: str
+    old_value: Any
+    new_value: Any
+    message: str
+
+
+class GLCodingRequest(BaseModel):
+    """Request to update GL account coding for a line item."""
+
+    gl_account: str
+    cost_center: str | None = None
+
+
+class GLCodingResponse(BaseModel):
+    """Response after GL coding update."""
+
+    line_id: uuid.UUID
+    gl_account: str
+    cost_center: str | None
+    status: str  # "confirmed" if matches suggestion, "overridden" if user input differs
 
 
 # ─── Upload endpoint ───
@@ -262,3 +300,159 @@ async def get_invoice_audit(
     )
     logs = (await db.execute(stmt)).scalars().all()
     return logs
+
+
+# ─── Field correction endpoint ───
+
+@router.patch(
+    "/{invoice_id}/fields",
+    response_model=FieldCorrectionResponse,
+    summary="Correct an invoice or line item field",
+)
+async def correct_invoice_field(
+    invoice_id: uuid.UUID,
+    body: FieldCorrectionRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
+):
+    """Correct an invoice field value. Supports both Invoice and InvoiceLineItem fields."""
+    # Load invoice
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    # Check if field exists on Invoice model
+    invoice_fields = {
+        "invoice_number",
+        "total_amount",
+        "vendor_name_raw",
+        "invoice_date",
+        "due_date",
+        "currency",
+        "subtotal",
+        "tax_amount",
+        "payment_terms",
+        "vendor_address_raw",
+        "remit_to",
+        "notes",
+    }
+
+    old_value = None
+    if body.field_name in invoice_fields:
+        # Update Invoice field
+        if hasattr(invoice, body.field_name):
+            old_value = getattr(invoice, body.field_name)
+            setattr(invoice, body.field_name, body.corrected_value)
+            db.add(invoice)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Field '{body.field_name}' does not exist on Invoice.",
+            )
+    else:
+        # Try to match to InvoiceLineItem field
+        line_fields = {"description", "quantity", "unit_price", "unit", "line_total", "category"}
+        if body.field_name not in line_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Field '{body.field_name}' not recognized on Invoice or InvoiceLineItem.",
+            )
+        # For line item fields, we cannot update without knowing which line — this is a limitation
+        # of the PATCH endpoint. Return 400.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Line item field '{body.field_name}' requires line_id. Use PUT /invoices/{{id}}/lines/{{line_id}}/... endpoints.",
+        )
+
+    # Write audit log
+    await db.execute(
+        select(1)  # dummy select to ensure db session is ready for flush
+    )
+    audit_svc.log(
+        db,
+        action="field_corrected",
+        entity_type="invoice",
+        entity_id=invoice_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        before={body.field_name: old_value},
+        after={body.field_name: body.corrected_value},
+    )
+
+    await db.commit()
+
+    return FieldCorrectionResponse(
+        invoice_id=invoice_id,
+        field_name=body.field_name,
+        old_value=old_value,
+        new_value=body.corrected_value,
+        message="Field corrected successfully.",
+    )
+
+
+# ─── GL coding endpoint ───
+
+@router.put(
+    "/{invoice_id}/lines/{line_id}/gl",
+    response_model=GLCodingResponse,
+    summary="Update GL account coding for an invoice line item",
+)
+async def update_gl_coding(
+    invoice_id: uuid.UUID,
+    line_id: uuid.UUID,
+    body: GLCodingRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
+):
+    """Update GL account and optionally cost center for an invoice line item."""
+    # Load invoice
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    # Load line item
+    stmt = select(InvoiceLineItem).where(
+        InvoiceLineItem.id == line_id,
+        InvoiceLineItem.invoice_id == invoice_id,
+    )
+    line_item = (await db.execute(stmt)).scalar_one_or_none()
+    if line_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line item not found.")
+
+    # Determine if this is a confirmation (matches suggestion) or override
+    is_confirmed = line_item.gl_account_suggested and line_item.gl_account_suggested == body.gl_account
+    status_str = "confirmed" if is_confirmed else "overridden"
+
+    # Store old values for audit
+    old_gl_account = line_item.gl_account
+    old_cost_center = line_item.cost_center
+
+    # Update fields
+    line_item.gl_account = body.gl_account
+    if body.cost_center is not None:
+        line_item.cost_center = body.cost_center
+
+    db.add(line_item)
+
+    # Write audit log
+    audit_svc.log(
+        db,
+        action="gl_coding_" + status_str,
+        entity_type="invoice_line_item",
+        entity_id=line_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        before={"gl_account": old_gl_account, "cost_center": old_cost_center},
+        after={"gl_account": body.gl_account, "cost_center": body.cost_center},
+    )
+
+    await db.commit()
+
+    return GLCodingResponse(
+        line_id=line_id,
+        gl_account=body.gl_account,
+        cost_center=body.cost_center,
+        status=status_str,
+    )
