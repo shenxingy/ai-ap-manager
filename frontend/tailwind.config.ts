@@ -49,6 +49,14 @@ const config: Config = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			ap: {
+  				primary: '#2563EB',
+  				secondary: '#64748B',
+  				accent: '#0EA5E9',
+  				success: '#22C55E',
+  				warning: '#F59E0B',
+  				danger: '#EF4444'
   			}
   		},
   		borderRadius: {

@@ -23,7 +23,11 @@ const adminItems = [
   { href: "/admin/users", label: "Users", icon: Users },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
 
@@ -34,7 +38,7 @@ export function Sidebar() {
   const isAdmin = user?.role === "ADMIN";
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-gray-900 text-gray-100">
+    <aside className="flex flex-col w-64 min-h-screen bg-gray-900 text-gray-100 md:static md:min-h-screen">
       <div className="px-6 py-5 border-b border-gray-700">
         <h1 className="text-lg font-bold tracking-tight">AI AP Manager</h1>
         <p className="text-xs text-gray-400 mt-0.5">Accounts Payable</p>
@@ -46,6 +50,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive
@@ -71,6 +76,7 @@ export function Sidebar() {
                 <Link
                   key={href}
                   href={href}
+                  onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     isActive
