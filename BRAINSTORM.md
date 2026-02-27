@@ -11,17 +11,12 @@ All ideas from initial brainstorm + competitive research have been distributed t
 
 <!-- Add raw ideas here as they come. Mark with [AI] if AI-suggested. -->
 
-[AI] Consider a "confidence score" on every LLM extraction field — low-confidence fields
-     get highlighted in the analyst workbench for mandatory human review rather than
-     silently passing through. This prevents silent extraction errors becoming match errors.
+<!-- All 4 AI ideas below processed into TODO.md on 2026-02-26 -->
 
-[AI] The duplicate invoice detection strategy should handle cross-currency duplicates
-     (same invoice submitted in USD and EUR by vendor). Store normalized amount in base
-     currency for comparison.
+[AI] ~~Consider a "confidence score" on every LLM extraction field~~ → Added to P0 Invoice Ingestion frontend: amber highlight + confidence indicator per field.
 
-[AI] For the rule version system, consider a "shadow mode" before publishing a new rule:
-     run new rule in parallel with old rule for 2 weeks, compare outcomes, then decide
-     whether to promote. This reduces risk of a bad rule polluting production.
+[AI] ~~Cross-currency duplicate detection: store normalized_amount_usd for FX-agnostic dup check~~ → Added to P1 Integration Layer + P2 Multi-Currency section.
 
-[AI] Vendor onboarding flow: when a new vendor submits their first invoice, system should
-     flag it for enhanced review regardless of match outcome (fraud prevention).
+[AI] ~~Shadow mode for rule version: run new rule in parallel before promoting~~ → Added to P1 Policy/Contract Rule Extraction: shadow_runs table + 2-week comparison.
+
+[AI] ~~Vendor onboarding: flag first invoice for enhanced review~~ → Added to P0 Fraud Scoring: new_vendor signal (+5 score) already implemented.
