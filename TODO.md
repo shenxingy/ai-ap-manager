@@ -3,26 +3,26 @@
 ## P0 — MVP (Weeks 1-4)
 
 ### Infrastructure & Scaffolding
-- [ ] Initialize monorepo: `frontend/`, `backend/`, `docs/`, `scripts/`
-- [ ] `docker-compose.yml`: Postgres, Redis, MinIO, backend, frontend, Celery worker
-- [ ] `.env.example` with all required vars documented
-- [ ] Backend: FastAPI app skeleton with health check, CORS, exception handlers
-- [ ] Backend: SQLAlchemy async engine + Alembic setup
+- [x] Initialize monorepo: `frontend/`, `backend/`, `docs/`, `scripts/`
+- [x] `docker-compose.yml`: Postgres, Redis, MinIO, backend, frontend, Celery worker
+- [x] `.env.example` with all required vars documented
+- [x] Backend: FastAPI app skeleton with health check, CORS, exception handlers
+- [x] Backend: SQLAlchemy async engine + Alembic setup
 - [ ] Frontend: Next.js 14 + Tailwind + shadcn/ui scaffold
 - [ ] Frontend: API client (axios/fetch wrapper with auth headers)
 - [ ] Seed data script: vendors, POs, GRNs, sample invoices
 
 ### Data Models (MVP subset)
-- [ ] `vendors`, `vendor_alias` tables
-- [ ] `purchase_orders`, `po_line_items` tables
-- [ ] `goods_receipts`, `grn_line_items` tables
-- [ ] `invoices`, `invoice_line_items` tables
-- [ ] `match_results` table
-- [ ] `exceptions` table
-- [ ] `approval_tasks`, `approval_matrix` tables
-- [ ] `audit_logs` table
-- [ ] `users`, `roles` tables (RBAC foundation)
-- [ ] Run initial Alembic migration
+- [x] `vendors`, `vendor_alias` tables
+- [x] `purchase_orders`, `po_line_items` tables
+- [x] `goods_receipts`, `grn_line_items` tables
+- [x] `invoices`, `invoice_line_items` tables
+- [x] `match_results` table
+- [x] `exceptions` table
+- [x] `approval_tasks`, `approval_matrix` tables
+- [x] `audit_logs` table
+- [x] `users`, `roles` tables (RBAC foundation)
+- [x] Run initial Alembic migration
 
 ### Invoice Ingestion & Extraction (MVP)
 - [ ] POST `/api/v1/invoices/upload` — PDF/image upload to MinIO
@@ -56,8 +56,8 @@
 - [ ] Email notification with Approve/Reject button links (MVP: console log the email body)
 
 ### Auth & Users (MVP)
-- [ ] JWT auth: login, refresh token
-- [ ] User creation with roles: `AP_CLERK`, `AP_ANALYST`, `APPROVER`, `ADMIN`, `AUDITOR`
+- [x] JWT auth: login, refresh token
+- [x] User creation with roles: `AP_CLERK`, `AP_ANALYST`, `APPROVER`, `ADMIN`, `AUDITOR`
 - [ ] Route-level permission guards (backend + frontend)
 
 ### KPI Dashboard (MVP)
