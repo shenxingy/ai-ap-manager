@@ -230,17 +230,17 @@
 - [x] POST `/api/v1/auth/refresh` — refresh access token
 - [x] User creation with roles: AP_CLERK, AP_ANALYST, APPROVER, ADMIN, AUDITOR
 - [x] `require_role()` dependency for route-level guards
-- [ ] Verify ALL existing endpoints use `require_role()` dependency (audit pass)
-  - [ ] POST /invoices/upload → AP_CLERK+
-  - [ ] GET /invoices → AP_CLERK+
-  - [ ] GET /invoices/{id} → AP_CLERK+
-  - [ ] PATCH /invoices/{id}/fields → AP_ANALYST+
-  - [ ] GET /exceptions → AP_CLERK+
-  - [ ] PATCH /exceptions/{id} → AP_ANALYST+
-  - [ ] GET /approvals → APPROVER+
-  - [ ] POST /approvals/{id}/approve → APPROVER+
-  - [ ] GET /kpi/summary → AP_ANALYST+
-  - [ ] GET /invoices/{id}/audit → AP_CLERK+
+- [x] Verify ALL existing endpoints use `require_role()` dependency (audit pass)
+  - [x] POST /invoices/upload → AP_CLERK+
+  - [x] GET /invoices → AP_CLERK+
+  - [x] GET /invoices/{id} → AP_CLERK+
+  - [x] PATCH /invoices/{id}/fields → AP_ANALYST+
+  - [x] GET /exceptions → AP_CLERK+
+  - [x] PATCH /exceptions/{id} → AP_ANALYST+
+  - [x] GET /approvals → APPROVER+
+  - [x] POST /approvals/{id}/approve → APPROVER+
+  - [x] GET /kpi/summary → AP_ANALYST+
+  - [x] GET /invoices/{id}/audit → AP_CLERK+
 - [x] GET `/api/v1/users/me` — return current user info (role, name, email)
 
 #### Frontend — Login Page (`/login`)
