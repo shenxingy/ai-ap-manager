@@ -21,6 +21,7 @@ interface ApprovalTask {
   vendor_name_raw: string | null;
   total_amount: number | null;
   status: string;
+  approval_required_count?: number;
   assigned_at: string;
   created_at: string;
   decided_at: string | null;
@@ -72,9 +73,15 @@ function DecisionModal({
   const submit = useMutation({
     mutationFn: () =>
       api.post(`/approvals/${task!.id}/${decision}`, { notes }),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
-      const action = decision === "approve" ? "Invoice approved" : "Invoice rejected";
+      const result = response.data;
+      let action: string;
+      if (result?.status === "partially_approved") {
+        action = "First approval recorded — awaiting 2nd admin approval";
+      } else {
+        action = decision === "approve" ? "Invoice approved" : "Invoice rejected";
+      }
       onSuccess(action);
       setNotes("");
       onClose();
@@ -93,7 +100,9 @@ function DecisionModal({
 
   const handleSubmit = () => {
     const confirmMsg =
-      decision === "approve"
+      task?.status === "partially_approved" && decision === "approve"
+        ? "Add your 2nd approval for this invoice? This will complete dual-auth."
+        : decision === "approve"
         ? "Are you sure you want to approve this invoice?"
         : "Are you sure you want to reject this invoice? This action cannot be undone.";
 
@@ -107,11 +116,30 @@ function DecisionModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {decision === "approve" ? "Approve Invoice" : "Reject Invoice"}
+            {decision === "approve"
+              ? task?.status === "partially_approved"
+                ? "Add 2nd Approval"
+                : "Approve Invoice"
+              : "Reject Invoice"}
           </DialogTitle>
         </DialogHeader>
         {task && (
           <div className="space-y-4">
+            {/* Dual-auth progress indicator */}
+            {task.status === "partially_approved" && decision === "approve" && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                <p className="font-semibold text-yellow-800 mb-1">CRITICAL — Dual Auth Required</p>
+                <div className="flex items-center gap-3 text-yellow-700">
+                  <span className="flex items-center gap-1">
+                    <span className="text-base">◉</span> 1st approval given
+                  </span>
+                  <span>→</span>
+                  <span className="flex items-center gap-1">
+                    <span className="text-base">◎</span> 2nd approval needed
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="bg-gray-50 rounded-lg p-3 text-sm">
               <p className="font-medium">Invoice {task.invoice_number || task.invoice_id.slice(0, 8)}</p>
               <p className="text-gray-500">{task.vendor_name_raw || task.vendor_name}</p>
@@ -185,7 +213,13 @@ function DecisionModal({
                 disabled={!canSubmit || submit.isPending}
                 onClick={handleSubmit}
               >
-                {submit.isPending ? "Submitting..." : decision === "approve" ? "Approve" : "Reject"}
+                {submit.isPending
+                ? "Submitting..."
+                : decision === "approve"
+                ? task?.status === "partially_approved"
+                  ? "Add 2nd Approval"
+                  : "Approve"
+                : "Reject"}
               </Button>
             </div>
           </div>
@@ -371,7 +405,18 @@ export default function ApprovalsPage() {
                         : "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{task.status}</Badge>
+                      {task.status === "partially_approved" ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-100 w-fit">
+                            1 of {task.approval_required_count ?? 2} approvals
+                          </Badge>
+                          <span className="text-xs text-yellow-700 font-medium">
+                            ◉ 1 / ◎ {task.approval_required_count ?? 2}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant="outline">{task.status}</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-gray-500">
                       {format(new Date(task.created_at || task.assigned_at), "MMM d, yyyy")}
@@ -382,7 +427,7 @@ export default function ApprovalsPage() {
                           size="sm"
                           onClick={() => openDecision(task, "approve")}
                         >
-                          Approve
+                          {task.status === "partially_approved" ? "Add 2nd Approval" : "Approve"}
                         </Button>
                         <Button
                           size="sm"
