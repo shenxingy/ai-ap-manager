@@ -176,7 +176,7 @@
   - [x] Schema: `ExceptionCommentIn(body: str)`, `ExceptionCommentOut(id, author_id, body, created_at)`
   - [x] POST `/api/v1/exceptions/{id}/comments` — add comment (AP_ANALYST+, audit-logged)
   - [x] GET `/api/v1/exceptions/{id}/comments` — list comments (AP_CLERK+)
-  - [ ] Include comment_count in ExceptionListItem response
+  - [x] Include comment_count in ExceptionListItem response
 
 #### Frontend — Exception Queue Page (`/exceptions`)
 - [x] Filterable table — scaffolded: code · severity badge · status · assigned_to · invoice link · created_at
@@ -188,11 +188,11 @@
   - [x] Comment thread (chronological list)
   - [x] Add comment textarea + Submit button
   - [x] Status update dropdown (open/in_progress/resolved/waived)
-  - [ ] Assign to selector (autocomplete users)
-  - [ ] Resolution notes textarea
-  - [ ] Save button → PATCH /exceptions/{id}
-- [ ] Filter bar: status · exception_code · severity · assigned_to
-- [ ] Pagination
+  - [x] Assign to selector (autocomplete users)
+  - [x] Resolution notes textarea
+  - [x] Save button → PATCH /exceptions/{id}
+- [x] Filter bar: status · exception_code · severity · assigned_to
+- [x] Pagination
 
 ---
 
