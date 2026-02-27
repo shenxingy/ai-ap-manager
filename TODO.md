@@ -488,10 +488,10 @@
   - [x] If `is_internal=False` → send vendor-facing email (console mock) with reply link
   - [x] Audit log: action="vendor_message_sent"
 - [x] GET `/api/v1/invoices/{id}/messages` — list messages (AP_CLERK+)
-- [ ] Vendor portal reply endpoint: POST `/api/v1/portal/invoices/{id}/reply`
-  - [ ] Magic link auth: `?token=<vendor_token>` (similar pattern to approval tokens)
-  - [ ] Creates inbound VendorMessage, notifies AP team
-- [ ] Unread message count: include `unread_vendor_messages` in InvoiceListItem response
+- [x] Vendor portal reply endpoint: POST `/api/v1/portal/invoices/{id}/reply`
+  - [x] Magic link auth: `?token=<vendor_token>` (similar pattern to approval tokens)
+  - [x] Creates inbound VendorMessage, notifies AP team
+- [x] Unread message count: include `unread_vendor_messages` in InvoiceListItem response
 - [ ] All vendor messages included in `/invoices/{id}/audit` response (separate event type)
 
 #### Frontend
