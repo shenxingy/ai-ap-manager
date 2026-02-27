@@ -15,6 +15,7 @@ from app.db.session import get_session
 from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult
 from app.models.user import User
 from app.schemas.invoice import (
+    AuditLogOut,
     InvoiceDetail,
     InvoiceListItem,
     InvoiceListResponse,
@@ -191,3 +192,25 @@ async def get_invoice(
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
     return InvoiceDetail.model_validate(invoice)
+
+
+# ─── Audit history endpoint ───
+
+@router.get(
+    "/{invoice_id}/audit",
+    response_model=list[AuditLogOut],
+    summary="Full audit history for an invoice (chronological)",
+)
+async def get_invoice_audit(
+    invoice_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
+):
+    from app.models.audit import AuditLog
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.entity_type == "invoice", AuditLog.entity_id == invoice_id)
+        .order_by(AuditLog.created_at.asc())
+    )
+    logs = (await db.execute(stmt)).scalars().all()
+    return logs

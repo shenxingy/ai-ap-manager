@@ -102,3 +102,20 @@ class InvoiceListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ─── Audit log ───
+
+class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    action: str
+    actor_id: uuid.UUID | None
+    actor_email: str | None
+    entity_type: str
+    entity_id: uuid.UUID | None
+    before_state: str | None   # raw JSON string
+    after_state: str | None    # raw JSON string
+    notes: str | None
+    created_at: datetime
