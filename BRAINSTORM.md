@@ -2,6 +2,11 @@
 
 > This is the inbox. Raw ideas go here; once processed into GOALS/TODO they get cleared.
 
+## Processed (2026-02-26 competitive research round)
+All ideas from initial brainstorm + competitive research have been distributed to TODO.md and docs/.
+
+---
+
 ## Unprocessed Ideas
 
 <!-- Add raw ideas here as they come. Mark with [AI] if AI-suggested. -->

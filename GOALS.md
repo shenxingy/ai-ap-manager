@@ -60,10 +60,29 @@ Success criteria:
 
 ## North Star Metrics
 
-| Metric | Baseline (Manual) | MVP Target | V1 Target | V2 Target |
-|--------|-------------------|------------|-----------|-----------|
-| Touchless rate | ~20% | 50% | 70% | 85% |
-| Avg cycle time (days) | 14 | 8 | 5 | 3 |
-| Exception accuracy | N/A | 90% | 95% | 97% |
-| Audit completeness | ~60% | 100% | 100% | 100% |
-| Rules auto-optimized | 0 | 0 | 0 | 30%+ |
+| Metric | Baseline (Manual) | MVP Target | V1 Target | V2 Target | Best-in-class (market) |
+|--------|-------------------|------------|-----------|-----------|------------------------|
+| Touchless rate | ~20% | 55% | 75% | 85% | Medius: 100% capture, ~80% touchless |
+| Avg cycle time (days) | 14 | 7 | 4 | 3 | Tipalti: 40% faster approvals |
+| Extraction accuracy (field) | ~70% manual | 92% | 96% | 98% | Coupa ICE: 99%+ |
+| Exception accuracy | N/A | 90% | 95% | 97% | — |
+| GL coding accuracy (non-PO) | ~50% | 75% | 90% | 95% | Medius SmartFlow: 95% after 2 invoices |
+| Fraud detection (catch rate) | ~20% | 70% | 85% | 92% | Bill.com: 8M+ blocked FY25 |
+| Audit completeness | ~60% | 100% | 100% | 100% | — |
+| Recurring invoice touchless rate | 0% | 0% | 90% | 95% | Basware: auto-identifies recurring |
+| Rules auto-optimized | 0 | 0 | 0 | 30%+ | — |
+
+## Competitive Positioning
+
+Based on market research (Tipalti, Medius, Basware, Coupa, Stampli, Bill.com, Ramp):
+
+**Our moat is**:
+1. **Manufacturing-native 3-way match** — GRN-centric, partial receipts, multi-GRN aggregation. Competitors treat this as optional; we make it the default.
+2. **Conversational exception handling** — Stampli proved that "invoice as conversation hub" dramatically reduces time-to-resolution. We're building this for manufacturing workflows.
+3. **Explainability + rule versioning** — Every decision traceable to a specific rule version with source evidence. Beats all competitors on compliance depth.
+4. **Self-improving rules from feedback** — Only Medius (SmartFlow) and Stampli (Billy learns from corrections) approach this. Our V2 is more explicit and auditable.
+
+**What we're NOT competing on**:
+- Global payments (Tipalti owns this — 200+ countries)
+- Supplier network effects (Basware's moat — 1M+ businesses)
+- Enterprise spend management suite (Coupa's complexity is their lock-in)

@@ -448,3 +448,131 @@ CREATE TABLE ai_call_logs (
 CREATE INDEX idx_ai_log_entity ON ai_call_logs(entity_type, entity_id);
 CREATE INDEX idx_ai_log_purpose ON ai_call_logs(purpose);
 ```
+
+---
+
+## New Tables (from Competitive Analysis)
+
+### `vendor_messages`
+Communications between AP team and vendors, embedded in invoice context (Stampli-inspired).
+```sql
+CREATE TABLE vendor_messages (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_id      UUID NOT NULL REFERENCES invoices(id),
+    sender_type     TEXT NOT NULL CHECK (sender_type IN ('internal','vendor')),
+    sender_id       UUID REFERENCES users(id),       -- internal user, OR
+    vendor_id       UUID REFERENCES vendors(id),     -- vendor contact
+    is_vendor_facing BOOLEAN NOT NULL DEFAULT false, -- false = internal only
+    body            TEXT NOT NULL,
+    attachments     JSONB,  -- [{filename, storage_path, size_bytes}]
+    read_by_vendor  BOOLEAN NOT NULL DEFAULT false,
+    read_at_vendor  TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_vendor_msg_invoice ON vendor_messages(invoice_id);
+CREATE INDEX idx_vendor_msg_unread ON vendor_messages(invoice_id, read_by_vendor)
+    WHERE sender_type = 'internal' AND is_vendor_facing = true;
+```
+
+### `vendor_compliance_docs`
+Track W-9, W-8BEN, VAT registration, and other tax/compliance documents per vendor.
+```sql
+CREATE TABLE vendor_compliance_docs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vendor_id       UUID NOT NULL REFERENCES vendors(id),
+    doc_type        TEXT NOT NULL CHECK (doc_type IN ('W9','W8BEN','VAT_REG','BANK_LETTER','OTHER')),
+    storage_path    TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending_review'
+                    CHECK (status IN ('pending_review','approved','expired','rejected')),
+    expiry_date     DATE,
+    reviewed_by     UUID REFERENCES users(id),
+    reviewed_at     TIMESTAMPTZ,
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_compliance_vendor ON vendor_compliance_docs(vendor_id, doc_type);
+CREATE INDEX idx_compliance_expiry ON vendor_compliance_docs(expiry_date)
+    WHERE status = 'approved';
+```
+
+### `recurring_invoice_patterns`
+Detected patterns of recurring invoices (auto-detected by Celery job).
+```sql
+CREATE TABLE recurring_invoice_patterns (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vendor_id           UUID NOT NULL REFERENCES vendors(id),
+    name                TEXT,             -- e.g. "Monthly AWS bill"
+    frequency           TEXT NOT NULL CHECK (frequency IN ('weekly','monthly','quarterly','annual')),
+    expected_day_of_month INTEGER,        -- 1-31, nullable for weekly
+    avg_amount          NUMERIC(18,4) NOT NULL,
+    amount_tolerance_pct NUMERIC(5,4) NOT NULL DEFAULT 0.10,
+    auto_fast_track     BOOLEAN NOT NULL DEFAULT false,
+    sample_invoice_ids  UUID[],           -- invoices used to detect this pattern
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_recurring_vendor ON recurring_invoice_patterns(vendor_id)
+    WHERE is_active = true;
+```
+
+### `approval_tokens`
+Signed tokens for email-based approval (no login required).
+```sql
+CREATE TABLE approval_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    approval_task_id UUID NOT NULL REFERENCES approval_tasks(id),
+    token_hash      TEXT NOT NULL UNIQUE,  -- SHA-256 of the signed token
+    action          TEXT CHECK (action IN ('approve','reject')),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    used_at         TIMESTAMPTZ,
+    used_from_ip    INET,
+    used_from_ua    TEXT,   -- user agent (mobile email client etc.)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_token_hash ON approval_tokens(token_hash);
+CREATE INDEX idx_token_task ON approval_tokens(approval_task_id);
+```
+
+### Schema Updates to Existing Tables
+
+**`invoices` — add fraud scoring columns**:
+```sql
+ALTER TABLE invoices ADD COLUMN fraud_score       INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE invoices ADD COLUMN fraud_level       TEXT NOT NULL DEFAULT 'LOW'
+    CHECK (fraud_level IN ('LOW','MEDIUM','HIGH','CRITICAL'));
+ALTER TABLE invoices ADD COLUMN fraud_signals     JSONB;  -- [{name, weight, description}]
+ALTER TABLE invoices ADD COLUMN is_recurring      BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE invoices ADD COLUMN recurring_pattern_id UUID REFERENCES recurring_invoice_patterns(id);
+```
+
+**`invoice_line_items` — add GL suggestion columns**:
+```sql
+ALTER TABLE invoice_line_items ADD COLUMN gl_suggestion        TEXT;
+ALTER TABLE invoice_line_items ADD COLUMN gl_suggestion_conf   NUMERIC(5,4);
+ALTER TABLE invoice_line_items ADD COLUMN cc_suggestion        TEXT;
+ALTER TABLE invoice_line_items ADD COLUMN cc_suggestion_conf   NUMERIC(5,4);
+ALTER TABLE invoice_line_items ADD COLUMN gl_confirmed_by      UUID REFERENCES users(id);
+ALTER TABLE invoice_line_items ADD COLUMN gl_confirmed_at      TIMESTAMPTZ;
+```
+
+**`invoices` — add dual-extraction tracking**:
+```sql
+ALTER TABLE invoices ADD COLUMN extraction_pass_a  JSONB;  -- raw output from pass A
+ALTER TABLE invoices ADD COLUMN extraction_pass_b  JSONB;  -- raw output from pass B
+ALTER TABLE invoices ADD COLUMN extraction_mismatches JSONB; -- [{field, val_a, val_b, severity}]
+```
+
+**`ai_call_logs` — extend purpose enum**:
+```sql
+-- Update CHECK constraint to include new purposes:
+-- 'extraction_pass_a', 'extraction_pass_b', 'gl_coding', 'fraud_narration', 'conversational_query'
+```
+
+**`approval_tasks` — add email approval tracking**:
+```sql
+ALTER TABLE approval_tasks ADD COLUMN decision_method TEXT
+    CHECK (decision_method IN ('in_app','email_token'));
+ALTER TABLE approval_tasks ADD COLUMN decision_device_ua TEXT;
+```

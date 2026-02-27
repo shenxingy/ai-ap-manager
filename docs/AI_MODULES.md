@@ -10,22 +10,67 @@ All LLM calls are logged to `ai_call_logs` with input, output, tokens, and laten
 
 | Module | LLM Role | Deterministic Layer |
 |--------|----------|-------------------|
-| Invoice Extraction | OCR text → structured JSON | Schema validation + confidence gating |
+| Invoice Extraction (Dual-Pass) | OCR text → structured JSON ×2, compare | Schema validation + field-level comparison + confidence gating |
+| GL Smart Coding | Line description + vendor history → GL/cost center suggestion | ML classifier, human confirms, never auto-posts |
 | Policy Parsing | PDF text → rule JSON | Admin review + rule version flow |
+| Fraud Scoring | Invoice metadata → risk signals narrative | Rule-based behavioral checks, human review required on HIGH |
 | Self-Optimization | Override history → rule suggestions | Human approval before any rule change |
 | Root Cause Analysis | Event log stats → narrative | Read-only, no system changes |
+| Conversational Query (V2) | Natural language question → SQL/filter → result | Result shown, user confirms before any action |
 
 ---
 
-## 1. Invoice Extraction Module
+## 1. Invoice Extraction Module — Dual-Pass Architecture
+
+Inspired by Coupa's ICE (Invoice Capture Extraction): run two independent extraction passes and compare field-by-field. Discrepancies surface as explicit flags, not silent errors.
 
 ### Pipeline
 
 ```
-PDF/Image → Tesseract OCR → raw_text → LLM Structuring → validated_fields → DB
-                                              ↓ (if confidence < 0.75)
-                                        OCR_LOW_CONFIDENCE exception
-                                        → AP Analyst manual review
+PDF/Image → Tesseract OCR → raw_text ──┬──→ LLM Pass A (prompt strategy A) ──┐
+                                        └──→ LLM Pass B (prompt strategy B) ──┤
+                                                                               ↓
+                                              Field-Level Comparator: compare A vs B
+                                              ↓ (matched fields)              ↓ (mismatched fields)
+                                        high confidence                  flag for human review
+                                              ↓
+                                        validated_fields → DB
+                                              ↓ (if overall confidence < 0.75 OR ≥2 field mismatches)
+                                        OCR_LOW_CONFIDENCE exception → AP Analyst
+```
+
+### Two Prompt Strategies
+
+**Pass A — Structured Extraction**: Explicit field-by-field extraction with JSON schema enforcement.
+
+**Pass B — Document Understanding**: Ask the model to "read this invoice as a human would" and output key facts in free-form, then parse the structured data from that. Different failure modes than Pass A.
+
+### Field Comparison Logic
+
+```python
+def compare_extraction_passes(pass_a: dict, pass_b: dict) -> ComparisonResult:
+    mismatches = []
+    for field in CRITICAL_FIELDS:  # invoice_number, total_amount, invoice_date, vendor_name
+        val_a = pass_a.get(field)
+        val_b = pass_b.get(field)
+        if val_a is None and val_b is None:
+            continue
+        if field in NUMERIC_FIELDS:
+            # Allow $0.01 rounding tolerance
+            if abs((val_a or 0) - (val_b or 0)) > 0.01:
+                mismatches.append(FieldMismatch(field, val_a, val_b, severity="high"))
+        elif field in DATE_FIELDS:
+            if val_a != val_b:
+                mismatches.append(FieldMismatch(field, val_a, val_b, severity="high"))
+        else:
+            # String: flag if edit distance > 10% of string length
+            if edit_distance_ratio(str(val_a), str(val_b)) > 0.10:
+                mismatches.append(FieldMismatch(field, val_a, val_b, severity="medium"))
+
+    # Use Pass A value as primary; flag mismatches for human review
+    merged = {**pass_a, "_mismatches": mismatches}
+    return ComparisonResult(merged=merged, mismatches=mismatches,
+                            needs_review=len([m for m in mismatches if m.severity == "high"]) > 0)
 ```
 
 ### LLM Prompt Template
@@ -100,7 +145,150 @@ def validate_extraction(raw_json: dict) -> ExtractionResult:
 
 ---
 
-## 2. Policy/Contract Parsing Module
+## 2. GL Smart Coding Module
+
+Inspired by Medius SmartFlow and Basware SmartCoding. Critical for non-PO invoices (services, utilities, subscriptions) which cannot be matched against a PO.
+
+### When It Activates
+
+- Invoice has no PO number, OR
+- Invoice is matched to a PO but lines have no GL account populated
+
+### Data Sources for Prediction
+
+```python
+CODING_SIGNALS = [
+    "vendor_id",              # Same vendor always coded to same GL?
+    "line_description",       # "Office Rent" → GL 6100, "AWS Services" → GL 6210
+    "invoice_line_amount",    # Large amounts → different GL than small amounts?
+    "invoice_month",          # Seasonal patterns (utilities spike in winter)
+    "vendor_category",        # Vendor tagged as "Software" → Software GL accounts
+    "cost_center_history",    # This vendor always goes to which cost center?
+]
+```
+
+### ML Approach
+
+For MVP: **Frequency-based lookup** (what GL was used last 5 times for this vendor + description?)
+
+For V1: **Scikit-learn text classifier** trained on historical invoice lines:
+- Features: vendor_name (encoded), line_description (TF-IDF), amount_bucket
+- Labels: gl_account, cost_center
+- Retrain weekly on approved invoices (human-confirmed labels)
+
+```python
+def suggest_gl_coding(invoice_line: InvoiceLineItem, db: Session) -> GLCodingSuggestion:
+    # Step 1: Check exact vendor+description match in history
+    history = db.query(InvoiceLineItem).filter(
+        InvoiceLineItem.vendor_id == invoice_line.invoice.vendor_id,
+        InvoiceLineItem.gl_account.isnot(None),
+    ).order_by(InvoiceLineItem.created_at.desc()).limit(50).all()
+
+    # Step 2: Frequency vote
+    gl_votes = Counter(h.gl_account for h in history)
+    cc_votes = Counter(h.cost_center for h in history)
+
+    best_gl = gl_votes.most_common(1)[0] if gl_votes else None
+    best_cc = cc_votes.most_common(1)[0] if cc_votes else None
+
+    # Step 3: Confidence = frequency / total
+    gl_confidence = best_gl[1] / len(history) if best_gl else 0.0
+    cc_confidence = best_cc[1] / len(history) if best_cc else 0.0
+
+    return GLCodingSuggestion(
+        gl_account=best_gl[0] if best_gl else None,
+        cost_center=best_cc[0] if best_cc else None,
+        gl_confidence=gl_confidence,
+        cc_confidence=cc_confidence,
+        based_on_n_invoices=len(history),
+        requires_confirmation=True  # ALWAYS — never auto-post
+    )
+```
+
+### UI Behavior
+
+- In invoice line item editor: GL and Cost Center fields show pre-filled suggestion with grey text
+- Confidence badge next to each suggested field (e.g., "92% confidence, based on 12 invoices")
+- AP Analyst clicks "Confirm All" or edits individual fields
+- Every confirmation is logged to `audit_logs` as "gl_coding_confirmed" (human actor)
+- Every override is logged as "gl_coding_overridden" (feeds ML retraining)
+
+### Safety Guardrail
+
+GL coding suggestions are **proposals, never auto-applied**. The `invoice_line_items.gl_account` field is only written when a human explicitly confirms or edits.
+
+---
+
+## 3. Fraud Scoring Module
+
+Proactive behavioral fraud detection, inspired by Ramp and Bill.com (8M+ fraud attempts blocked in FY25).
+
+### Fraud Signal Checklist (runs automatically on every invoice)
+
+```python
+FRAUD_SIGNALS = [
+    {
+        "name": "bank_account_recently_changed",
+        "check": lambda inv: vendor_bank_changed_recently(inv.vendor_id, days=30),
+        "weight": 40,  # HIGH weight
+        "description": "Vendor bank account changed in last 30 days"
+    },
+    {
+        "name": "first_invoice_new_vendor",
+        "check": lambda inv: is_first_invoice(inv.vendor_id),
+        "weight": 20,
+        "description": "First invoice from this vendor — enhanced review"
+    },
+    {
+        "name": "amount_spike_vs_history",
+        "check": lambda inv: invoice_amount_vs_avg(inv) > 3.0,  # 3x average
+        "weight": 30,
+        "description": "Invoice amount is >3x vendor's historical average"
+    },
+    {
+        "name": "round_number_amount",
+        "check": lambda inv: inv.total_amount % 1000 == 0 and inv.total_amount > 10000,
+        "weight": 10,
+        "description": "Suspiciously round large amount"
+    },
+    {
+        "name": "weekend_submission",
+        "check": lambda inv: inv.created_at.weekday() >= 5,
+        "weight": 10,
+        "description": "Invoice submitted on weekend"
+    },
+    {
+        "name": "duplicate_bank_account",
+        "check": lambda inv: another_vendor_has_same_bank(inv.vendor_id),
+        "weight": 50,  # CRITICAL
+        "description": "Bank account matches another vendor — possible ghost vendor"
+    },
+]
+
+def calculate_fraud_score(invoice: Invoice, db: Session) -> FraudScore:
+    triggered = []
+    total_weight = 0
+    for signal in FRAUD_SIGNALS:
+        if signal["check"](invoice):
+            triggered.append(signal)
+            total_weight += signal["weight"]
+
+    level = "LOW" if total_weight < 20 else "MEDIUM" if total_weight < 40 else "HIGH"
+    return FraudScore(score=total_weight, level=level, triggered_signals=triggered)
+```
+
+### Risk Levels and Actions
+
+| Score | Level | Action |
+|-------|-------|--------|
+| 0-19 | LOW | Normal processing, fraud score stored |
+| 20-39 | MEDIUM | Flag in UI, AP Analyst reviews before approval routing |
+| 40-59 | HIGH | Auto-hold payment, create FRAUD_RISK exception, alert AP Manager |
+| 60+ | CRITICAL | Auto-hold, dual-authorization required (2 ADMIN), alert CISO |
+
+---
+
+## 4. Policy/Contract Parsing Module
 
 ### Pipeline
 

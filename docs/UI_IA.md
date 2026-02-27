@@ -12,19 +12,29 @@
 /login                    → Login page
 /dashboard                → AP Analyst Workbench (default landing)
 /invoices                 → Invoice List
-/invoices/[id]            → Invoice Detail + Audit Trail
+/invoices/[id]            → Invoice Detail (5 tabs + Communications tab)
 /invoices/upload          → Invoice Upload
 /exceptions               → Exception Queue
 /exceptions/[id]          → Exception Detail
 /approvals                → My Approval Tasks
 /approvals/[id]           → Approval Detail
-/kpi                      → KPI Dashboard
+/approvals/email          → Email token-based approval handler (no auth required)
+/kpi                      → KPI Dashboard (+ cash flow forecast widget in V2)
 /admin/users              → User Management (ADMIN only)
 /admin/matrix             → Approval Matrix Config (ADMIN only)
 /admin/rules              → Rule Version Management (ADMIN only)
 /admin/vendors            → Vendor Master Data (ADMIN only)
+/admin/vendors/[id]/compliance → Vendor Compliance Docs (W-9, tax forms)
 /admin/policies           → Policy Document Upload & Rule Review (ADMIN only)
+/admin/recurring          → Recurring Invoice Patterns (ADMIN only)
 /audit                    → Audit Log Explorer (AUDITOR, ADMIN)
+
+-- Vendor Portal (separate subdomain or /vendor prefix, minimal auth) --
+/vendor/login             → Vendor portal login (magic link via email)
+/vendor/invoices          → Vendor's invoice submission list
+/vendor/invoices/new      → Submit new invoice (with template if recurring)
+/vendor/invoices/[id]     → Invoice status + message thread
+/vendor/profile           → Tax docs (W-9), bank account, contacts
 ```
 
 ---
@@ -90,33 +100,53 @@ The primary landing page for AP_ANALYST and AP_CLERK.
 - Invoice number, status badge, vendor name, total amount
 - Action buttons: `Correct Fields`, `Re-trigger Match`, `View Document`
 
+**Header Bar** (always visible)
+- Invoice number, status badge, vendor name, total amount
+- **Fraud score badge**: 🟢 LOW / 🟡 MEDIUM / 🔴 HIGH (click for signal detail)
+- **Recurring badge**: "↻ Recurring — 6th month" (if pattern detected)
+- Action buttons: `Correct Fields`, `Re-trigger Match`, `View Document`
+
 **Tab Layout**
 1. **Overview**
    - Header fields: invoice_date, due_date, currency, subtotal, tax, freight, total
+   - Dual-extraction status: "✓ Both passes agree" or "⚠ 2 fields need review" (highlighted in amber)
    - Extraction confidence badge
    - PO link
-   - Line items table: `Line #` | `Description` | `Qty` | `Unit Price` | `Unit` | `Total` | `Confidence`
+   - Line items table: `Line #` | `Description` | `Qty` | `Unit Price` | `Unit` | `Total` | `GL Account` | `Cost Center` | `Confidence`
+   - GL/Cost Center cells: show AI suggestion in grey with confidence %, editable inline
+   - "Confirm All Coding" button → bulk confirm all AI-suggested GL codes
 
 2. **Match Results**
    - Match type (2-way / 3-way)
    - Per-line match status with variance details
-   - PO line comparison side-by-side
-   - GRN details (if 3-way)
-   - Rule version used (with link)
+   - PO line comparison side-by-side (invoice vs PO vs GRN)
+   - Highlighted variance in red if outside tolerance, yellow if within tolerance override
+   - Rule version badge (e.g., "Matched under Rule v5") with link to rule detail
 
 3. **Exceptions**
    - List of all exceptions for this invoice
-   - Status, type, severity, assigned to
+   - Status, type, severity, assigned to, SLA countdown
    - Quick link to each exception detail
 
 4. **Approvals**
-   - Approval chain visualization (level 1 → level 2 → ...)
-   - Each task: approver name, status, decision note, decided_at
+   - Approval chain visualization (step 1 → step 2 → ... with status icons)
+   - Each task: approver name, method (in-app / email), status, decision note, decided_at
+   - "Approved via email" indicator when token-based approval used
 
-5. **Audit Trail**
-   - Timeline view, newest first
+5. **Communications** ← NEW (Stampli-inspired)
+   - Unified thread of all messages: internal AP team ↔ vendor
+   - Each message: avatar, name, timestamp, body, attachments
+   - Internal messages shown with blue background, vendor messages with white
+   - Message input: toggle "Internal" vs "Send to Vendor"
+   - Attach files (drag-drop)
+   - "Send to Vendor" → vendor receives email + can reply in portal
+   - Unread vendor reply indicator on tab badge
+
+6. **Audit Trail**
+   - Timeline view, oldest first (chronological story)
    - Each event: timestamp, actor (user/system/AI), action, old→new value
-   - AI events show link to `ai_call_logs` detail
+   - AI events show confidence score and link to `ai_call_logs` detail
+   - Vendor message events shown inline in timeline
 
 ---
 
@@ -263,6 +293,50 @@ For APPROVER role — their primary working page.
 | $50,001 | $200,000 | — | — | FINANCE_VP | 1 |
 
 **Add Rule** button opens inline form.
+
+---
+
+### 13. Email Approval Handler `/approvals/email`
+
+No authentication required — accessed via signed token URL in email.
+
+**Page states**:
+1. **Valid token, pending**: Shows invoice summary (vendor, amount, key line items), approve/reject buttons, note field. Clean, minimal — optimized for mobile email clients.
+2. **Approved / Rejected**: Confirmation screen "Your decision has been recorded."
+3. **Expired token**: "This approval link has expired (48h limit). Please log in to approve."
+4. **Already decided**: "This invoice was already [approved/rejected] on [date]."
+
+---
+
+### 14. Vendor Portal — Invoice Detail `/vendor/invoices/[id]`
+
+Minimal, clean UI for vendors. No internal AP data exposed.
+
+**Invoice Status Header**
+- Invoice number, your submitted amount, current status (clear language: "Under Review", "Approved — Payment scheduled Mar 15", "Issue Found — See message below")
+
+**Status Timeline** (simplified)
+```
+✓ Submitted  →  ✓ Under Review  →  ⟳ Issue Found  →  ○ Approved  →  ○ Paid
+```
+
+**Message Thread**
+- AP team message visible: "Hi Acme, can you clarify the freight charge?"
+- Vendor reply input: text + file attach
+- All messages in plain, non-technical language
+
+---
+
+### 15. Admin — Recurring Invoice Patterns `/admin/recurring`
+
+**Detected Patterns Table**:
+| Vendor | Avg Amount | Frequency | Tolerance | Last Invoice | Auto-FastTrack | Actions |
+|--------|-----------|-----------|-----------|--------------|---------------|---------|
+| City Power Co | $4,200 | Monthly (1st week) | ±10% | Feb 1 | ✅ Enabled | Edit / Disable |
+| AWS | $12,400 | Monthly | ±20% | Feb 3 | ✅ Enabled | Edit / Disable |
+| Office Rent LLC | $8,500 | Monthly (exact) | ±0% | Feb 1 | ✅ Enabled | Edit / Disable |
+
+**Fast-track behavior**: If incoming invoice matches pattern within tolerance, skip full matching queue and route directly to 1-click confirmation.
 
 ---
 
