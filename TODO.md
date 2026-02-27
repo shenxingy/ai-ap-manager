@@ -458,12 +458,12 @@
   - [ ] Store `email_from`, `email_subject`, `email_received_at` on invoice
   - [ ] Mark email as read after processing
   - [ ] Error: no attachment → log warning, skip
-- [ ] Duplicate invoice detection (enhanced)
-  - [ ] Detect: same vendor_id + invoice_number (exact) → block as `DUPLICATE_INVOICE`
-  - [ ] Detect: same vendor_id + total_amount + invoice_date ± 7 days → soft flag
-  - [ ] Cross-currency normalization: convert to base currency for amount comparison
-    - [ ] [AI idea] Store `normalized_amount_usd` on invoices for FX-agnostic dup check
-  - [ ] Run in Celery pipeline after extraction (before match)
+- [x] Duplicate invoice detection (enhanced)
+  - [x] Detect: same vendor_id + invoice_number (exact) → block as `DUPLICATE_INVOICE`
+  - [x] Detect: same vendor_id + total_amount + invoice_date ± 7 days → soft flag
+  - [x] Cross-currency normalization: convert to base currency for amount comparison
+    - [x] [AI idea] Store `normalized_amount_usd` on invoices for FX-agnostic dup check
+  - [x] Run in Celery pipeline after extraction (before match)
 
 #### Frontend
 - [ ] Import page (`/admin/import`)
@@ -480,14 +480,14 @@
 ### Vendor Communication Hub (V1)
 
 #### Backend
-- [ ] `VendorMessage` model — already in `app/models/approval.py` (move to `app/models/vendor_message.py`)
-  - [ ] Alembic migration for `vendor_messages` table
-  - [ ] Fields: id, invoice_id, sender_id (nullable for external vendor), sender_email, direction (inbound/outbound), body, is_internal, attachments (JSON), created_at
-- [ ] POST `/api/v1/invoices/{id}/messages` — send message (AP_ANALYST+)
-  - [ ] Body: `{body: str, is_internal: bool, attachments?: list[file]}`
-  - [ ] If `is_internal=False` → send vendor-facing email (console mock) with reply link
-  - [ ] Audit log: action="vendor_message_sent"
-- [ ] GET `/api/v1/invoices/{id}/messages` — list messages (AP_CLERK+)
+- [x] `VendorMessage` model — in `app/models/approval.py`
+  - [x] Alembic migration for `vendor_messages` table
+  - [x] Fields: id, invoice_id, sender_id (nullable for external vendor), sender_email, direction (inbound/outbound), body, is_internal, attachments (JSON), created_at
+- [x] POST `/api/v1/invoices/{id}/messages` — send message (AP_ANALYST+)
+  - [x] Body: `{body: str, is_internal: bool, attachments?: list[file]}`
+  - [x] If `is_internal=False` → send vendor-facing email (console mock) with reply link
+  - [x] Audit log: action="vendor_message_sent"
+- [x] GET `/api/v1/invoices/{id}/messages` — list messages (AP_CLERK+)
 - [ ] Vendor portal reply endpoint: POST `/api/v1/portal/invoices/{id}/reply`
   - [ ] Magic link auth: `?token=<vendor_token>` (similar pattern to approval tokens)
   - [ ] Creates inbound VendorMessage, notifies AP team
@@ -509,13 +509,13 @@
 ### Vendor Compliance Doc Tracking (V1)
 
 #### Backend
-- [ ] `vendor_compliance_docs` table: `id, vendor_id, doc_type (W9/W8BEN/VAT/insurance), file_path, status (active/expired/missing), expiry_date, uploaded_by, created_at`
-  - [ ] Alembic migration
-  - [ ] SQLAlchemy model in `app/models/vendor.py`
-- [ ] POST `/api/v1/vendors/{id}/compliance-docs` — upload compliance doc (ADMIN, AP_ANALYST)
-  - [ ] Store in MinIO under `compliance/` prefix
-  - [ ] Validate doc_type is in allowed set
-- [ ] GET `/api/v1/vendors/{id}/compliance-docs` — list compliance docs
+- [x] `vendor_compliance_docs` table: `id, vendor_id, doc_type, file_key, storage_path, status, expiry_date, uploaded_by, created_at`
+  - [x] Alembic migration
+  - [x] SQLAlchemy model in `app/models/vendor.py`
+- [x] POST `/api/v1/vendors/{id}/compliance-docs` — upload compliance doc (ADMIN, AP_ANALYST)
+  - [x] Store in MinIO under `compliance/` prefix
+  - [x] Validate doc_type is in allowed set
+- [x] GET `/api/v1/vendors/{id}/compliance-docs` — list compliance docs
 - [ ] Celery beat (weekly): check expiry_dates → update status to "expired" if past expiry
 - [ ] Compliance check in approval service:
   - [ ] Before creating approval task: check if vendor has missing/expired W-9 or W-8BEN
