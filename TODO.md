@@ -71,29 +71,29 @@
 - [ ] Route-level permission guards (backend + frontend)
 
 ### KPI Dashboard (MVP)
-- [ ] GET `/api/v1/kpi/summary` — touchless rate, exception rate, avg cycle time
-- [ ] GET `/api/v1/kpi/trends` — daily/weekly time series
+- [x] GET `/api/v1/kpi/summary` — touchless rate, exception rate, avg cycle time
+- [x] GET `/api/v1/kpi/trends` — daily/weekly time series
 - [ ] Frontend: KPI cards + simple trend chart (recharts)
 
 ### Audit Trail (MVP)
 - [ ] Middleware: log every state transition with actor, timestamp, snapshot
-- [ ] GET `/api/v1/invoices/{id}/audit` — full history replay
+- [x] GET `/api/v1/invoices/{id}/audit` — full history replay
 - [ ] Audit log immutability (append-only, no updates)
 
 ---
 
 ### GL Smart Coding (MVP)
-- [ ] GL coding suggestion service: frequency-based lookup (vendor history)
-- [ ] API: GET `/api/v1/invoices/{id}/gl-suggestions` → per-line GL + cost center with confidence %
+- [x] GL coding suggestion service: frequency-based lookup (vendor history)
+- [x] API: GET `/api/v1/invoices/{id}/gl-suggestions` → per-line GL + cost center with confidence %
 - [ ] Frontend: GL/cost center fields in invoice line editor show pre-filled grey suggestions with confidence badge
 - [ ] "Confirm All Coding" button → bulk confirm, log to audit as "gl_coding_confirmed"
 - [ ] Log every user override as "gl_coding_overridden" (feeds V1 ML retraining)
 
 ### Fraud Scoring (MVP - basic rule-based)
-- [ ] Fraud scoring service: evaluate checklist signals on every invoice
-- [ ] Store fraud_score + triggered_signals in `invoices` table (add column)
+- [x] Fraud scoring service: evaluate checklist signals on every invoice
+- [x] Store fraud_score + triggered_signals in `invoices` table (add column) — column already exists in Invoice model
 - [ ] Fraud badge in invoice header (🟢/🟡/🔴)
-- [ ] HIGH fraud score → auto-create FRAUD_RISK exception, alert AP Manager
+- [x] HIGH fraud score → auto-create FRAUD_FLAG exception, alert AP Manager
 - [ ] CRITICAL fraud score → dual-authorization required (block until 2 ADMINs confirm)
 
 ---
