@@ -631,9 +631,9 @@ export default function InvoiceDetailPage() {
                 const passA = results.find((r) => r.pass_number === 1);
                 const passB = results.find((r) => r.pass_number === 2);
                 if (!passA || !passB) return null;
-                const discrepancies = [
-                  ...new Set([...passA.discrepancy_fields, ...passB.discrepancy_fields]),
-                ];
+                const discrepancies = Array.from(
+                  new Set([...passA.discrepancy_fields, ...passB.discrepancy_fields])
+                );
                 const hasDiscrepancies = discrepancies.length > 0;
                 return (
                   <div className="mt-5 border-t pt-4">
