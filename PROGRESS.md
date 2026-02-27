@@ -102,6 +102,41 @@ Initial planning complete. Full documentation suite created covering:
 - Worker subprocess inherits the Celery env; imports inside the task function (lazy imports) prevent import-time failures when optional packages (anthropic) are not yet available.
 - The `process_invoice` task correctly transitions to `exception` when both OCR text is empty AND both LLM passes fail — this is correct behavior for the placeholder API key scenario.
 
+## [2026-02-27] 2-Way Match Engine + Exception Queue
+
+**Result**: success
+
+**What was done**:
+- Created `app/rules/match_engine.py` — deterministic 2-way match engine:
+  - `get_active_match_rules(db)` loads latest published matching_tolerance rule from DB, falls back to config defaults
+  - `run_2way_match(db, invoice_id)` runs header + line-level matching, creates MatchResult + LineItemMatch + ExceptionRecord rows, auto-approves if within threshold, writes audit log
+  - PO lookup: by `invoice.po_id` FK, then heuristic PO# extraction from notes/invoice_number
+  - Line matching: exact line_number match first, then description word-overlap similarity
+  - Exception dedup: skips creating duplicate open exceptions for same invoice+code
+- Updated `backend/scripts/seed.py` — idempotent seeding with 2 POs, 1 GR, and default published matching rule
+- Updated `app/workers/tasks.py` — wires match engine after extraction (status: extracted → matching → matched/exception/approved)
+- Created `app/schemas/match.py` — `LineItemMatchOut`, `MatchResultOut`, `MatchTriggerResponse`
+- Created `app/schemas/exception_record.py` — `ExceptionListItem`, `ExceptionDetail`, `ExceptionPatch`, `ExceptionListResponse`
+- Created `app/api/v1/match.py` — GET/POST `/invoices/{id}/match`
+- Created `app/api/v1/exceptions.py` — GET list, GET detail, PATCH exception records
+- Updated `app/api/v1/router.py` — wired match + exception routers
+
+**Verified end-to-end**:
+- Invoice with matching PO → match_status=matched, invoice.status=approved (auto-approve under $5000)
+- Invoice without PO → match_status=exception, MISSING_PO exception record created
+- `GET /api/v1/invoices/{id}/match` returns MatchResult with line-level variances
+- `POST /api/v1/invoices/{id}/match` triggers re-match, returns {match_status, invoice_status}
+- `GET /api/v1/exceptions` returns paginated exception list with filters
+- `GET /api/v1/exceptions/{id}` returns detail with invoice summary
+- `PATCH /api/v1/exceptions/{id}` updates status/notes and writes audit log
+
+**Lessons**:
+- Match engine is sync (Celery context). POST /match endpoint must create its own sync engine+session — cannot call sync match engine directly in async FastAPI handler without `run_in_executor`, but using a sync session created inline in the async handler works fine for MVP.
+- `delete` SQLAlchemy statement import: must use `from sqlalchemy import delete as sa_delete` to avoid shadowing Python built-ins
+- `selectinload` in sync SQLAlchemy: use `from sqlalchemy.orm import selectinload` — works identically to async version
+- Seed script needs `GoodsReceipt.gr_number` (not `receipt_number`), `vendor_id` required, `GRLineItem.quantity` (not `quantity_received`), `po_line_item_id` (not `po_line_id`) — always read the model before seeding
+- Rule version id is correctly threaded through audit logs, linking every match decision to the exact rule config used
+
 <!-- Future entries go here, newest first -->
 <!-- Format:
 ## [YYYY-MM-DD] Task: <what was done>
