@@ -66,12 +66,19 @@ async def list_my_approvals(
             tasks = get_resolved_tasks_for_approver(db, current_user.id)
         else:
             tasks = get_pending_tasks_for_approver(db, current_user.id)
+        # Batch-load all invoices in one query to avoid N+1
+        invoice_ids = [task.invoice_id for task in tasks]
+        if invoice_ids:
+            invoices = db.execute(
+                select(Invoice).where(Invoice.id.in_(invoice_ids))
+            ).scalars().all()
+            invoice_map = {inv.id: inv for inv in invoices}
+        else:
+            invoice_map = {}
+
         items: list[ApprovalTaskOut] = []
         for task in tasks:
-            invoice = db.execute(
-                select(Invoice).where(Invoice.id == task.invoice_id)
-            ).scalars().first()
-
+            invoice = invoice_map.get(task.invoice_id)
             out = ApprovalTaskOut.model_validate(task)
             if invoice:
                 out.invoice_number = invoice.invoice_number
