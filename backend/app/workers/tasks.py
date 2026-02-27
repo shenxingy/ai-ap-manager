@@ -253,6 +253,14 @@ def process_invoice(self, invoice_id: str) -> dict:
         )
         db.commit()
 
+        # 7b. Fraud scoring (run after extraction, before match)
+        try:
+            from app.services.fraud_scoring import score_invoice
+            fraud_result = score_invoice(db, inv_uuid)
+            logger.info("Fraud scored: invoice=%s score=%d", invoice_id, fraud_result["fraud_score"])
+        except Exception as fraud_exc:
+            logger.warning("Fraud scoring failed for invoice %s: %s", invoice_id, fraud_exc)
+
         # 8. Run 2-way match (only if extraction succeeded)
         if final_status == "extracted":
             try:

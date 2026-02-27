@@ -213,6 +213,35 @@ async def get_gl_suggestions(
     return GLSuggestionResponse(invoice_id=invoice_id, suggestions=suggestions)
 
 
+# ─── Fraud score endpoint ───
+
+@router.get(
+    "/{invoice_id}/fraud-score",
+    summary="Get fraud score and triggered signals for an invoice",
+)
+async def get_fraud_score(
+    invoice_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN", "AUDITOR"))],
+):
+    from app.models.invoice import Invoice
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalars().first()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    score = invoice.fraud_score or 0
+    return {
+        "invoice_id": str(invoice_id),
+        "fraud_score": score,
+        "risk_level": (
+            "critical" if score >= settings.FRAUD_SCORE_CRITICAL_THRESHOLD
+            else "high" if score >= settings.FRAUD_SCORE_HIGH_THRESHOLD
+            else "medium" if score >= settings.FRAUD_SCORE_MEDIUM_THRESHOLD
+            else "low"
+        ),
+    }
+
+
 # ─── Audit history endpoint ───
 
 @router.get(
