@@ -219,7 +219,7 @@
   - [x] Approve button (green) + Reject button (red)
   - [x] Confirmation dialog before submitting
 - [x] Success: mark task as decided, remove from list, show toast
-- [ ] Past decisions tab: history of approved/rejected invoices
+- [x] Past decisions tab: history of approved/rejected invoices
 
 ---
 
@@ -273,8 +273,8 @@
   - [ ] Toggle: daily / weekly
   - [x] Tooltip on hover showing exact counts
 - [x] Auto-refresh every 5 minutes (`refetchInterval: 300000`)
-- [ ] Loading skeleton while fetching
-- [ ] Empty state if no data in period
+- [x] Loading skeleton while fetching
+- [x] Empty state if no data in period
 
 ---
 
