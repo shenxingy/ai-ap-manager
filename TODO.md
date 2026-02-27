@@ -10,7 +10,7 @@
 - [x] Backend: SQLAlchemy async engine + Alembic setup
 - [ ] Frontend: Next.js 14 + Tailwind + shadcn/ui scaffold
 - [ ] Frontend: API client (axios/fetch wrapper with auth headers)
-- [ ] Seed data script: vendors, POs, GRNs, sample invoices
+- [x] Seed data script: vendors, POs, GRNs, default matching rule (idempotent)
 
 ### Data Models (MVP subset)
 - [x] `vendors`, `vendor_alias` tables
@@ -40,18 +40,21 @@
 - [ ] Invoice status state machine: `received → extracting → extracted → matching → ...`
 
 ### 2-Way Match Engine (MVP)
-- [ ] Match service: link invoice to PO by PO number
-- [ ] Check quantity tolerance per line item (configurable %)
-- [ ] Check amount tolerance (configurable % + absolute cap)
-- [ ] Output match result: `MATCHED` / `PARTIAL_MATCH` / `MISMATCH` / `PO_NOT_FOUND`
-- [ ] Auto-approve MATCHED invoices below threshold (rule-based, audited)
-- [ ] Create exception for all non-MATCHED results
+- [x] Match service: link invoice to PO by PO number (po_id FK, notes heuristic, invoice_number prefix)
+- [x] Check quantity tolerance per line item (configurable %)
+- [x] Check amount tolerance (configurable % + absolute cap)
+- [x] Output match result: `matched` / `partial` / `exception` (MISSING_PO, PRICE_VARIANCE, QTY_VARIANCE)
+- [x] Auto-approve MATCHED invoices below threshold (rule-based, audited)
+- [x] Create exception for all non-MATCHED results
+- [x] GET `/api/v1/invoices/{id}/match` — return MatchResult with LineItemMatches
+- [x] POST `/api/v1/invoices/{id}/match` — manually trigger re-match (AP_ANALYST+)
+- [x] Match engine wired into Celery pipeline (runs after extraction=extracted)
+- [x] Seed: default published matching_tolerance rule + 2 POs + 1 GR for Acme Corp
 
 ### Exception Queue (MVP)
-- [ ] GET `/api/v1/exceptions` — list with filters (status, type, vendor, date)
-- [ ] GET `/api/v1/exceptions/{id}` — detail with full match analysis
-- [ ] PATCH `/api/v1/exceptions/{id}` — update status, assign owner, add comment
-- [ ] Exception types: `PRICE_MISMATCH`, `QTY_MISMATCH`, `PO_NOT_FOUND`, `DUPLICATE`, `MISSING_GRN`
+- [x] GET `/api/v1/exceptions` — list with filters (status, exception_code, invoice_id, assigned_to, severity)
+- [x] GET `/api/v1/exceptions/{id}` — detail with invoice summary
+- [x] PATCH `/api/v1/exceptions/{id}` — update status, assigned_to, resolution_notes (AP_ANALYST+, audit-logged)
 - [ ] Exception comments/thread (audit-logged)
 
 ### Approval Workflow (MVP - single level)
