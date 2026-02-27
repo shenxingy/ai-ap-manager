@@ -171,7 +171,7 @@ function EditRuleDialog({ rule, onClose, onSuccess, onError }: EditRuleDialogPro
       setPriority(String(rule.priority));
       setIsActive(rule.is_active);
     }
-  }, [rule?.id]);
+  }, [rule]);
 
   const mutation = useMutation({
     mutationFn: async () => {
