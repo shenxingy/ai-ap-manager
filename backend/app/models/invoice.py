@@ -45,6 +45,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     )
     ocr_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)  # 0.0-1.0
     extraction_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    normalized_amount_usd: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     line_items: Mapped[list["InvoiceLineItem"]] = relationship("InvoiceLineItem", back_populates="invoice")
@@ -93,17 +94,3 @@ class ExtractionResult(Base, UUIDMixin, TimestampMixin):
     discrepancy_fields: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list of fields that differed between passes
 
     invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="extraction_results")
-
-
-class RecurringInvoicePattern(Base, UUIDMixin, TimestampMixin):
-    __tablename__ = "recurring_invoice_patterns"
-
-    vendor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=False, index=True
-    )
-    frequency: Mapped[str] = mapped_column(String(50), nullable=False)  # monthly, quarterly, weekly, annual
-    expected_amount: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
-    amount_tolerance_pct: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False, default=0.05)
-    description_pattern: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
-    last_detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
