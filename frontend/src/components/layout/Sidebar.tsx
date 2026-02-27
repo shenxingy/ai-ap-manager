@@ -9,6 +9,7 @@ import {
   CheckSquare,
   Users,
   Building2,
+  GitBranch,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const navItems = [
 const adminItems = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/vendors", label: "Vendors", icon: Building2 },
+  { href: "/admin/exception-routing", label: "Exception Routing", icon: GitBranch },
 ];
 
 interface SidebarProps {
