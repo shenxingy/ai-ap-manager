@@ -11,10 +11,12 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_session
-from app.models.exception_record import ExceptionRecord
+from app.models.exception_record import ExceptionComment, ExceptionRecord
 from app.models.invoice import Invoice
 from app.models.user import User
 from app.schemas.exception_record import (
+    ExceptionCommentCreate,
+    ExceptionCommentOut,
     ExceptionDetail,
     ExceptionListItem,
     ExceptionListResponse,
@@ -180,3 +182,82 @@ async def patch_exception(
     exc = result2.scalars().first()
 
     return ExceptionDetail.model_validate(exc)
+
+
+# ─── POST /exceptions/{id}/comments ───
+
+@router.post(
+    "/{exception_id}/comments",
+    response_model=ExceptionCommentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a comment to an exception (AP_CLERK+)",
+)
+async def create_comment(
+    exception_id: uuid.UUID,
+    body: ExceptionCommentCreate,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_CLERK", "ADMIN"))],
+):
+    # Verify exception exists
+    exc_result = await db.execute(
+        select(ExceptionRecord).where(ExceptionRecord.id == exception_id)
+    )
+    exc = exc_result.scalars().first()
+    if exc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exception not found.")
+
+    comment = ExceptionComment(
+        exception_id=exception_id,
+        author_id=current_user.id,
+        body=body.body,
+    )
+    db.add(comment)
+    await db.flush()
+
+    # Audit log
+    from app.models.audit import AuditLog
+    import json
+
+    audit_entry = AuditLog(
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        action="exception.commented",
+        entity_type="exception",
+        entity_id=exception_id,
+        before_state=None,
+        after_state=json.dumps({"comment_id": str(comment.id), "body": body.body}, default=str),
+        notes=f"Comment added by {current_user.email}",
+    )
+    db.add(audit_entry)
+    await db.commit()
+    await db.refresh(comment)
+
+    return ExceptionCommentOut.model_validate(comment)
+
+
+# ─── GET /exceptions/{id}/comments ───
+
+@router.get(
+    "/{exception_id}/comments",
+    response_model=list[ExceptionCommentOut],
+    summary="List comments for an exception (AP_CLERK+)",
+)
+async def list_comments(
+    exception_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN", "APPROVER"))],
+):
+    # Verify exception exists
+    exc_result = await db.execute(
+        select(ExceptionRecord).where(ExceptionRecord.id == exception_id)
+    )
+    if exc_result.scalars().first() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exception not found.")
+
+    result = await db.execute(
+        select(ExceptionComment)
+        .where(ExceptionComment.exception_id == exception_id)
+        .order_by(ExceptionComment.created_at)
+    )
+    comments = result.scalars().all()
+    return [ExceptionCommentOut.model_validate(c) for c in comments]
