@@ -16,7 +16,13 @@ interface AuthState {
   logout: () => void;
 }
 
-const customStorage = {
+interface Storage<S> {
+  getItem: (name: string) => StorageValue<S> | null;
+  setItem: (name: string, value: StorageValue<S>) => void;
+  removeItem: (name: string) => void;
+}
+
+const customStorage: Storage<AuthState> = {
   getItem: (name: string): StorageValue<AuthState> | null => {
     if (typeof window === "undefined") return null;
     const stored = localStorage.getItem(name) || sessionStorage.getItem(name);
@@ -24,7 +30,8 @@ const customStorage = {
   },
   setItem: (name: string, value: StorageValue<AuthState>) => {
     if (typeof window === "undefined") return;
-    const rememberMe = (value as any)?.state?.rememberMe ?? true;
+    const storageValue = value as StorageValue<AuthState>;
+    const rememberMe = storageValue.state?.rememberMe ?? true;
 
     if (rememberMe) {
       localStorage.setItem(name, JSON.stringify(value));
@@ -52,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      storage: customStorage as any,
+      storage: customStorage,
     }
   )
 );

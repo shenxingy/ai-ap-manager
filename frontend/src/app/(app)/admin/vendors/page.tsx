@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -512,7 +512,7 @@ export default function AdminVendorsPage() {
   const { toast, showToast } = useToast();
 
   // Debounce search input
-  const debounceRef = useCallback(
+  const debounceRef = useRef(
     (() => {
       let timer: ReturnType<typeof setTimeout>;
       return (value: string) => {
@@ -522,9 +522,8 @@ export default function AdminVendorsPage() {
           setPage(1);
         }, 300);
       };
-    })(),
-    []
-  );
+    })()
+  ).current;
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
