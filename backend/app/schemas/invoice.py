@@ -86,6 +86,7 @@ class InvoiceDetail(BaseModel):
     ocr_confidence: Decimal | None
     extraction_model: str | None
     fraud_score: int
+    fraud_triggered_signals: list = []
     is_recurring: bool
     notes: str | None
     created_at: datetime
@@ -102,6 +103,19 @@ class InvoiceListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ─── Status override ───
+
+class StatusOverrideRequest(BaseModel):
+    status: str
+
+
+class StatusOverrideResponse(BaseModel):
+    invoice_id: uuid.UUID
+    old_status: str
+    new_status: str
+    message: str
 
 
 # ─── Audit log ───

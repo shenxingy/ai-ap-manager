@@ -21,6 +21,8 @@ from app.schemas.invoice import (
     InvoiceListItem,
     InvoiceListResponse,
     InvoiceUploadResponse,
+    StatusOverrideRequest,
+    StatusOverrideResponse,
 )
 from app.services import storage as storage_svc
 from app.services import audit as audit_svc
@@ -455,4 +457,85 @@ async def update_gl_coding(
         gl_account=body.gl_account,
         cost_center=body.cost_center,
         status=status_str,
+    )
+
+
+# ─── Status override endpoint ───
+
+# Valid state machine transitions
+_VALID_TRANSITIONS: dict[str, list[str]] = {
+    "ingested":   ["extracting", "cancelled"],
+    "extracting": ["extracted", "cancelled"],
+    "extracted":  ["matching", "cancelled"],
+    "matching":   ["matched", "exception", "cancelled"],
+    "matched":    ["approved", "rejected", "cancelled"],
+    "exception":  ["matched", "approved", "rejected", "cancelled"],
+    "approved":   ["paid", "cancelled"],
+    "paid":       [],
+    "rejected":   ["cancelled"],
+    "cancelled":  [],
+}
+
+_ALL_STATUSES = set(_VALID_TRANSITIONS.keys())
+
+
+@router.patch(
+    "/{invoice_id}/status",
+    response_model=StatusOverrideResponse,
+    summary="Admin-only forced status override for an invoice",
+)
+async def override_invoice_status(
+    invoice_id: uuid.UUID,
+    body: StatusOverrideRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("ADMIN"))],
+):
+    """Force an invoice to a new status. Validates against the state machine.
+    Only ADMIN users may call this endpoint.
+    """
+    if body.status not in _ALL_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid status '{body.status}'. Must be one of: {sorted(_ALL_STATUSES)}.",
+        )
+
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    old_status = invoice.status
+    allowed = _VALID_TRANSITIONS.get(old_status, [])
+
+    if body.status not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Invalid transition '{old_status}' → '{body.status}'. "
+                f"Allowed next states: {allowed or ['(none — terminal state)']}"
+            ),
+        )
+
+    invoice.status = body.status
+    db.add(invoice)
+
+    audit_svc.log(
+        db,
+        action="manual_status_override",
+        entity_type="invoice",
+        entity_id=invoice_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        before={"status": old_status},
+        after={"status": body.status},
+        notes=f"Admin forced status: {old_status} → {body.status}",
+    )
+
+    await db.commit()
+
+    return StatusOverrideResponse(
+        invoice_id=invoice_id,
+        old_status=old_status,
+        new_status=body.status,
+        message=f"Invoice status updated from '{old_status}' to '{body.status}'.",
     )

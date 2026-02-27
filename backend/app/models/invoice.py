@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,6 +38,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     remit_to: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     fraud_score: Mapped[int] = mapped_column(nullable=False, default=0)  # 0-100
+    fraud_triggered_signals: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="'[]'")
     is_recurring: Mapped[bool] = mapped_column(nullable=False, default=False)
     recurring_pattern_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("recurring_invoice_patterns.id"), nullable=True
