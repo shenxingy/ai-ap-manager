@@ -716,7 +716,7 @@
   - [x] PATCH `/api/v1/admin/exception-routing/{id}` — update (ADMIN)
 
 #### Frontend
-- [ ] Admin → Exception Routing page (`/admin/exception-routing`) — CRUD UI for routing rules
+- [x] Admin → Exception Routing page (`/admin/exception-routing`) — CRUD UI for routing rules
   - [ ] Table: exception_code → assigned_role
   - [ ] Edit mapping dropdowns
   - [ ] Priority ordering (drag to reorder)
