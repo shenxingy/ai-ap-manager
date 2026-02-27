@@ -1,0 +1,38 @@
+# ─── Web Framework ───────────────────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12     # file uploads
+
+# ─── Database ────────────────────────────────────────────
+sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
+asyncpg==0.30.0              # async postgres driver (app)
+psycopg2-binary==2.9.10      # sync postgres driver (alembic migrations)
+
+# ─── Data Validation ─────────────────────────────────────
+pydantic==2.10.0
+pydantic-settings==2.6.1
+email-validator==2.2.0
+
+# ─── Auth / Security ─────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1                # pin: passlib 1.7.4 incompatible with bcrypt>=4.1
+
+# ─── Task Queue ──────────────────────────────────────────
+celery[redis]==5.4.0
+redis==5.2.0
+
+# ─── Storage ─────────────────────────────────────────────
+minio==7.2.11
+
+# ─── AI / OCR ────────────────────────────────────────────
+anthropic==0.40.0
+pytesseract==0.3.13
+pdf2image==1.17.0
+Pillow==11.0.0
+pdfplumber==0.11.4
+
+# ─── Utils ───────────────────────────────────────────────
+httpx==0.28.0                # async HTTP client
+python-dateutil==2.9.0
