@@ -1,22 +1,31 @@
-"""Analytics endpoints — Process Mining and Anomaly Detection."""
+"""Analytics endpoints — Process Mining, Anomaly Detection, and Root Cause Reports."""
 import json
 import logging
 import statistics
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import require_role
 from app.db.session import get_session
+from app.models.analytics_report import AnalyticsReport
 from app.models.audit import AuditLog
 from app.models.exception_record import ExceptionRecord
 from app.models.invoice import Invoice
 from app.models.user import User
 from app.models.vendor import Vendor
+from app.schemas.analytics_report import (
+    AnalyticsReportListResponse,
+    AnalyticsReportOut,
+    GenerateReportRequest,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -220,3 +229,114 @@ async def get_anomalies(
     except Exception as exc:
         logger.exception("Error in anomaly detection: %s", exc)
         return []  # Return empty array on error for graceful degradation
+
+
+# ─── Root Cause Report endpoints ───
+
+@router.post(
+    "/root-cause-report",
+    response_model=AnalyticsReportOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger an AI root cause narrative report (async)",
+)
+async def create_root_cause_report(
+    body: GenerateReportRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
+):
+    """Create a pending report record and queue the LLM generation task.
+
+    Rate limited to 1 report per user per 60 minutes.
+    Returns immediately with status=pending; poll GET /analytics/reports/{id} for completion.
+    """
+    # Rate limit check: last report by this user within 60 min
+    rate_limit_minutes = 60
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=rate_limit_minutes)
+    recent = (await db.execute(
+        select(func.count(AnalyticsReport.id)).where(
+            AnalyticsReport.requester_email == current_user.email,
+            AnalyticsReport.created_at >= cutoff,
+            AnalyticsReport.report_type == "root_cause",
+        )
+    )).scalar_one()
+
+    if recent > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit: only 1 root cause report per {rate_limit_minutes} minutes per user. Try again later.",
+        )
+
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    title = body.title or f"Root Cause Analysis — {now_str}"
+
+    report = AnalyticsReport(
+        title=title,
+        report_type="root_cause",
+        status="pending",
+        requested_by=current_user.id,
+        requester_email=current_user.email,
+    )
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+
+    # Queue the Celery task
+    try:
+        from app.workers.analytics_tasks import generate_root_cause_report  # noqa: PLC0415
+        generate_root_cause_report.delay(str(report.id))
+    except Exception as exc:
+        logger.warning("Failed to queue generate_root_cause_report: %s", exc)
+        # Not fatal — mark as failed so user can see the error
+        report.status = "failed"
+        report.error_message = f"Failed to queue generation task: {exc}"
+        await db.commit()
+        await db.refresh(report)
+
+    return AnalyticsReportOut.model_validate(report)
+
+
+@router.get(
+    "/reports",
+    response_model=AnalyticsReportListResponse,
+    summary="List analytics reports (newest first)",
+)
+async def list_analytics_reports(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=50),
+    report_type: str | None = Query(default=None),
+):
+    stmt = select(AnalyticsReport)
+    if report_type:
+        stmt = stmt.where(AnalyticsReport.report_type == report_type)
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    offset = (page - 1) * page_size
+    stmt = stmt.order_by(AnalyticsReport.created_at.desc()).offset(offset).limit(page_size)
+    reports = (await db.execute(stmt)).scalars().all()
+
+    return AnalyticsReportListResponse(
+        items=[AnalyticsReportOut.model_validate(r) for r in reports],
+        total=total,
+    )
+
+
+@router.get(
+    "/reports/{report_id}",
+    response_model=AnalyticsReportOut,
+    summary="Get a specific analytics report by ID",
+)
+async def get_analytics_report(
+    report_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
+):
+    report = (await db.execute(
+        select(AnalyticsReport).where(AnalyticsReport.id == report_id)
+    )).scalar_one_or_none()
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
+    return AnalyticsReportOut.model_validate(report)

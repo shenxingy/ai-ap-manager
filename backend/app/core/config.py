@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     FRAUD_SCORE_HIGH_THRESHOLD: int = 40
     FRAUD_SCORE_CRITICAL_THRESHOLD: int = 60
 
+    # SLA Alerting
+    SLA_WARNING_DAYS_BEFORE: int = 3
+
     # Email
     MAIL_ENABLED: bool = False
     MAIL_FROM: str = "ap-system@yourcompany.com"
