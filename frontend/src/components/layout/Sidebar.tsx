@@ -15,6 +15,9 @@ import {
   Layers,
   RepeatIcon,
   ShieldAlert,
+  Settings,
+  BookOpen,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -35,6 +38,9 @@ const adminItems = [
   { href: "/admin/recurring-patterns", label: "Recurring Patterns", icon: RepeatIcon },
   { href: "/admin/fraud", label: "Fraud Incidents", icon: ShieldAlert },
   { href: "/admin/import", label: "Import", icon: Upload },
+  { href: "/admin/rules", label: "Policy Rules", icon: BookOpen },
+  { href: "/admin/ai-insights", label: "AI Insights", icon: Sparkles },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 interface SidebarProps {
