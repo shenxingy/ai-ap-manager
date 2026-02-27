@@ -25,11 +25,16 @@ def create_approval_task(
     approver_id: uuid.UUID,
     step_order: int = 1,
     due_hours: int = 48,
+    required_count: int = 1,
 ) -> "ApprovalTask":
     """Create an ApprovalTask with two one-time tokens (approve + reject).
 
     Generates approve and reject ApprovalToken rows, logs to audit,
     then fires the mock email notification.
+
+    Args:
+        required_count: Number of approvals needed before the invoice is fully
+            approved. Set to 2 for CRITICAL fraud-score invoices.
 
     Returns the created ApprovalTask ORM object.
     """
@@ -46,6 +51,7 @@ def create_approval_task(
         invoice_id=invoice_id,
         approver_id=approver_id,
         step_order=step_order,
+        approval_required_count=required_count,
         status="pending",
         due_at=expires_at,
     )
@@ -149,10 +155,15 @@ def process_approval_decision(
     if task is None:
         raise ValueError(f"ApprovalTask {task_id} not found.")
 
-    if task.status != "pending":
+    # Allow approve on "partially_approved" (waiting for second signature)
+    # Reject must come from "pending" or "partially_approved"
+    if task.status not in ("pending", "partially_approved"):
         raise ValueError(
             f"ApprovalTask {task_id} is already decided (status={task.status})."
         )
+    if action == "reject" and task.status == "partially_approved":
+        # Allow rejection even after a partial approval
+        pass
 
     now = datetime.now(timezone.utc)
 
@@ -218,36 +229,88 @@ def process_approval_decision(
     }
 
     # Apply decision
-    new_task_status = "approved" if action == "approve" else "rejected"
-    new_invoice_status = "approved" if action == "approve" else "rejected"
-
-    task.status = new_task_status
     task.decided_at = now
     task.decision_channel = channel
     if notes:
         task.notes = notes
 
-    invoice.status = new_invoice_status
-    db.flush()
+    if action == "reject":
+        task.status = "rejected"
+        invoice.status = "rejected"
+        db.flush()
 
-    after_snapshot = {
-        "invoice_status": invoice.status,
-        "task_status": task.status,
-        "decision_channel": channel,
-        "actor_id": str(actor_id) if actor_id else None,
-    }
+        after_snapshot = {
+            "invoice_status": invoice.status,
+            "task_status": task.status,
+            "decision_channel": channel,
+            "actor_id": str(actor_id) if actor_id else None,
+        }
+        audit_svc.log(
+            db=db,
+            action="invoice_rejected",
+            entity_type="invoice",
+            entity_id=invoice.id,
+            actor_id=actor_id,
+            before=before_snapshot,
+            after=after_snapshot,
+            notes=f"Decision via {channel} channel. Notes: {notes}",
+        )
 
-    audit_action = "invoice_approved" if action == "approve" else "invoice_rejected"
-    audit_svc.log(
-        db=db,
-        action=audit_action,
-        entity_type="invoice",
-        entity_id=invoice.id,
-        actor_id=actor_id,
-        before=before_snapshot,
-        after=after_snapshot,
-        notes=f"Decision via {channel} channel. Notes: {notes}",
-    )
+    else:  # action == "approve"
+        # Count approvals already recorded: "partially_approved" means 1 prior approval
+        prior_approvals = 1 if task.status == "partially_approved" else 0
+        approved_count = prior_approvals + 1
+
+        if approved_count < task.approval_required_count:
+            # Threshold not yet reached — record partial approval
+            task.status = "partially_approved"
+            db.flush()
+
+            after_snapshot = {
+                "invoice_status": invoice.status,
+                "task_status": task.status,
+                "approved_count": approved_count,
+                "required_count": task.approval_required_count,
+                "decision_channel": channel,
+                "actor_id": str(actor_id) if actor_id else None,
+            }
+            audit_svc.log(
+                db=db,
+                action="invoice_partially_approved",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                actor_id=actor_id,
+                before=before_snapshot,
+                after=after_snapshot,
+                notes=(
+                    f"Partial approval {approved_count}/{task.approval_required_count} "
+                    f"via {channel} channel. Notes: {notes}"
+                ),
+            )
+        else:
+            # All required approvals collected — fully approve
+            task.status = "approved"
+            invoice.status = "approved"
+            db.flush()
+
+            after_snapshot = {
+                "invoice_status": invoice.status,
+                "task_status": task.status,
+                "approved_count": approved_count,
+                "required_count": task.approval_required_count,
+                "decision_channel": channel,
+                "actor_id": str(actor_id) if actor_id else None,
+            }
+            audit_svc.log(
+                db=db,
+                action="invoice_approved",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                actor_id=actor_id,
+                before=before_snapshot,
+                after=after_snapshot,
+                notes=f"Decision via {channel} channel. Notes: {notes}",
+            )
 
     db.commit()
 
@@ -293,9 +356,27 @@ def auto_create_approval_task(db: Session, invoice_id: uuid.UUID) -> "ApprovalTa
     Called after match succeeds but the invoice total exceeds the auto-approve
     threshold (i.e., the invoice is NOT auto-approved).
 
+    If the invoice has a CRITICAL fraud score (>= FRAUD_SCORE_CRITICAL_THRESHOLD),
+    approval_required_count is set to 2 (dual-authorization required).
+
     Returns None if no user with role=APPROVER is found in the DB.
     """
+    from app.models.invoice import Invoice
     from app.models.user import User
+
+    # Determine required approval count based on fraud score
+    invoice = db.execute(
+        select(Invoice).where(Invoice.id == invoice_id)
+    ).scalars().first()
+
+    required_count = 1
+    if invoice and invoice.fraud_score >= settings.FRAUD_SCORE_CRITICAL_THRESHOLD:
+        required_count = 2
+        logger.info(
+            "auto_create_approval_task: invoice=%s has CRITICAL fraud score %s — "
+            "dual-authorization required (required_count=2).",
+            invoice_id, invoice.fraud_score,
+        )
 
     approver = db.execute(
         select(User).where(
@@ -314,8 +395,8 @@ def auto_create_approval_task(db: Session, invoice_id: uuid.UUID) -> "ApprovalTa
         return None
 
     logger.info(
-        "auto_create_approval_task: creating task for invoice=%s approver=%s",
-        invoice_id, approver.id,
+        "auto_create_approval_task: creating task for invoice=%s approver=%s required_count=%s",
+        invoice_id, approver.id, required_count,
     )
 
     return create_approval_task(
@@ -324,6 +405,7 @@ def auto_create_approval_task(db: Session, invoice_id: uuid.UUID) -> "ApprovalTa
         approver_id=approver.id,
         step_order=1,
         due_hours=settings.APPROVAL_TOKEN_EXPIRE_HOURS,
+        required_count=required_count,
     )
 
 
