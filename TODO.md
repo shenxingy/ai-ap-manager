@@ -23,8 +23,8 @@
 - [x] Initialize Next.js 14 (App Router) in `frontend/`
   - [x] `npx create-next-app@latest frontend --ts --tailwind --app --src-dir`
   - [x] Install and configure shadcn/ui (`npx shadcn-ui@latest init`)
-  - [ ] Custom brand colors in `tailwind.config.ts`
-  - [ ] Dark mode support via `class` strategy
+  - [x] Custom brand colors in `tailwind.config.ts`
+  - [x] Dark mode support via `class` strategy
 - [x] Install dependencies:
   - [x] `@tanstack/react-query` — server state
   - [x] `zustand` — client state (auth, UI toggles)
@@ -52,8 +52,8 @@
   - [x] Persist token in `localStorage` (clear on logout)
 - [x] Route guard HOC / middleware (`middleware.ts`)
   - [x] Redirect unauthenticated users to `/login`
-  - [ ] Redirect authenticated users away from `/login`
-- [ ] Docker: add frontend service to `docker-compose.yml` (port 3000, hot reload)
+  - [x] Redirect authenticated users away from `/login`
+- [x] Docker: add frontend service to `docker-compose.yml` (port 3000, hot reload)
 
 ---
 
@@ -286,8 +286,8 @@
   - [x] Alembic migration: REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC; GRANT SELECT, INSERT
   - [x] `GRANT SELECT, INSERT ON audit_logs TO PUBLIC`
   - [x] `REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC`
-  - [ ] Document in CLAUDE.md
-- [ ] Verify ALL state transitions are audit-logged:
+  - [x] Document in CLAUDE.md
+- [x] Verify ALL state transitions are audit-logged:
   - [x] invoice_uploaded (in upload handler)
   - [x] invoice_extracted (in celery task)
   - [x] invoice.match_completed (in match engine)

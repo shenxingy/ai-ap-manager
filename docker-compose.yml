@@ -103,6 +103,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ─── Frontend (Next.js) ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8002/api/v1
+    depends_on:
+      - backend
+    command: npm run dev
+
 volumes:
   pgdata:
   miniodata:
