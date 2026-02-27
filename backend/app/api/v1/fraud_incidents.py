@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
@@ -34,6 +34,11 @@ class FraudIncidentOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FraudIncidentListResponse(BaseModel):
+    items: list[FraudIncidentOut]
+    total: int
+
+
 class FraudIncidentUpdate(BaseModel):
     outcome: str | None = None   # genuine, false_positive, pending
     notes: str | None = None
@@ -43,19 +48,32 @@ class FraudIncidentUpdate(BaseModel):
 
 @router.get(
     "",
-    response_model=list[FraudIncidentOut],
+    response_model=FraudIncidentListResponse,
     summary="List fraud incidents (ADMIN, AP_ANALYST)",
 )
 async def list_fraud_incidents(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("ADMIN", "AP_ANALYST"))],
     outcome: str | None = Query(default=None, description="Filter by outcome: pending|genuine|false_positive"),
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=50, ge=1, le=500, description="Number of records to return"),
 ):
     stmt = select(FraudIncident).order_by(FraudIncident.created_at.desc())
     if outcome:
         stmt = stmt.where(FraudIncident.outcome == outcome)
+
+    # Get total count
+    count_stmt = select(func.count()).select_from(FraudIncident)
+    if outcome:
+        count_stmt = count_stmt.where(FraudIncident.outcome == outcome)
+    total = await db.scalar(count_stmt) or 0
+
+    # Get paginated results
+    stmt = stmt.offset(skip).limit(limit)
     result = await db.execute(stmt)
-    return [FraudIncidentOut.model_validate(row) for row in result.scalars().all()]
+    items = [FraudIncidentOut.model_validate(row) for row in result.scalars().all()]
+
+    return FraudIncidentListResponse(items=items, total=total)
 
 
 # ─── PATCH /fraud-incidents/{id} ───
