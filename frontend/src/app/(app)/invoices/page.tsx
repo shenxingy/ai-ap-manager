@@ -23,6 +23,7 @@ interface Invoice {
   status: string;
   fraud_score: number | null;
   created_at: string;
+  due_date?: string;
   source?: string;
   is_recurring?: boolean;
   unread_vendor_messages?: number;
@@ -230,6 +231,9 @@ export default function InvoicesPage() {
                     {inv.invoice_number || "—"}
                     {inv.source === "email" && (
                       <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">Email</span>
+                    )}
+                    {inv.due_date && !["approved", "paid"].includes(inv.status.toLowerCase()) && new Date(inv.due_date) < new Date() && (
+                      <Badge variant="destructive" className="ml-1 text-xs">Overdue</Badge>
                     )}
                   </TableCell>
                   <TableCell>{inv.vendor_name_raw || "—"}</TableCell>
