@@ -18,6 +18,12 @@ interface ExtractedField {
   is_overridden?: boolean;
 }
 
+interface ExtractionResult {
+  pass_number: 1 | 2;
+  extracted_fields: Record<string, unknown>;
+  discrepancy_fields: string[];
+}
+
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -31,6 +37,7 @@ interface Invoice {
   created_at: string;
   confidence_score?: number | null;
   extracted_fields?: Record<string, ExtractedField>;
+  extraction_results?: ExtractionResult[];
 }
 
 interface LineItem {
@@ -201,6 +208,9 @@ export default function InvoiceDetailPage() {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [savingField, setSavingField] = useState(false);
+
+  // Extraction comparison state
+  const [comparisonOpen, setComparisonOpen] = useState(false);
 
   // GL editing state
   const [glEdits, setGlEdits] = useState<Record<string, { gl_account: string; cost_center: string }>>({});
@@ -614,6 +624,61 @@ export default function InvoiceDetailPage() {
                   </div>
                 ))}
               </dl>
+
+              {/* ─── Extraction Pass Comparison ─── */}
+              {(() => {
+                const results = invoice.extraction_results ?? [];
+                const passA = results.find((r) => r.pass_number === 1);
+                const passB = results.find((r) => r.pass_number === 2);
+                if (!passA || !passB) return null;
+                const discrepancies = [
+                  ...new Set([...passA.discrepancy_fields, ...passB.discrepancy_fields]),
+                ];
+                const hasDiscrepancies = discrepancies.length > 0;
+                return (
+                  <div className="mt-5 border-t pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Extraction Comparison</span>
+                      {hasDiscrepancies && (
+                        <button
+                          onClick={() => setComparisonOpen((o) => !o)}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                          {comparisonOpen ? "▲ Hide" : "▼ Show"} {discrepancies.length} discrepant field{discrepancies.length !== 1 ? "s" : ""}
+                        </button>
+                      )}
+                    </div>
+                    {!hasDiscrepancies ? (
+                      <p className="text-sm text-green-600 flex items-center gap-1">
+                        <span>✓</span> Both extraction passes agree
+                      </p>
+                    ) : comparisonOpen && (
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="text-left text-gray-500 border-b">
+                            <th className="pb-1.5 pr-3 font-medium w-1/4">Field</th>
+                            <th className="pb-1.5 pr-3 font-medium w-[37.5%]">Pass A</th>
+                            <th className="pb-1.5 font-medium w-[37.5%]">Pass B</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {discrepancies.map((field) => (
+                            <tr key={field} className="border-b border-amber-100 last:border-0">
+                              <td className="py-1.5 pr-3 font-medium text-gray-600">{field}</td>
+                              <td className="py-1.5 pr-3 bg-amber-50 text-amber-900 px-1.5 rounded-l">
+                                {String(passA.extracted_fields[field] ?? "—")}
+                              </td>
+                              <td className="py-1.5 bg-amber-50 text-amber-900 px-1.5 rounded-r">
+                                {String(passB.extracted_fields[field] ?? "—")}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>

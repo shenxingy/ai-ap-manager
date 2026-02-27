@@ -125,7 +125,7 @@
   - [x] Extraction confidence indicator per field (color dot: green/amber/red)
   - [x] Amber highlight + edit icon for mismatched fields (discrepancy_fields from ExtractionResult)
   - [x] Inline edit → save → calls PATCH /invoices/{id}/fields
-  - [ ] Extraction pass comparison: Pass A vs Pass B values shown side-by-side for discrepant fields
+  - [x] Extraction pass comparison: Pass A vs Pass B values shown side-by-side for discrepant fields
 - [x] **Line Items tab** — scaffolded:
   - [x] Table: line# · description · qty · unit_price · line_total · GL account · GL suggestion
   - [x] GL account cell: grey suggestion text + confidence badge
