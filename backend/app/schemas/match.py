@@ -41,6 +41,8 @@ class LineItemMatchOut(BaseModel):
     qty_invoiced: float | None = None
     qty_on_po: float | None = None
     qty_received: float | None = None
+    exception_code: str | None = None  # e.g. GRN_NOT_FOUND for 3-way lines missing GR
+    grn_lines_used: list[str] | None = None  # GR numbers referenced by this line match
 
 
 class MatchResultOut(BaseModel):

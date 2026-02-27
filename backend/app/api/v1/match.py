@@ -143,6 +143,14 @@ async def get_match_result(
             lm_out.qty_on_po = float(po_li.quantity) if po_li else None
             lm_out.qty_received = float(gr_li.quantity) if gr_li else None
 
+            # Populate GRN_NOT_FOUND exception code for 3-way lines missing a GR line
+            if out.match_type == "3way" and orm_lm.gr_line_id is None:
+                lm_out.exception_code = "GRN_NOT_FOUND"
+
+            # Populate grn_lines_used from the GR number already fetched above
+            if gr_li is not None and out.gr_number:
+                lm_out.grn_lines_used = [out.gr_number]
+
     return out
 
 
