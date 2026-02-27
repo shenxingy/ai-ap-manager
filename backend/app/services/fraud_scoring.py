@@ -106,9 +106,10 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
             triggered.append("new_vendor")
             total_score += SIGNAL_WEIGHTS["new_vendor"]
 
-    # ── Update invoice.fraud_score ──
+    # ── Update invoice.fraud_score and triggered signals ──
     prev_score = invoice.fraud_score or 0
     invoice.fraud_score = total_score
+    invoice.fraud_triggered_signals = triggered
     db.flush()
 
     # ── Auto-create FRAUD_FLAG exception if HIGH+ ──

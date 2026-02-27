@@ -71,9 +71,9 @@
 - [x] `audit_logs`, `ai_call_logs` tables
 - [x] `users`, `rules`, `rule_versions` tables
 - [x] Run initial Alembic migration
-- [ ] DB: store `fraud_triggered_signals` JSON column on invoices
-  - [ ] Alembic migration: `ALTER TABLE invoices ADD COLUMN fraud_triggered_signals JSONB DEFAULT '[]'`
-  - [ ] Update `fraud_scoring.py` to persist signal list alongside score
+- [x] DB: store `fraud_triggered_signals` JSON column on invoices
+  - [x] Alembic migration: `ALTER TABLE invoices ADD COLUMN fraud_triggered_signals JSONB DEFAULT '[]'`
+  - [x] Update `fraud_scoring.py` to persist signal list alongside score
 
 ---
 
@@ -95,10 +95,10 @@
   - [x] Update invoice / invoice_line_item fields
   - [x] Log to audit_logs: action="field_corrected", before/after snapshot
   - [ ] If invoice.status == "exception" (extraction failed), auto-trigger re-match
-- [ ] Invoice status state machine — validation + PATCH override
-  - [ ] Enforce valid transitions: ingested→extracting→extracted→matching→matched/exception→approved/rejected
-  - [ ] `PATCH /api/v1/invoices/{id}/status` — ADMIN-only forced status override (audited)
-  - [ ] Prevent invalid jumps (e.g., approved→extracting) with 422 response
+- [x] Invoice status state machine — validation + PATCH override
+  - [x] Enforce valid transitions: ingested→extracting→extracted→matching→matched/exception→approved/rejected
+  - [x] `PATCH /api/v1/invoices/{id}/status` — ADMIN-only forced status override (audited)
+  - [x] Prevent invalid jumps (e.g., approved→extracting) with 422 response
 
 #### Frontend — Invoice List Page (`/invoices`)
 - [x] Paginated data table — scaffolded: invoice_number · vendor · total_amount · status · created_at · fraud badge
@@ -293,8 +293,8 @@
   - [x] invoice.match_completed (in match engine)
   - [x] invoice_approved / invoice_rejected (in approval service)
   - [x] exception_updated (in exceptions PATCH)
-  - [ ] field_corrected (add when PATCH /invoices/{id}/fields is built)
-  - [ ] manual_status_override (add when PATCH /invoices/{id}/status is built)
+  - [x] field_corrected (add when PATCH /invoices/{id}/fields is built)
+  - [x] manual_status_override (add when PATCH /invoices/{id}/status is built)
 
 ---
 
@@ -339,7 +339,7 @@
 - [x] Auto-creates FRAUD_FLAG exception when score >= HIGH threshold (40)
 - [x] Wired into Celery `process_invoice` pipeline (after extraction, before match)
 - [x] GET `/api/v1/invoices/{id}/fraud-score` — returns score + risk_level
-- [ ] Persist `fraud_triggered_signals` to invoices table (see Data Models section)
+- [x] Persist `fraud_triggered_signals` to invoices table (see Data Models section)
 - [ ] CRITICAL score (≥60) → dual-authorization enforcement
   - [ ] Backend: `approval_required_count` field on ApprovalTask (default 1, 2 for CRITICAL)
   - [ ] Approval service: only mark invoice approved when `approved_count >= required_count`

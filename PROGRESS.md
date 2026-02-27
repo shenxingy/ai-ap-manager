@@ -1,5 +1,21 @@
 # Progress — AI AP Operations Manager
 
+## [2026-02-27] fraud_triggered_signals + invoice status override
+
+**Result**: success — both features implemented and verified.
+
+**What was done**:
+- Added `fraud_triggered_signals` JSON column to `Invoice` model (already present in previous batch)
+- Generated Alembic migration `30c7aa8ecaf1` and applied (now at head)
+- `fraud_scoring.py` already sets `invoice.fraud_triggered_signals = triggered` before flush
+- Added `PATCH /api/v1/invoices/{id}/status` (ADMIN-only) with full state machine validation
+- `StatusOverrideRequest` / `StatusOverrideResponse` schemas added to `schemas/invoice.py`
+- Audit log written on every status override: action="manual_status_override"
+
+**Patterns confirmed**:
+- State machine as `dict[str, list[str]]` in the router module works cleanly
+- `audit_svc.log()` can be called synchronously inside async route handlers (it only flushes, not commits)
+
 ## Project Start: 2026-02-26
 
 Initial planning complete. Full documentation suite created covering:
