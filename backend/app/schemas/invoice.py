@@ -1,10 +1,11 @@
 """Pydantic schemas for invoice API endpoints."""
+import json
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 # ─── Upload response ───
@@ -57,7 +58,39 @@ class ExtractionResultOut(BaseModel):
     model_used: str
     tokens_used: int | None
     latency_ms: int | None
-    discrepancy_fields: str | None  # stored as JSON string
+    extracted_fields: dict[str, Any] = {}   # parsed from raw_json
+    discrepancy_fields: list[str] = []       # parsed from JSON string
+
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_json_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            raw = data.get("raw_json") or "{}"
+            disc = data.get("discrepancy_fields") or "[]"
+        else:
+            raw = getattr(data, "raw_json", None) or "{}"
+            disc = getattr(data, "discrepancy_fields", None) or "[]"
+        try:
+            extracted = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        except Exception:
+            extracted = {}
+        try:
+            discrepancies = json.loads(disc) if isinstance(disc, str) else (disc or [])
+            if not isinstance(discrepancies, list):
+                discrepancies = []
+        except Exception:
+            discrepancies = []
+        if isinstance(data, dict):
+            return {**data, "extracted_fields": extracted, "discrepancy_fields": discrepancies}
+        return {
+            "id": getattr(data, "id", None),
+            "pass_number": getattr(data, "pass_number", None),
+            "model_used": getattr(data, "model_used", None),
+            "tokens_used": getattr(data, "tokens_used", None),
+            "latency_ms": getattr(data, "latency_ms", None),
+            "extracted_fields": extracted,
+            "discrepancy_fields": discrepancies,
+        }
 
 
 # ─── Full invoice detail ───
