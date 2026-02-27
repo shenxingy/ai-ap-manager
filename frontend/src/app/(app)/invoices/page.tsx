@@ -67,10 +67,12 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const uploadFile = async (file: File) => {
     setUploading(true);
+    setUploadError(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -80,8 +82,8 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
       onSuccess();
       // Redirect to the new invoice detail page
       router.push(`/invoices/${invoiceId}`);
-    } catch (err) {
-      console.error("Upload failed", err);
+    } catch {
+      setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -95,7 +97,12 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (newOpen) {
+        setUploadError(null);
+      }
+    }}>
       <DialogTrigger asChild>
         <Button>
           <Upload className="h-4 w-4 mr-2" />
@@ -106,6 +113,11 @@ function UploadDialog({ onSuccess }: { onSuccess: () => void }) {
         <DialogHeader>
           <DialogTitle>Upload Invoice</DialogTitle>
         </DialogHeader>
+        {uploadError && (
+          <p className="text-sm text-red-600 bg-red-50 p-3 rounded">
+            {uploadError}
+          </p>
+        )}
         <div
           className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors ${
             uploading ? "border-gray-300 bg-gray-50 cursor-not-allowed" : dragging ? "border-blue-500 bg-blue-50 cursor-pointer" : "border-gray-300 hover:border-gray-400 cursor-pointer"
