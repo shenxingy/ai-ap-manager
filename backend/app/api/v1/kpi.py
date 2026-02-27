@@ -98,6 +98,35 @@ async def get_kpi_summary(
     )
 
 
+@router.get("/sla-summary", summary="SLA overdue and approaching-due invoice counts")
+async def get_sla_summary(
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
+):
+    now = datetime.now(timezone.utc)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    approaching_cutoff = start_of_today + timedelta(days=3)
+
+    # Approaching: due_date between now and today+3 days, not yet approved/paid
+    approaching_q = select(func.count(Invoice.id)).where(
+        Invoice.deleted_at.is_(None),
+        Invoice.due_date >= now,
+        Invoice.due_date <= approaching_cutoff,
+        Invoice.status.not_in(["approved", "paid"]),
+    )
+    approaching_count = (await db.execute(approaching_q)).scalar_one()
+
+    # Overdue: due_date < now, not yet approved/paid
+    overdue_q = select(func.count(Invoice.id)).where(
+        Invoice.deleted_at.is_(None),
+        Invoice.due_date < now,
+        Invoice.status.not_in(["approved", "paid"]),
+    )
+    overdue_count = (await db.execute(overdue_q)).scalar_one()
+
+    return {"approaching_count": approaching_count, "overdue_count": overdue_count}
+
+
 @router.get("/trends", response_model=KPITrends, summary="KPI time-series trends")
 async def get_kpi_trends(
     period: str = Query(default="daily", pattern="^(daily|weekly)$"),
