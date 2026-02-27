@@ -36,6 +36,7 @@ interface Exception {
   status: string;
   description: string;
   assigned_to: string | null;
+  assigned_to_email: string | null;
   resolution_notes: string | null;
   invoice_id: string;
   invoice_number: string | null;
@@ -564,7 +565,7 @@ function ExceptionsContent() {
                     </Badge>
                   </TableCell>
                   <TableCell>{ex.status}</TableCell>
-                  <TableCell>{ex.assigned_to || "—"}</TableCell>
+                  <TableCell>{ex.assigned_to_email || "—"}</TableCell>
                   <TableCell>
                     <Link
                       href={`/invoices/${ex.invoice_id}`}
