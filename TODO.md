@@ -761,14 +761,14 @@
 ### Root Cause Analysis
 
 #### Backend
-- [ ] Process mining:
-  - [ ] Query avg time in each status per invoice (using audit_log timestamps)
-  - [ ] Identify bottleneck: which step has highest median dwell time?
-  - [ ] GET `/api/v1/analytics/process-mining` → `{step, avg_hours, p90_hours, invoice_count}`
-- [ ] Anomaly detection:
-  - [ ] Z-score on exception_rate grouped by vendor/doc_type/period
-  - [ ] Alert when Z-score > 2.5 (exceptional spike)
-  - [ ] GET `/api/v1/analytics/anomalies` → `[{dimension, value, z_score, period}]`
+- [x] Process mining:
+  - [x] Query avg time in each status per invoice (using audit_log timestamps)
+  - [x] Identify bottleneck: which step has highest median dwell time?
+  - [x] GET `/api/v1/analytics/process-mining` → `{step, avg_hours, p90_hours, invoice_count}`
+- [x] Anomaly detection:
+  - [x] Z-score on exception_rate grouped by vendor/doc_type/period
+  - [x] Alert when Z-score > 2.5 (exceptional spike)
+  - [x] GET `/api/v1/analytics/anomalies` → `[{dimension, value, z_score, period}]`
 - [ ] LLM narrative report:
   - [ ] POST `/api/v1/analytics/root-cause-report` → triggers async Claude narrative generation
   - [ ] System prompt: provide anomaly data + process mining results
@@ -780,9 +780,9 @@
   - [ ] Include: top anomalies, process bottlenecks, AI narrative
 
 #### Frontend
-- [ ] Analytics page (`/analytics`)
-  - [ ] Process mining funnel chart: avg time per status step
-  - [ ] Anomaly alerts list: spike events with Z-score
+- [x] Analytics page (`/analytics`)
+  - [x] Process mining funnel chart: avg time per status step
+  - [x] Anomaly alerts list: spike events with Z-score
   - [ ] "Generate Root Cause Report" button → polling for completion → display narrative
   - [ ] Report history: list of past weekly digests
 

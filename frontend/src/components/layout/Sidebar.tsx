@@ -10,6 +10,7 @@ import {
   Users,
   Building2,
   GitBranch,
+  BarChart2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/invoices", label: "Invoices", icon: FileText, roles: null },
   { href: "/exceptions", label: "Exceptions", icon: AlertTriangle, roles: null },
   { href: "/approvals", label: "Approvals", icon: CheckSquare, roles: ["APPROVER", "ADMIN"] },
+  { href: "/analytics", label: "Analytics", icon: BarChart2, roles: ["AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"] },
 ];
 
 const adminItems = [
