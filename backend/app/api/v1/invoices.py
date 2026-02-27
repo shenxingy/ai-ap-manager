@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_session
 from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult
+from app.models.approval import VendorMessage
 from app.models.user import User
 from app.schemas.invoice import (
     AuditLogOut,
@@ -618,3 +619,113 @@ async def override_invoice_status(
         new_status=body.status,
         message=f"Invoice status updated from '{old_status}' to '{body.status}'.",
     )
+
+
+# ─── Vendor Communication Hub ───
+
+
+class SendMessageRequest(BaseModel):
+    """Request to send a message to a vendor (or record an internal note)."""
+
+    body: str
+    sender_email: str
+    is_internal: bool = False
+    attachments: list = []
+
+
+class MessageOut(BaseModel):
+    """A vendor message record."""
+
+    id: uuid.UUID
+    invoice_id: uuid.UUID
+    sender_id: uuid.UUID | None
+    sender_email: str | None
+    direction: str
+    body: str
+    is_internal: bool
+    attachments: list
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+@router.post(
+    "/{invoice_id}/messages",
+    response_model=MessageOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send a message to the vendor (or record internal AP note)",
+)
+async def send_vendor_message(
+    invoice_id: uuid.UUID,
+    body: SendMessageRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+):
+    # Verify invoice exists
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    msg = VendorMessage(
+        invoice_id=invoice_id,
+        sender_id=current_user.id,
+        sender_email=body.sender_email or current_user.email,
+        direction="outbound",
+        body=body.body,
+        is_internal=body.is_internal,
+        attachments=body.attachments or [],
+    )
+    db.add(msg)
+
+    audit_svc.log(
+        db,
+        action="vendor_message.sent",
+        entity_type="invoice",
+        entity_id=invoice_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        after={
+            "direction": "outbound",
+            "is_internal": body.is_internal,
+            "body_preview": body.body[:120],
+        },
+    )
+
+    await db.flush()
+
+    # Mock email send for external messages
+    if not body.is_internal:
+        reply_token = str(msg.id)
+        logger.info(
+            "[EMAIL MOCK] To: %s | Invoice: %s | ReplyToken: %s | Body: %s",
+            body.sender_email, invoice_id, reply_token, body.body[:80],
+        )
+
+    await db.commit()
+    await db.refresh(msg)
+    return MessageOut.model_validate(msg)
+
+
+@router.get(
+    "/{invoice_id}/messages",
+    response_model=list[MessageOut],
+    summary="List all messages for an invoice (internal + vendor-facing)",
+)
+async def list_vendor_messages(
+    invoice_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
+):
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    msgs_stmt = (
+        select(VendorMessage)
+        .where(VendorMessage.invoice_id == invoice_id)
+        .order_by(VendorMessage.created_at.asc())
+    )
+    msgs = (await db.execute(msgs_stmt)).scalars().all()
+    return [MessageOut.model_validate(m) for m in msgs]

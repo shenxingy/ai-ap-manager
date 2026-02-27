@@ -1,16 +1,18 @@
-"""Vendor management API endpoints — CRUD for vendors and aliases."""
+"""Vendor management API endpoints — CRUD for vendors, aliases, and compliance docs."""
 import uuid
 import logging
+from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import require_role
 from app.db.session import get_session
-from app.models.vendor import Vendor, VendorAlias
+from app.models.vendor import Vendor, VendorAlias, VendorComplianceDoc
 from app.services import audit as audit_svc
 from app.schemas.vendor import (
     VendorAliasCreate,
@@ -388,3 +390,150 @@ async def remove_vendor_alias(
 
     await db.delete(alias)
     await db.commit()
+
+
+# ─── Compliance Documents ───
+
+
+class ComplianceDocOut(BaseModel):
+    """A vendor compliance document record."""
+
+    id: uuid.UUID
+    vendor_id: uuid.UUID
+    doc_type: str
+    file_key: str | None
+    storage_path: str
+    status: str
+    expiry_date: date | None
+    uploaded_by: uuid.UUID | None
+    reviewed_by: uuid.UUID | None
+    reviewed_at: datetime | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+@router.post(
+    "/{vendor_id}/compliance-docs",
+    response_model=ComplianceDocOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a compliance document for a vendor (ADMIN, AP_ANALYST+)",
+)
+async def upload_compliance_doc(
+    vendor_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+    doc_type: str = Form(..., description="W9 | W8BEN | VAT | insurance | other"),
+    file: UploadFile = File(..., description="Document file"),
+    expiry_date: date | None = Form(default=None),
+    notes: str | None = Form(default=None),
+):
+    """Store a compliance document in MinIO and upsert VendorComplianceDoc record."""
+    from app.core.config import settings
+    from app.services import storage as storage_svc
+
+    # Verify vendor exists
+    vendor = (
+        await db.execute(
+            select(Vendor).where(Vendor.id == vendor_id, Vendor.deleted_at.is_(None))
+        )
+    ).scalar_one_or_none()
+    if vendor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+
+    filename = file.filename or f"{doc_type}.pdf"
+    object_key = f"compliance/{vendor_id}/{doc_type}/{filename}"
+
+    # Upload to MinIO
+    try:
+        storage_svc.upload_file(
+            bucket=settings.MINIO_BUCKET_NAME,
+            object_name=object_key,
+            data=content,
+            content_type=file.content_type or "application/octet-stream",
+        )
+    except Exception as exc:
+        logger.error("MinIO upload failed for compliance doc: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to store compliance document. Please try again.",
+        )
+
+    # Upsert VendorComplianceDoc (one active row per vendor+doc_type)
+    existing = (
+        await db.execute(
+            select(VendorComplianceDoc).where(
+                VendorComplianceDoc.vendor_id == vendor_id,
+                VendorComplianceDoc.doc_type == doc_type,
+            )
+        )
+    ).scalars().first()
+
+    if existing:
+        existing.file_key = object_key
+        existing.storage_path = object_key
+        existing.status = "active"
+        existing.expiry_date = expiry_date
+        existing.uploaded_by = current_user.id
+        existing.notes = notes
+        doc = existing
+    else:
+        doc = VendorComplianceDoc(
+            vendor_id=vendor_id,
+            doc_type=doc_type,
+            file_key=object_key,
+            storage_path=object_key,
+            status="active",
+            expiry_date=expiry_date,
+            uploaded_by=current_user.id,
+            notes=notes,
+        )
+        db.add(doc)
+
+    audit_svc.log(
+        db,
+        action="compliance_doc.uploaded",
+        entity_type="vendor",
+        entity_id=vendor_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        after={"doc_type": doc_type, "file_key": object_key, "expiry_date": str(expiry_date)},
+    )
+
+    await db.commit()
+    await db.refresh(doc)
+    return ComplianceDocOut.model_validate(doc)
+
+
+@router.get(
+    "/{vendor_id}/compliance-docs",
+    response_model=list[ComplianceDocOut],
+    summary="List compliance documents for a vendor (AP_CLERK+)",
+)
+async def list_compliance_docs(
+    vendor_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[object, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
+):
+    vendor = (
+        await db.execute(
+            select(Vendor).where(Vendor.id == vendor_id, Vendor.deleted_at.is_(None))
+        )
+    ).scalar_one_or_none()
+    if vendor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found.")
+
+    docs = (
+        await db.execute(
+            select(VendorComplianceDoc)
+            .where(VendorComplianceDoc.vendor_id == vendor_id)
+            .order_by(VendorComplianceDoc.doc_type.asc())
+        )
+    ).scalars().all()
+    return [ComplianceDocOut.model_validate(d) for d in docs]

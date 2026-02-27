@@ -1,11 +1,18 @@
+import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+
+class MessageDirection(str, enum.Enum):
+    inbound = "inbound"
+    outbound = "outbound"
 
 
 class ApprovalTask(Base, UUIDMixin, TimestampMixin):
@@ -69,3 +76,4 @@ class VendorMessage(Base, UUIDMixin, TimestampMixin):
     direction: Mapped[str] = mapped_column(String(10), nullable=False)  # inbound, outbound
     body: Mapped[str] = mapped_column(Text, nullable=False)
     is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # internal AP note vs vendor-visible
+    attachments: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="'[]'")

@@ -253,7 +253,35 @@ def process_invoice(self, invoice_id: str) -> dict:
         )
         db.commit()
 
-        # 7b. Fraud scoring (run after extraction, before match)
+        # 7b. Normalize amount to USD (for cross-currency duplicate detection)
+        try:
+            from decimal import Decimal
+            from app.services.fx import convert_to_usd
+            if invoice.total_amount is not None and invoice.currency:
+                invoice.normalized_amount_usd = float(
+                    convert_to_usd(Decimal(str(invoice.total_amount)), invoice.currency)
+                )
+                db.flush()
+                logger.info(
+                    "FX normalized invoice %s: %s %s → $%.4f USD",
+                    invoice_id, invoice.total_amount, invoice.currency, invoice.normalized_amount_usd,
+                )
+        except Exception as fx_exc:
+            logger.warning("FX normalization failed for invoice %s: %s", invoice_id, fx_exc)
+
+        # 7c. Duplicate detection (exact + fuzzy, creates DUPLICATE_INVOICE exceptions)
+        try:
+            from app.services.duplicate_detection import check_duplicate
+            dup_matches = check_duplicate(db, str(inv_uuid))
+            if dup_matches:
+                logger.info(
+                    "Duplicate detection: invoice=%s found %d match(es): %s",
+                    invoice_id, len(dup_matches), dup_matches,
+                )
+        except Exception as dup_exc:
+            logger.warning("Duplicate detection failed for invoice %s: %s", invoice_id, dup_exc)
+
+        # 7d. Fraud scoring (run after extraction, before match)
         try:
             from app.services.fraud_scoring import score_invoice
             fraud_result = score_invoice(db, inv_uuid)
