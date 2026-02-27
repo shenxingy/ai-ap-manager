@@ -137,6 +137,30 @@ Initial planning complete. Full documentation suite created covering:
 - Seed script needs `GoodsReceipt.gr_number` (not `receipt_number`), `vendor_id` required, `GRLineItem.quantity` (not `quantity_received`), `po_line_item_id` (not `po_line_id`) — always read the model before seeding
 - Rule version id is correctly threaded through audit logs, linking every match decision to the exact rule config used
 
+## [2026-02-26] Approval Workflow — In-App + Email Token MVP
+
+**Result**: success
+
+**What was done**:
+- Created `app/services/approval.py` — `create_approval_task()`, `process_approval_decision()`, `get_pending_tasks_for_approver()`, `auto_create_approval_task()`; all backed by HMAC-signed one-time tokens
+- Created `app/services/email.py` — console-mock email with formatted approval/reject URLs (MAIL_ENABLED=False)
+- Created `app/schemas/approval.py` — `ApprovalTaskOut`, `ApprovalDecisionRequest`, `ApprovalListResponse`
+- Created `app/api/v1/approvals.py` — GET list, GET detail, POST approve, POST reject (all JWT), GET /email?token=... (no auth, returns HTML confirmation page)
+- Updated `app/rules/match_engine.py` — calls `auto_create_approval_task()` after `matched` status when total > threshold
+- Updated `backend/scripts/seed.py` — added `approver@example.com / changeme123 / APPROVER` user
+- Updated `app/api/v1/router.py` — wired approval router
+
+**Architecture notes**:
+- Approval service uses sync SQLAlchemy (shared Celery pattern). API handlers create one-off sync engine per request.
+- HMAC token format: `{task_id}:{action}:{uuid4}` — parsed at email endpoint to identify task+action before DB lookup
+- Token hash lookup uses `_compute_token_hash()` then `verify_approval_token()` as a double check (slightly redundant but harmless)
+- Re-using or expired tokens raise `ValueError` → 400 response
+
+**Lessons**:
+- Email token endpoint must parse `task_id:action` from raw token prefix to look up the correct token row before HMAC verify
+- `GET /approvals/email` route must be declared BEFORE `GET /approvals/{task_id}` to avoid FastAPI routing conflict (path "email" being captured as task_id UUID)
+- Approval service correctly separates "web" (actor_id + role check) vs "email" (token HMAC check) channels
+
 <!-- Future entries go here, newest first -->
 <!-- Format:
 ## [YYYY-MM-DD] Task: <what was done>
