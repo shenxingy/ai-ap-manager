@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, FileText, AlertTriangle, CheckSquare } from "lucide-react";
+import { useAuthStore } from "@/store/auth";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: null },
+  { href: "/invoices", label: "Invoices", icon: FileText, roles: null },
+  { href: "/exceptions", label: "Exceptions", icon: AlertTriangle, roles: null },
+  { href: "/approvals", label: "Approvals", icon: CheckSquare, roles: ["APPROVER", "ADMIN"] },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const { user } = useAuthStore();
+
+  const visible = navItems.filter(
+    (item) => !item.roles || (user && item.roles.includes(user.role))
+  );
+
+  return (
+    <aside className="flex flex-col w-64 min-h-screen bg-gray-900 text-gray-100">
+      <div className="px-6 py-5 border-b border-gray-700">
+        <h1 className="text-lg font-bold tracking-tight">AI AP Manager</h1>
+        <p className="text-xs text-gray-400 mt-0.5">Accounts Payable</p>
+      </div>
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {visible.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href || pathname.startsWith(href + "/");
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
