@@ -7,7 +7,10 @@ const api = axios.create({
 // Request interceptor — attach Bearer token
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const raw = localStorage.getItem("auth-storage");
+    let raw = localStorage.getItem("auth-storage");
+    if (!raw) {
+      raw = sessionStorage.getItem("auth-storage");
+    }
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -32,6 +35,7 @@ api.interceptors.response.use(
 
       if (status === 401) {
         localStorage.removeItem("auth-storage");
+        sessionStorage.removeItem("auth-storage");
         window.location.href = "/login";
       } else if (status && status >= 400) {
         // Dispatch custom error event for toast handling

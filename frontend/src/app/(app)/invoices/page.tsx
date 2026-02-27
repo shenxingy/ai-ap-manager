@@ -214,7 +214,7 @@ export default function InvoicesPage() {
                       {inv.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{fraudBadge(inv.fraud_score)}</TableCell>
+                  <TableCell title={inv.fraud_score != null ? `Fraud score: ${(inv.fraud_score * 100).toFixed(0)}%` : "No fraud data"}>{fraudBadge(inv.fraud_score)}</TableCell>
                   <TableCell className="text-sm text-gray-500">
                     {format(new Date(inv.created_at), "MMM d, yyyy")}
                   </TableCell>

@@ -377,6 +377,16 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-5">
+      {/* CRITICAL Fraud Warning */}
+      {invoice.fraud_score != null && invoice.fraud_score >= 0.6 && (
+        <div className="border-l-4 border-l-red-600 bg-red-50 p-4 rounded">
+          <p className="text-sm font-semibold text-red-800">⚠ Fraud Risk Alert</p>
+          <p className="text-sm text-red-700 mt-1">
+            This invoice has a high fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) and requires immediate review before approval.
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4">
         <div>
