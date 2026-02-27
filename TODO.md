@@ -343,7 +343,7 @@
 - [x] CRITICAL score (≥60) → dual-authorization enforcement
   - [x] Backend: `approval_required_count` field on ApprovalTask (default 1, 2 for CRITICAL)
   - [x] Approval service: only mark invoice approved when `approved_count >= required_count`
-  - [ ] Block approval button in frontend until second ADMIN approves
+  - [x] Block approval button in frontend until second ADMIN approves
 
 #### Frontend — Fraud Badge
 - [x] Fraud risk badge on invoice list and detail header
@@ -351,7 +351,7 @@
   - [x] Tooltip on hover: list triggered signals with their point values
 - [x] CRITICAL score → red warning banner on invoice detail page
   - [x] "⚠️ Dual authorization required — this invoice requires 2 ADMIN approvals"
-  - [ ] Approve button disabled until second admin approves
+  - [x] Approve button disabled until second admin approves
 
 ---
 
