@@ -652,28 +652,28 @@
 ### Vendor Master Data UI (V1)
 
 #### Backend
-- [ ] GET `/api/v1/vendors` — paginated list with filters (name, is_active)
-- [ ] GET `/api/v1/vendors/{id}` — detail with aliases + compliance docs + invoice count
-- [ ] POST `/api/v1/vendors` — create vendor (ADMIN, AP_ANALYST)
-- [ ] PATCH `/api/v1/vendors/{id}` — update vendor fields (ADMIN, AP_ANALYST)
-  - [ ] Bank account change → log to vendor_bank_history (fraud signal)
-- [ ] POST `/api/v1/vendors/{id}/aliases` — add trade name alias
-- [ ] DELETE `/api/v1/vendors/{id}/aliases/{alias_id}` — remove alias
-- [ ] Validate tax_id format (EIN format for US vendors)
+- [x] GET `/api/v1/vendors` — paginated list with filters (name, is_active)
+- [x] GET `/api/v1/vendors/{id}` — detail with aliases + compliance docs + invoice count
+- [x] POST `/api/v1/vendors` — create vendor (ADMIN, AP_ANALYST)
+- [x] PATCH `/api/v1/vendors/{id}` — update vendor fields (ADMIN, AP_ANALYST)
+  - [x] Bank account change → audit event `bank_account_changed`
+- [x] POST `/api/v1/vendors/{id}/aliases` — add trade name alias
+- [x] DELETE `/api/v1/vendors/{id}/aliases/{alias_id}` — remove alias
+- [x] Validate tax_id format (EIN format for USD vendors)
 - [ ] Validate bank account format (basic routing + account validation)
 
 #### Frontend
-- [ ] Vendor list page (`/vendors`)
-  - [ ] Table: name · tax_id · invoice count · compliance status · is_active
-  - [ ] Search by name/tax_id
-  - [ ] Create vendor button
-- [x] Vendor detail page (`/vendors/{id}`)
+- [x] Vendor list page (`/admin/vendors`)
+  - [x] Table: name · tax_id · payment_terms · currency · is_active · invoice_count
+  - [x] Search by name
+  - [x] Create vendor button + dialog
+- [x] Vendor detail page (`/admin/vendors/{id}`)
   - [x] Header: name, tax_id, bank account, payment_terms, currency
-  - [ ] Edit button → inline form
-  - [ ] Bank account change warning: "⚠️ Changing bank account will trigger fraud signal"
-  - [ ] Aliases section: list + add/remove
+  - [x] Edit button → inline form
+  - [x] Bank account change warning: "⚠️ Changing bank account will trigger fraud signal"
+  - [x] Aliases section: list + add/remove
   - [x] Compliance docs section (W-9, W-8BEN, VAT)
-  - [ ] Recent invoices mini-list (last 10)
+  - [x] Recent invoices mini-list (last 10)
 
 ---
 
