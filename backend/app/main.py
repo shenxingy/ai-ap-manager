@@ -1,14 +1,22 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — ensure MinIO bucket exists
+    try:
+        from app.services.storage import ensure_bucket
+        ensure_bucket()
+    except Exception as exc:
+        logger.warning("MinIO bucket bootstrap failed (continuing): %s", exc)
     yield
     # Shutdown
 
