@@ -43,9 +43,9 @@ const FRAUD_COLORS: Record<string, string> = {
 
 function fraudBadge(score: number | null): string {
   if (score === null) return "—";
-  if (score >= 0.9) return FRAUD_COLORS.CRITICAL;
-  if (score >= 0.7) return FRAUD_COLORS.HIGH;
-  if (score >= 0.4) return FRAUD_COLORS.MEDIUM;
+  if (score >= 60) return FRAUD_COLORS.CRITICAL;
+  if (score >= 40) return FRAUD_COLORS.HIGH;
+  if (score >= 20) return FRAUD_COLORS.MEDIUM;
   return FRAUD_COLORS.LOW;
 }
 
@@ -223,7 +223,7 @@ export default function InvoicesPage() {
                       {inv.status}
                     </Badge>
                   </TableCell>
-                  <TableCell title={inv.fraud_score != null ? `Fraud score: ${(inv.fraud_score * 100).toFixed(0)}%` : "No fraud data"}>{fraudBadge(inv.fraud_score)}</TableCell>
+                  <TableCell title={inv.fraud_score != null ? `Fraud score: ${inv.fraud_score}%` : "No fraud data"}>{fraudBadge(inv.fraud_score)}</TableCell>
                   <TableCell className="text-sm text-gray-500">
                     {format(new Date(inv.created_at), "MMM d, yyyy")}
                   </TableCell>
