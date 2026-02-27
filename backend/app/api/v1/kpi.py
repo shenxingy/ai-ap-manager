@@ -70,7 +70,7 @@ async def get_kpi_summary(
     )
     auto_approved = (await db.execute(auto_approved_q)).scalar_one()
 
-    touchless_rate = (auto_approved / total_received) if total_received > 0 else 0.0
+    touchless_rate = (auto_approved / total_approved) if total_approved > 0 else 0.0
     exception_rate = (total_exceptions / total_received) if total_received > 0 else 0.0
 
     # Avg cycle time: (updated_at - created_at) in hours for approved invoices
