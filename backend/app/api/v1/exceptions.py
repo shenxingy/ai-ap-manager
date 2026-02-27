@@ -213,6 +213,17 @@ async def patch_exception(
             actor_email=current_user.email,
         )
 
+        # Insert override log for exception status change
+        from app.models.override_log import OverrideLog  # noqa: PLC0415
+        db.add(OverrideLog(
+            invoice_id=exc.invoice_id,
+            field_name="exception_status",
+            old_value={"status": before["status"]},
+            new_value={"status": patch.status},
+            overridden_by=current_user.id,
+            reason=patch.resolution_notes,
+        ))
+
     await db.commit()
 
     # Re-load with invoice relationship for response
