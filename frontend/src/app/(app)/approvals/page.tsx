@@ -31,10 +31,12 @@ function DecisionModal({
   task,
   decision,
   onClose,
+  onSuccess,
 }: {
   task: ApprovalTask | null;
   decision: DecisionType | null;
   onClose: () => void;
+  onSuccess: (action: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
@@ -44,12 +46,26 @@ function DecisionModal({
       api.post(`/approvals/${task!.id}/${decision}`, { notes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      const action = decision === "approve" ? "Invoice approved" : "Invoice rejected";
+      onSuccess(action);
       setNotes("");
       onClose();
     },
   });
 
   const isOpen = !!task && !!decision;
+  const canSubmit = decision === "approve" || (decision === "reject" && notes.trim());
+
+  const handleSubmit = () => {
+    const confirmMsg =
+      decision === "approve"
+        ? "Are you sure you want to approve this invoice?"
+        : "Are you sure you want to reject this invoice? This action cannot be undone.";
+
+    if (window.confirm(confirmMsg)) {
+      submit.mutate();
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -83,11 +99,13 @@ function DecisionModal({
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={submit.isPending}>
+                Cancel
+              </Button>
               <Button
                 variant={decision === "approve" ? "default" : "destructive"}
-                disabled={decision === "reject" && !notes.trim()}
-                onClick={() => submit.mutate()}
+                disabled={!canSubmit || submit.isPending}
+                onClick={handleSubmit}
               >
                 {submit.isPending ? "Submitting..." : decision === "approve" ? "Approve" : "Reject"}
               </Button>
@@ -104,6 +122,7 @@ function DecisionModal({
 export default function ApprovalsPage() {
   const [selectedTask, setSelectedTask] = useState<ApprovalTask | null>(null);
   const [decision, setDecision] = useState<DecisionType | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const { data: tasks = [] } = useQuery<ApprovalTask[]>({
     queryKey: ["approvals"],
@@ -118,6 +137,11 @@ export default function ApprovalsPage() {
   const closeModal = () => {
     setSelectedTask(null);
     setDecision(null);
+  };
+
+  const showSuccess = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3500);
   };
 
   return (
@@ -191,7 +215,14 @@ export default function ApprovalsPage() {
         </CardContent>
       </Card>
 
-      <DecisionModal task={selectedTask} decision={decision} onClose={closeModal} />
+      <DecisionModal task={selectedTask} decision={decision} onClose={closeModal} onSuccess={showSuccess} />
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium text-white bg-green-600 transition-opacity">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
