@@ -500,6 +500,19 @@ def _persist_match_result(
     invoice.status = new_status
     db.flush()
 
+    # ── Auto-create approval task for matched-but-not-auto-approved invoices ──
+    if new_status == "matched":
+        try:
+            from app.services.approval import auto_create_approval_task
+            approval_task = auto_create_approval_task(db, invoice.id)
+            if approval_task:
+                notes_suffix += f" Approval task created (task_id={approval_task.id})."
+        except Exception as approval_exc:
+            logger.warning(
+                "Failed to auto-create approval task for invoice %s: %s",
+                invoice.id, approval_exc,
+            )
+
     # ── Audit log ──
     audit_svc.log(
         db=db,
