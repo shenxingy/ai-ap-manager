@@ -357,6 +357,19 @@
 
 ## P1 — V1 (Weeks 5-8)
 
+### Vendor Management CRUD
+
+#### Backend
+- [x] `GET /api/v1/vendors` — paginated list (AP_CLERK+): `{id, name, tax_id, payment_terms, currency, is_active, invoice_count}`; filter params: `name`, `is_active`
+- [x] `GET /api/v1/vendors/{id}` — detail (AP_CLERK+): vendor + aliases list + recent 10 invoice stubs
+- [x] `POST /api/v1/vendors` — create vendor (AP_ANALYST+): audit log `vendor_created`
+- [x] `PATCH /api/v1/vendors/{id}` — partial update (AP_ANALYST+): audit log `vendor_updated`; separate `bank_account_changed` audit event when bank_account changes
+- [x] `POST /api/v1/vendors/{id}/aliases` — add alias (AP_ANALYST+)
+- [x] `DELETE /api/v1/vendors/{id}/aliases/{alias_id}` — remove alias (AP_ANALYST+)
+- [x] Pydantic schemas: `VendorListItem`, `VendorDetail`, `VendorCreate`, `VendorUpdate`, `VendorAliasCreate`
+
+---
+
 ### 3-Way Match Engine
 
 #### Backend
