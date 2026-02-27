@@ -685,18 +685,18 @@
 ### Exception Auto-Routing (V1)
 
 #### Backend
-- [ ] `exception_routing_rules` table: `id, exception_code, target_role, priority, is_active`
-  - [ ] Alembic migration
-  - [ ] SQLAlchemy model in `app/models/exception_record.py`
-  - [ ] Defaults: PRICE_VARIANCE→AP_ANALYST, GRN_NOT_FOUND→AP_ANALYST, FRAUD_FLAG→ADMIN
-- [ ] Auto-assign logic in match engine / fraud scoring:
-  - [ ] When exception created: look up routing rule by exception_code
-  - [ ] Find first active user with target_role → set assigned_to
+- [x] `exception_routing_rules` table: `id, exception_code, target_role, priority, is_active`
+  - [x] Alembic migration
+  - [x] SQLAlchemy model in `app/models/exception_routing.py`
+  - [x] Defaults: PRICE_VARIANCE→AP_ANALYST, GRN_NOT_FOUND→AP_ANALYST, FRAUD_FLAG→ADMIN (+ QTY_VARIANCE, QTY_OVER_RECEIPT, MISSING_PO)
+- [x] Auto-assign logic in match engine / fraud scoring:
+  - [x] When exception created: look up routing rule by exception_code
+  - [x] Find first active user with target_role → set assigned_to
   - [ ] Log to audit: action="exception_auto_routed"
-- [ ] CRUD for routing rules:
-  - [ ] GET `/api/v1/admin/exception-routing` — list rules (ADMIN)
-  - [ ] POST `/api/v1/admin/exception-routing` — create rule (ADMIN)
-  - [ ] PATCH `/api/v1/admin/exception-routing/{id}` — update (ADMIN)
+- [x] CRUD for routing rules:
+  - [x] GET `/api/v1/admin/exception-routing` — list rules (ADMIN)
+  - [x] POST `/api/v1/admin/exception-routing` — create rule (ADMIN)
+  - [x] PATCH `/api/v1/admin/exception-routing/{id}` — update (ADMIN)
 
 #### Frontend
 - [ ] Admin → Exception Routing page
