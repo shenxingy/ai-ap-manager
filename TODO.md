@@ -350,7 +350,7 @@
   - [x] 🟢 Low (<20) · 🟡 Medium (20-39) · 🔴 High (40-59) · 🔴🔴 Critical (60+)
   - [x] Tooltip on hover: list triggered signals with their point values
 - [x] CRITICAL score → red warning banner on invoice detail page
-  - [ ] "⚠️ Dual authorization required — this invoice requires 2 ADMIN approvals"
+  - [x] "⚠️ Dual authorization required — this invoice requires 2 ADMIN approvals"
   - [ ] Approve button disabled until second admin approves
 
 ---
@@ -376,9 +376,8 @@
 ### 3-Way Match Engine
 
 #### Backend
-- [ ] DB migration: link `grn_line_items.po_line_item_id` (FK to po_line_items)
-  - [ ] Alembic migration adding the column + index
-  - [ ] Backfill in seed script (link GR-2026-001 lines to PO-2026-001 lines)
+- [x] DB migration: link `grn_line_items.po_line_item_id` (FK to po_line_items)
+  - [x] Column + FK already present in model and DB (verified migration applied)
 - [x] Extend match engine: `run_3way_match(db, invoice_id) -> MatchResult`
   - [x] Load all GRNs for the invoice's PO (via po_id)
   - [x] Aggregate received qty by PO line: `sum(gr_line_item.quantity)` across all GRNs
@@ -386,16 +385,16 @@
   - [x] Exception codes: `GRN_NOT_FOUND` (no GRN for PO line), `QTY_OVER_RECEIPT` (invoice > GRN)
   - [x] Multiple GRNs per PO line: aggregate, handle partial receipts
   - [x] Partial invoice: invoice covers subset of PO lines → allowed (no MISSING_LINE exception)
-- [ ] `run_3way_match` response: include `grn_lines_used` per invoice line
+- [x] `run_3way_match` response: include `grn_lines_used` per invoice line
 - [x] Auto-select match type: if GRN exists for this PO → use 3way, else 2way
-- [ ] Update GET `/api/v1/invoices/{id}/match` response to include GRN data
+- [x] Update GET `/api/v1/invoices/{id}/match` response to include GRN data
 - [ ] Tolerance configurable by vendor / category / currency (extend rule engine config format)
 - [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param (supports match_type=auto/2way/3way)
 
 #### Frontend
 - [x] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label — fully implemented with GRN summary, enriched line data, color-coding, and Re-run 3-Way Match button
 - [x] For 3-way: show GRN line reference in line match table
-- [ ] GRN_NOT_FOUND exception highlighted with "No GR found for this PO line" message
+- [x] GRN_NOT_FOUND exception highlighted with "No GR found for this PO line" message
 
 ---
 

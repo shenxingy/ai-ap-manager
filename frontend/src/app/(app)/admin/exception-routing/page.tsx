@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -146,6 +146,120 @@ function ToastBanner({ toast }: { toast: ToastState | null }) {
     >
       {toast.message}
     </div>
+  );
+}
+
+// ─── Edit Rule Dialog ───
+
+interface EditRuleDialogProps {
+  rule: ExceptionRoutingRule | null;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+function EditRuleDialog({ rule, onClose, onSuccess, onError }: EditRuleDialogProps) {
+  const queryClient = useQueryClient();
+  const [targetRole, setTargetRole] = useState(rule?.target_role ?? "AP_ANALYST");
+  const [priority, setPriority] = useState(String(rule?.priority ?? 0));
+  const [isActive, setIsActive] = useState(rule?.is_active ?? true);
+
+  // Sync form state when a different rule is selected for editing
+  useEffect(() => {
+    if (rule) {
+      setTargetRole(rule.target_role);
+      setPriority(String(rule.priority));
+      setIsActive(rule.is_active);
+    }
+  }, [rule?.id]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.patch<ExceptionRoutingRule>(
+        `/admin/exception-routing/${rule!.id}`,
+        {
+          target_role: targetRole,
+          priority: parseInt(priority, 10) || 0,
+          is_active: isActive,
+        }
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exception-routing-rules"] });
+      onSuccess("Routing rule updated");
+      onClose();
+    },
+    onError: (err) => onError(extractApiError(err)),
+  });
+
+  return (
+    <Dialog open={rule !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Edit Rule —{" "}
+            <span className="font-mono text-sm bg-gray-100 px-1.5 py-0.5 rounded">
+              {rule?.exception_code}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>
+              Target Role <span className="text-red-500">*</span>
+            </Label>
+            <Select value={targetRole} onValueChange={setTargetRole}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TARGET_ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-priority">
+              Priority{" "}
+              <span className="text-gray-400 font-normal text-xs">
+                (higher = evaluated first)
+              </span>
+            </Label>
+            <Input
+              id="edit-priority"
+              type="number"
+              min={0}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Label>Active</Label>
+            <Toggle checked={isActive} onChange={setIsActive} />
+            <span className="text-sm text-gray-600">
+              {isActive ? "Active" : "Inactive"}
+            </span>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? "Saving…" : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -346,6 +460,7 @@ function NewRuleDialog({
 export default function AdminExceptionRoutingPage() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editRule, setEditRule] = useState<ExceptionRoutingRule | null>(null);
   const { toast, showToast } = useToast();
 
   const { data: rules, isLoading } = useQuery<ExceptionRoutingRule[]>({
@@ -402,13 +517,14 @@ export default function AdminExceptionRoutingPage() {
                 <TableHead>Priority</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24">Active</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center text-gray-400 py-8"
                   >
                     Loading…
@@ -418,7 +534,7 @@ export default function AdminExceptionRoutingPage() {
               {!isLoading && (!rules || rules.length === 0) && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center text-gray-400 py-8"
                   >
                     No routing rules yet. Click New Rule to create one.
@@ -452,6 +568,15 @@ export default function AdminExceptionRoutingPage() {
                       }
                     />
                   </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditRule(rule)}
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -462,6 +587,13 @@ export default function AdminExceptionRoutingPage() {
       <NewRuleDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        onSuccess={(msg) => showToast(msg, "success")}
+        onError={(msg) => showToast(msg, "error")}
+      />
+
+      <EditRuleDialog
+        rule={editRule}
+        onClose={() => setEditRule(null)}
         onSuccess={(msg) => showToast(msg, "success")}
         onError={(msg) => showToast(msg, "error")}
       />

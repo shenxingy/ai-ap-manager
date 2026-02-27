@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +78,8 @@ interface LineItemMatchOut {
   qty_invoiced: number | null;
   qty_on_po: number | null;
   qty_received: number | null;
+  exception_code: string | null;
+  grn_lines_used: string[] | null;
 }
 
 interface MatchResult {
@@ -457,11 +459,21 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-5">
-      {/* CRITICAL Fraud Warning */}
-      {invoice.fraud_score != null && invoice.fraud_score >= 0.6 && (
-        <div className="border-l-4 border-l-red-600 bg-red-50 p-4 rounded">
-          <p className="text-sm font-semibold text-red-800">⚠ Fraud Risk Alert</p>
-          <p className="text-sm text-red-700 mt-1">
+      {/* Dual Authorization Required — CRITICAL fraud score */}
+      {invoice.fraud_score != null && invoice.fraud_score >= 0.9 && (
+        <div className="border-l-4 border-l-red-700 bg-red-50 p-4 rounded">
+          <p className="text-sm font-semibold text-red-900">⚠️ Dual Authorization Required</p>
+          <p className="text-sm text-red-800 mt-1">
+            This invoice&apos;s CRITICAL fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) requires 2 ADMIN approvals before payment.
+          </p>
+        </div>
+      )}
+
+      {/* High Fraud Warning (non-critical) */}
+      {invoice.fraud_score != null && invoice.fraud_score >= 0.6 && invoice.fraud_score < 0.9 && (
+        <div className="border-l-4 border-l-amber-500 bg-amber-50 p-4 rounded">
+          <p className="text-sm font-semibold text-amber-800">⚠ Fraud Risk Alert</p>
+          <p className="text-sm text-amber-700 mt-1">
             This invoice has a high fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) and requires immediate review before approval.
           </p>
         </div>
@@ -853,7 +865,8 @@ export default function InvoiceDetailPage() {
                         </TableHeader>
                         <TableBody>
                           {match.line_matches.map((line) => (
-                            <TableRow key={line.id} className={matchLineClass(line.status)}>
+                            <React.Fragment key={line.id}>
+                            <TableRow className={matchLineClass(line.status)}>
                               <TableCell>{line.description || "—"}</TableCell>
                               <TableCell className="text-right">
                                 {line.invoice_amount != null ? `$${line.invoice_amount.toFixed(2)}` : "—"}
@@ -885,6 +898,19 @@ export default function InvoiceDetailPage() {
                                 </span>
                               </TableCell>
                             </TableRow>
+                            {line.exception_code === "GRN_NOT_FOUND" && (
+                              <TableRow className="bg-amber-50">
+                                <TableCell
+                                  colSpan={match.match_type === "3way" ? 8 : 5}
+                                  className="py-2 px-4"
+                                >
+                                  <span className="text-xs text-amber-700 font-medium">
+                                    ⚠️ No Goods Receipt found for this PO line — invoice quantity cannot be verified against receipt.
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            </React.Fragment>
                           ))}
                         </TableBody>
                       </Table>
