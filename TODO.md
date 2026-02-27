@@ -362,18 +362,18 @@
 - [ ] DB migration: link `grn_line_items.po_line_item_id` (FK to po_line_items)
   - [ ] Alembic migration adding the column + index
   - [ ] Backfill in seed script (link GR-2026-001 lines to PO-2026-001 lines)
-- [ ] Extend match engine: `run_3way_match(db, invoice_id) -> MatchResult`
-  - [ ] Load all GRNs for the invoice's PO (via po_id)
-  - [ ] Aggregate received qty by PO line: `sum(gr_line_item.quantity)` across all GRNs
-  - [ ] Per invoice line: invoice_qty ≤ total_grn_qty (with tolerance)
-  - [ ] Exception codes: `GRN_NOT_FOUND` (no GRN for PO line), `QTY_OVER_RECEIPT` (invoice > GRN)
-  - [ ] Multiple GRNs per PO line: aggregate, handle partial receipts
-  - [ ] Partial invoice: invoice covers subset of PO lines → allowed (no MISSING_LINE exception)
+- [x] Extend match engine: `run_3way_match(db, invoice_id) -> MatchResult`
+  - [x] Load all GRNs for the invoice's PO (via po_id)
+  - [x] Aggregate received qty by PO line: `sum(gr_line_item.quantity)` across all GRNs
+  - [x] Per invoice line: invoice_qty ≤ total_grn_qty (with tolerance)
+  - [x] Exception codes: `GRN_NOT_FOUND` (no GRN for PO line), `QTY_OVER_RECEIPT` (invoice > GRN)
+  - [x] Multiple GRNs per PO line: aggregate, handle partial receipts
+  - [x] Partial invoice: invoice covers subset of PO lines → allowed (no MISSING_LINE exception)
 - [ ] `run_3way_match` response: include `grn_lines_used` per invoice line
-- [ ] Auto-select match type: if GRN exists for this PO → use 3way, else 2way
+- [x] Auto-select match type: if GRN exists for this PO → use 3way, else 2way
 - [ ] Update GET `/api/v1/invoices/{id}/match` response to include GRN data
 - [ ] Tolerance configurable by vendor / category / currency (extend rule engine config format)
-- [ ] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param
+- [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param
 
 #### Frontend
 - [ ] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label
