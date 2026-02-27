@@ -179,6 +179,7 @@ async def list_invoices(
     vendor_id: uuid.UUID | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
+    overdue: bool = Query(default=False, description="If true, return only overdue pending invoices"),
 ):
     stmt = select(Invoice).where(Invoice.deleted_at.is_(None))
 
@@ -190,6 +191,12 @@ async def list_invoices(
         stmt = stmt.where(Invoice.created_at >= date_from)
     if date_to:
         stmt = stmt.where(Invoice.created_at <= date_to)
+    if overdue:
+        from sqlalchemy import func as sqlfunc
+        stmt = stmt.where(
+            Invoice.due_date < sqlfunc.now(),
+            Invoice.status.in_(["ingested", "extracting", "extracted", "matching", "matched", "exception"]),
+        )
 
     # Total count
     count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -408,6 +415,19 @@ async def correct_invoice_field(
         after={body.field_name: body.corrected_value},
     )
 
+    # Log AI feedback for correction pattern analysis
+    from app.services.feedback import log_field_correction  # noqa: PLC0415
+    await log_field_correction(
+        db=db,
+        invoice_id=invoice_id,
+        field_name=body.field_name,
+        old_value=old_value,
+        new_value=body.corrected_value,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        vendor_id=invoice.vendor_id,
+    )
+
     await db.commit()
 
     # Auto-trigger re-match if invoice is stuck in exception state
@@ -490,6 +510,20 @@ async def update_gl_coding(
         before={"gl_account": old_gl_account, "cost_center": old_cost_center},
         after={"gl_account": body.gl_account, "cost_center": body.cost_center},
     )
+
+    # Log GL correction feedback for pattern analysis (only if overriding suggestion)
+    if status_str == "overridden":
+        from app.services.feedback import log_gl_correction  # noqa: PLC0415
+        await log_gl_correction(
+            db=db,
+            invoice_id=invoice_id,
+            line_id=line_id,
+            old_gl_account=old_gl_account,
+            new_gl_account=body.gl_account,
+            actor_id=current_user.id,
+            actor_email=current_user.email,
+            vendor_id=invoice.vendor_id,
+        )
 
     await db.commit()
 

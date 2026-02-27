@@ -12,6 +12,9 @@ from app.models.rule import Rule, RuleVersion
 from app.models.audit import AuditLog, AICallLog
 from app.models.fraud_incident import VendorBankHistory, FraudIncident
 from app.models.approval_matrix import ApprovalMatrixRule, UserDelegation
+from app.models.feedback import AiFeedback, RuleRecommendation
+from app.models.analytics_report import AnalyticsReport
+from app.models.sla_alert import SlaAlert
 
 __all__ = [
     "User",
@@ -28,4 +31,7 @@ __all__ = [
     "AuditLog", "AICallLog",
     "VendorBankHistory", "FraudIncident",
     "ApprovalMatrixRule", "UserDelegation",
+    "AiFeedback", "RuleRecommendation",
+    "AnalyticsReport",
+    "SlaAlert",
 ]
