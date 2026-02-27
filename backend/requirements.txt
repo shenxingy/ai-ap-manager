@@ -36,3 +36,7 @@ pdfplumber==0.11.4
 # ─── Utils ───────────────────────────────────────────────
 httpx==0.28.0                # async HTTP client
 python-dateutil==2.9.0
+
+# ─── Testing ───────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.24.0
