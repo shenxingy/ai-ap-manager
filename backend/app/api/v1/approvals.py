@@ -16,6 +16,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -316,11 +317,78 @@ async def email_token_decision(
         db.close()
 
 
+# ─── Bulk approve (ADMIN only) ───
+
+class BulkApproveRequest(BaseModel):
+    task_ids: list[uuid.UUID]
+    notes: str | None = None
+
+
+class BulkApproveResponse(BaseModel):
+    approved: int
+    skipped: int
+    errors: int
+
+
+@router.post(
+    "/bulk-approve",
+    response_model=BulkApproveResponse,
+    summary="Bulk approve multiple pending approval tasks (ADMIN only)",
+)
+async def bulk_approve_tasks(
+    body: BulkApproveRequest,
+    current_user=Depends(require_role("ADMIN")),
+):
+    """Batch approve up to 100 pending ApprovalTasks.
+
+    Non-pending tasks are silently skipped (not counted as errors).
+    Each approval creates individual audit log entries.
+    """
+    from app.services.approval import process_approval_decision
+
+    if len(body.task_ids) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bulk approve limit is 100 tasks per request.",
+        )
+
+    approved = skipped = errors = 0
+
+    for task_id in body.task_ids:
+        db = _get_sync_session()
+        try:
+            try:
+                process_approval_decision(
+                    db=db,
+                    task_id=task_id,
+                    action="approve",
+                    actor_id=current_user.id,
+                    channel="web",
+                    notes=body.notes or "Bulk approved by admin",
+                )
+                approved += 1
+            except ValueError as exc:
+                msg = str(exc).lower()
+                # Skip non-pending tasks gracefully
+                if "not pending" in msg or "already" in msg or "not found" in msg:
+                    skipped += 1
+                else:
+                    logger.warning("bulk_approve: task %s error: %s", task_id, exc)
+                    errors += 1
+        except Exception as exc:
+            logger.warning("bulk_approve: unexpected error on task %s: %s", task_id, exc)
+            errors += 1
+        finally:
+            db.close()
+
+    return BulkApproveResponse(approved=approved, skipped=skipped, errors=errors)
+
+
 # ─── HTML helper ───
 
 def _html_page(title: str, message: str, success: bool) -> str:
     color = "#2ecc71" if success else "#e74c3c"
-    icon = "✓" if success else "✗"
+    icon = "&#10003;" if success else "&#10007;"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>

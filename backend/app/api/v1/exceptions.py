@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -198,6 +199,20 @@ async def patch_exception(
         notes=f"Exception patched by {current_user.email}",
     )
     db.add(audit_entry)
+
+    # Log exception correction feedback
+    if patch.status is not None and patch.status != before["status"]:
+        from app.services.feedback import log_exception_correction  # noqa: PLC0415
+        await log_exception_correction(
+            db=db,
+            exception_id=exception_id,
+            invoice_id=exc.invoice_id,
+            old_status=before["status"],
+            new_status=patch.status,
+            actor_id=current_user.id,
+            actor_email=current_user.email,
+        )
+
     await db.commit()
 
     # Re-load with invoice relationship for response
@@ -289,3 +304,101 @@ async def list_comments(
     )
     comments = result.scalars().all()
     return [ExceptionCommentOut.model_validate(c) for c in comments]
+
+
+# ─── POST /exceptions/bulk-update ───
+
+class BulkExceptionUpdateItem(BaseModel):
+    exception_id: uuid.UUID
+    status: str | None = None
+    assigned_to: uuid.UUID | None = None
+    resolution_notes: str | None = None
+
+
+class BulkExceptionUpdateRequest(BaseModel):
+    items: list[BulkExceptionUpdateItem]
+
+
+class BulkExceptionUpdateResponse(BaseModel):
+    updated: int
+    skipped: int
+    errors: int
+
+
+@router.post(
+    "/bulk-update",
+    response_model=BulkExceptionUpdateResponse,
+    summary="Bulk update exception statuses / assignments (AP_ANALYST+)",
+)
+async def bulk_update_exceptions(
+    body: BulkExceptionUpdateRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
+):
+    """Batch status/assignment change for up to 100 exceptions. Each item is audit-logged."""
+    import json
+    from app.models.audit import AuditLog
+
+    if len(body.items) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bulk update limit is 100 items per request.",
+        )
+
+    updated = skipped = errors = 0
+
+    for item in body.items:
+        try:
+            exc = (await db.execute(
+                select(ExceptionRecord).where(ExceptionRecord.id == item.exception_id)
+            )).scalars().first()
+
+            if exc is None:
+                errors += 1
+                continue
+
+            before = {
+                "status": exc.status,
+                "assigned_to": str(exc.assigned_to) if exc.assigned_to else None,
+            }
+            changed = False
+
+            if item.status is not None and item.status != exc.status:
+                exc.status = item.status
+                if item.status == "resolved" and exc.resolved_at is None:
+                    exc.resolved_at = datetime.now(timezone.utc)
+                    exc.resolved_by = current_user.id
+                changed = True
+            if item.assigned_to is not None:
+                exc.assigned_to = item.assigned_to
+                changed = True
+            if item.resolution_notes is not None:
+                exc.resolution_notes = item.resolution_notes
+                changed = True
+
+            if not changed:
+                skipped += 1
+                continue
+
+            after = {
+                "status": exc.status,
+                "assigned_to": str(exc.assigned_to) if exc.assigned_to else None,
+            }
+            db.add(AuditLog(
+                actor_id=current_user.id,
+                actor_email=current_user.email,
+                action="exception.bulk_updated",
+                entity_type="exception",
+                entity_id=item.exception_id,
+                before_state=json.dumps(before, default=str),
+                after_state=json.dumps(after, default=str),
+                notes=f"Bulk update by {current_user.email}",
+            ))
+            updated += 1
+
+        except Exception as exc_err:
+            logger.warning("bulk_update_exceptions: error on %s: %s", item.exception_id, exc_err)
+            errors += 1
+
+    await db.commit()
+    return BulkExceptionUpdateResponse(updated=updated, skipped=skipped, errors=errors)
