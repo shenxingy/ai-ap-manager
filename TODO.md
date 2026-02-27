@@ -30,7 +30,7 @@
   - [x] `zustand` — client state (auth, UI toggles)
   - [x] `axios` — HTTP client
   - [x] `recharts` — KPI charts
-  - [ ] `react-hook-form` + `zod` — forms + validation
+  - [x] `react-hook-form` + `zod` — forms + validation (included by create-next-app)
   - [x] `date-fns` — date formatting
   - [x] `lucide-react` — icons
 - [x] App shell layout (`app/layout.tsx`)
@@ -89,11 +89,11 @@
 - [x] Celery task: OCR with Tesseract → raw text
 - [x] Dual-pass LLM extraction: Pass A (structured) + Pass B (document understanding) → field-level diff
 - [x] Store extracted fields in `invoices` + `invoice_line_items`; flag mismatched fields
-- [ ] PATCH `/api/v1/invoices/{id}/fields` — manual field correction (AP_ANALYST+)
-  - [ ] Accept body: `{field_name: str, corrected_value: Any, line_id?: UUID}`
-  - [ ] Validate field_name is one of the allowed correctable fields
-  - [ ] Update invoice / invoice_line_item fields
-  - [ ] Log to audit_logs: action="field_corrected", before/after snapshot
+- [x] PATCH `/api/v1/invoices/{id}/fields` — manual field correction (AP_ANALYST+)
+  - [x] Accept body: `{field_name: str, corrected_value: Any, line_id?: UUID}`
+  - [x] Validate field_name is one of the allowed correctable fields
+  - [x] Update invoice / invoice_line_item fields
+  - [x] Log to audit_logs: action="field_corrected", before/after snapshot
   - [ ] If invoice.status == "exception" (extraction failed), auto-trigger re-match
 - [ ] Invoice status state machine — validation + PATCH override
   - [ ] Enforce valid transitions: ingested→extracting→extracted→matching→matched/exception→approved/rejected
@@ -101,15 +101,15 @@
   - [ ] Prevent invalid jumps (e.g., approved→extracting) with 422 response
 
 #### Frontend — Invoice List Page (`/invoices`)
-- [x] Paginated data table: invoice_number · vendor · total_amount · status · created_at · fraud badge
+- [x] Paginated data table — scaffolded: invoice_number · vendor · total_amount · status · created_at · fraud badge
 - [x] Status badge: color-coded chip (ingested=gray, extracting=blue, matched=green, exception=red, approved=emerald)
 - [x] Fraud score badge: 🟢 <20 · 🟡 20-39 · 🔴 40-59 · 🔴🔴 60+
 - [x] Filter bar: status multi-select · vendor search · date range picker
-- [x] Upload button → drag-and-drop modal
+- [x] Upload button → drag-and-drop modal — scaffolded
   - [x] File picker (PDF, JPEG, PNG, max 20MB)
   - [ ] Upload progress indicator
   - [ ] Success: show new invoice ID, redirect to detail
-  - [ ] Error: file type / size validation before upload
+  - [x] Error: file type / size validation before upload
 - [x] Pagination controls (page, page_size)
 - [x] Row click → navigate to `/invoices/{id}`
 
@@ -120,28 +120,29 @@
   - [ ] "Trigger Re-match" button (AP_ANALYST+)
   - [ ] "Download Original" button (presigned URL)
 - [x] Tab layout: **Details** | **Line Items** | **Match** | **Exceptions** | **Approvals** | **Audit Log**
-- [x] **Details tab**:
+- [x] **Details tab** — scaffolded (basic field display):
   - [x] Fields: invoice_number, vendor, invoice_date, due_date, subtotal, tax_amount, total_amount, payment_terms
   - [ ] Extraction confidence indicator per field (color dot: green/amber/red)
   - [ ] Amber highlight + edit icon for mismatched fields (discrepancy_fields from ExtractionResult)
   - [ ] Inline edit → save → calls PATCH /invoices/{id}/fields
   - [ ] Extraction pass comparison: Pass A vs Pass B values shown side-by-side for discrepant fields
-- [x] **Line Items tab**:
+- [x] **Line Items tab** — scaffolded:
   - [x] Table: line# · description · qty · unit_price · line_total · GL account · GL suggestion
   - [ ] GL account cell: grey suggestion text + confidence badge
   - [ ] Click suggestion → auto-fills field
   - [ ] "Confirm All Coding" button → PUT each line's gl_account (AP_ANALYST+)
-- [x] **Match tab**:
+- [x] **Match tab** — scaffolded:
   - [x] Match status card: matched/partial/exception, match_type, rule_version used
   - [x] Header variance: invoice total vs PO total, variance amount + %
   - [ ] Line match table: each invoice line vs matched PO line, qty variance, price variance
   - [ ] Color coding: matched=green, variance=amber, unmatched=red
-- [x] **Exceptions tab**: list of open exceptions for this invoice (link to exception detail)
-- [x] **Approvals tab**:
+- [x] **Exceptions tab** — scaffolded:
+  - [x] List of open exceptions for this invoice (link to exception detail)
+- [x] **Approvals tab** — scaffolded:
   - [x] Current approval task status (pending/approved/rejected)
   - [x] Approver name, due date, decision channel
   - [x] Decision history (all tasks for this invoice)
-- [x] **Audit Log tab**:
+- [x] **Audit Log tab** — scaffolded:
   - [x] Timeline component: event · actor · timestamp · before/after diff
   - [x] Data from GET /invoices/{id}/audit
 
@@ -178,10 +179,10 @@
   - [ ] Include comment_count in ExceptionListItem response
 
 #### Frontend — Exception Queue Page (`/exceptions`)
-- [x] Filterable table: code · severity badge · status · assigned_to · invoice link · created_at
+- [x] Filterable table — scaffolded: code · severity badge · status · assigned_to · invoice link · created_at
 - [x] Severity badge: critical=red, high=orange, medium=yellow, low=gray
 - [x] Row click → slide-out detail panel
-- [x] Detail panel:
+- [x] Detail panel — scaffolded:
   - [x] Exception info: code, description, AI root cause (if available)
   - [x] Invoice mini-card: invoice#, vendor, amount, current status
   - [x] Comment thread (chronological list)
@@ -209,9 +210,9 @@
 - [x] GET `/api/v1/approvals/email?token=xxx` — email token (no auth), returns HTML confirmation
 
 #### Frontend — Approvals Page (`/approvals`)
-- [x] List of pending approval tasks for the logged-in APPROVER
+- [x] List of pending approval tasks for the logged-in APPROVER — scaffolded
 - [x] Each item: invoice# · vendor · amount · due_at countdown · status
-- [x] Click → Approval detail modal / page
+- [x] Click → Approval detail modal / page — scaffolded
   - [x] Invoice summary card (all key fields)
   - [ ] Match result summary: status, variances
   - [x] Notes textarea
@@ -240,10 +241,10 @@
   - [ ] POST /approvals/{id}/approve → APPROVER+
   - [ ] GET /kpi/summary → AP_ANALYST+
   - [ ] GET /invoices/{id}/audit → AP_CLERK+
-- [ ] GET `/api/v1/users/me` — return current user info (role, name, email)
+- [x] GET `/api/v1/users/me` — return current user info (role, name, email)
 
 #### Frontend — Login Page (`/login`)
-- [x] Email + password form (react-hook-form + zod validation)
+- [x] Email + password form — scaffolded (react-hook-form + zod validation)
 - [x] POST /api/v1/auth/token on submit
 - [x] Store access token + user role in auth Zustand store
 - [x] On success: redirect to `/dashboard`
@@ -259,14 +260,14 @@
 - [x] GET `/api/v1/kpi/trends` — daily/weekly bucketed invoices_received, invoices_approved, invoices_exceptions
 
 #### Frontend — KPI Dashboard Page (`/dashboard`)
-- [x] Summary metric cards row:
+- [x] Summary metric cards row — scaffolded:
   - [x] Touchless Rate (large %, color green if >70%)
   - [x] Exception Rate (large %, color red if >20%)
   - [x] Avg Cycle Time (hours → formatted as "2d 4h")
   - [x] Total Invoices Received (count, this period)
   - [ ] Total Approved / Pending / Exceptions (3 mini cards)
 - [x] Period selector: "Last 7 days / 30 days / 90 days" (updates ?days= param)
-- [x] Trend chart (recharts LineChart):
+- [x] Trend chart (recharts LineChart) — scaffolded:
   - [x] X-axis: date, Y-axis: invoice count
   - [x] Three lines: Received (blue) · Approved (green) · Exceptions (red)
   - [ ] Toggle: daily / weekly
@@ -305,11 +306,11 @@
   - [x] PO line fallback
   - [x] Category default fallback
 - [x] GET `/api/v1/invoices/{id}/gl-suggestions` — per-line suggestions with confidence %
-- [ ] PUT `/api/v1/invoices/{id}/lines/{line_id}/gl` — confirm GL coding for a line (AP_ANALYST+)
-  - [ ] Body: `{gl_account: str, cost_center?: str, confirmed: bool}`
-  - [ ] Update `invoice_line_item.gl_account` (and `cost_center`)
-  - [ ] Log to audit: action="gl_coding_confirmed" (user accepted suggestion) OR "gl_coding_overridden" (user entered different value)
-  - [ ] Compare submitted gl_account vs gl_account_suggested to determine confirmed vs overridden
+- [x] PUT `/api/v1/invoices/{id}/lines/{line_id}/gl` — confirm GL coding for a line (AP_ANALYST+)
+  - [x] Body: `{gl_account: str, cost_center?: str}`
+  - [x] Update `invoice_line_item.gl_account` (and `cost_center`)
+  - [x] Log to audit: action="gl_coding_confirmed" (user accepted suggestion) OR "gl_coding_overridden" (user entered different value)
+  - [x] Compare submitted gl_account vs gl_account_suggested to determine confirmed vs overridden
 - [ ] PUT `/api/v1/invoices/{id}/lines/gl-bulk` — bulk confirm all GL suggestions (AP_ANALYST+)
   - [ ] Accept all suggestions for all lines in one call
   - [ ] Log each line as "gl_coding_confirmed"
@@ -373,7 +374,7 @@
 - [x] Auto-select match type: if GRN exists for this PO → use 3way, else 2way
 - [ ] Update GET `/api/v1/invoices/{id}/match` response to include GRN data
 - [ ] Tolerance configurable by vendor / category / currency (extend rule engine config format)
-- [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param
+- [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param (supports match_type=auto/2way/3way)
 
 #### Frontend
 - [ ] Match tab in invoice detail: show "2-Way Match" vs "3-Way Match" label
@@ -611,11 +612,11 @@
 #### Backend
 - [x] `require_role()` dependency exists
 - [ ] Full permission audit: verify all endpoints call `require_role()`
-- [ ] GET `/api/v1/admin/users` — list all users (ADMIN)
-- [ ] POST `/api/v1/admin/users` — create user (ADMIN)
-  - [ ] Body: email, name, role, password
-  - [ ] Hash password, send welcome email (console mock)
-- [ ] PATCH `/api/v1/admin/users/{id}` — update name/role/is_active (ADMIN)
+- [x] GET `/api/v1/admin/users` — list all users (ADMIN)
+- [x] POST `/api/v1/admin/users` — create user (ADMIN)
+  - [x] Body: email, name, role, password
+  - [x] Hash password, send welcome email (console mock)
+- [x] PATCH `/api/v1/admin/users/{id}` — update name/role/is_active (ADMIN)
 - [ ] DELETE `/api/v1/admin/users/{id}` — soft delete (ADMIN)
 
 #### Frontend
@@ -692,7 +693,7 @@
 - [x] Auto-assign logic in match engine / fraud scoring:
   - [x] When exception created: look up routing rule by exception_code
   - [x] Find first active user with target_role → set assigned_to
-  - [ ] Log to audit: action="exception_auto_routed"
+  - [x] Log to audit: action="exception_auto_routed" (implemented in match_engine._resolve_assignee)
 - [x] CRUD for routing rules:
   - [x] GET `/api/v1/admin/exception-routing` — list rules (ADMIN)
   - [x] POST `/api/v1/admin/exception-routing` — create rule (ADMIN)
