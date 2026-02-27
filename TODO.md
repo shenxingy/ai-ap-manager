@@ -58,12 +58,12 @@
 - [ ] Exception comments/thread (audit-logged)
 
 ### Approval Workflow (MVP - single level)
-- [ ] Approval matrix: amount threshold → approver role
-- [ ] Auto-create approval task when invoice passes match or exception is resolved
-- [ ] POST `/api/v1/approvals/{id}/approve` and `/reject` (in-app)
-- [ ] **Email-based approval**: generate signed token URL (48h expiry), embed in notification email, GET `/approvals/email?token=xxx` handler (no auth required)
-- [ ] Approval task status: `pending → approved / rejected`, record method (in_app / email_token)
-- [ ] Email notification with Approve/Reject button links (MVP: console log the email body)
+- [x] Approval matrix: amount threshold → approver role
+- [x] Auto-create approval task when invoice passes match (amount > threshold)
+- [x] POST `/api/v1/approvals/{id}/approve` and `/reject` (in-app)
+- [x] **Email-based approval**: generate signed token URL (48h expiry), embed in notification email, GET `/approvals/email?token=xxx` handler (no auth required)
+- [x] Approval task status: `pending → approved / rejected`, record method (in_app / email_token)
+- [x] Email notification with Approve/Reject button links (MVP: console log the email body)
 
 ### Auth & Users (MVP)
 - [x] JWT auth: login, refresh token
