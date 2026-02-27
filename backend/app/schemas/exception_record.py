@@ -15,6 +15,7 @@ class ExceptionListItem(BaseModel):
     severity: str  # low, medium, high, critical
     status: str  # open, in_progress, resolved, escalated, waived
     assigned_to: uuid.UUID | None
+    assigned_to_email: str | None = None
     resolved_at: datetime | None
     created_at: datetime
     comment_count: int = 0

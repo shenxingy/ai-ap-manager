@@ -84,10 +84,19 @@ async def list_exceptions(
     )
     rows = (await db.execute(paged_stmt)).all()
 
+    # Batch-load assignee emails for all non-null assigned_to UUIDs
+    assignee_ids = list({exc.assigned_to for exc, _ in rows if exc.assigned_to is not None})
+    email_map: dict[uuid.UUID, str] = {}
+    if assignee_ids:
+        user_result = await db.execute(select(User).where(User.id.in_(assignee_ids)))
+        for u in user_result.scalars().all():
+            email_map[u.id] = u.email
+
     items = []
     for exc, count in rows:
         item = ExceptionListItem.model_validate(exc)
         item.comment_count = count
+        item.assigned_to_email = email_map.get(exc.assigned_to) if exc.assigned_to else None
         items.append(item)
 
     return ExceptionListResponse(
