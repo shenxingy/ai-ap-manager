@@ -1,6 +1,50 @@
 # Progress — AI AP Operations Manager
 
+## [2026-02-28] Comprehensive Gap Audit + 10-Round Fixes
+
+**Result**: success — all P0/P1/P2 features confirmed complete with 3 quality fixes.
+
+**What was done (10 rounds)**:
+1. Audit found 12 wrong-status TODO items (marked `[ ]` but actually done) → corrected
+2. Added `source`, `due_date`, `fraud_score`, `is_recurring` fields to `InvoiceListItem` Pydantic schema — frontend was consuming these but schema was missing them
+3. Fixed Celery beat task name for recurring pattern detection (`tasks.detect_recurring_patterns` → `app.workers.tasks.detect_recurring_patterns`)
+4. Added vendor messages as synthetic audit events in `GET /invoices/{id}/audit` — messages now appear inline with real audit entries, sorted by created_at
+5. Confirmed fraud incidents PATCH outcome endpoint already exists (audit false positive)
+6. 51/51 tests passing, frontend builds clean
+7. Updated TODO.md: multi-level approval, CSV imports, recurring detection, vendor portal, route guards all marked `[x]`
+8. Updated TODO.md Vendor Portal section to reflect implemented JWT-based auth approach
+
+**Patterns confirmed**:
+- When adding fields to list response schema, add them with defaults (`= None` / `= 0` / `= False`) to avoid breaking existing serialization
+- Celery task names in beat_schedule must match the `name=` kwarg in `@celery_app.task(name=...)` — the module path prefix must be consistent
+- Synthetic audit entries can be created by converting ORM objects to Pydantic schemas and merging/sorting with real audit log entries
+- TODO.md drift is real — always verify against actual codebase, not just goal files
+
+**Key lessons**:
+- Gap audits will find stale TODOs — batch-correcting them prevents confusion in future sessions
+- Beat task name mismatch is a silent failure: task appears registered but never runs
+- Adding to InvoiceListItem schema doesn't require API handler changes when model fields already exist
+
+---
+
 ## [2026-02-27] Feature 4 Backend: Vendor Communications Endpoints
+### 2026-02-27 — Loop: goal-remaining-features
+
+**Iterations:** 5
+**Goal file:** /home/alexshen/projects/ai-ap-manager/goal-remaining-features.md
+**Commits since start:**
+```
+7bf044b test: portal endpoints and delegation
+ae9d2ea feat: email source badge on invoice list
+6a53e5c feat: approval chain step timeline in invoice detail approvals tab
+92273d8 chore: mark gap 2 done in goal file
+160f644 feat: vendor portal frontend pages (login, invoice list, invoice detail)
+9a7d0e0 chore: mark approval delegation wiring complete in TODO
+ed1cf52 feat: wire delegation check into create_approval_task
+```
+
+---
+
 ### 2026-02-27 — Loop: goal-final-polish
 
 **Iterations:** 5
