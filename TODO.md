@@ -409,10 +409,10 @@
   - [ ] Sort by step_order
   - [ ] Create task chain: Task 2 only created after Task 1 approved
 - [ ] Sequential chain: when Task N approved → auto-create Task N+1
-- [ ] Delegation:
-  - [ ] `user_delegations` table: `delegator_id, delegate_id, valid_from, valid_to, created_at`
-  - [ ] Alembic migration
-  - [ ] When assigning approval task: check for active delegation, assign to delegate
+- [-] Delegation:
+  - [x] `user_delegations` table: `delegator_id, delegate_id, valid_from, valid_to, created_at`
+  - [x] Alembic migration
+  - [x] When assigning approval task: check for active delegation, assign to delegate
   - [ ] PUT `/api/v1/users/{id}/delegation` — set delegation (APPROVER or ADMIN)
 - [ ] Approval escalation:
   - [ ] Celery beat task (daily): check `approval_tasks.due_at < now` for pending tasks
