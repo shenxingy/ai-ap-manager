@@ -388,7 +388,7 @@
 - [x] `run_3way_match` response: include `grn_lines_used` per invoice line
 - [x] Auto-select match type: if GRN exists for this PO → use 3way, else 2way
 - [x] Update GET `/api/v1/invoices/{id}/match` response to include GRN data
-- [ ] Tolerance configurable by vendor / category / currency (extend rule engine config format)
+- [-] Tolerance configurable by vendor / category / currency (extend rule engine config format)
 - [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param (supports match_type=auto/2way/3way)
 
 #### Frontend
@@ -401,55 +401,55 @@
 ### Multi-Level Approval
 
 #### Backend
-- [ ] `approval_matrix` table: `id, amount_min, amount_max, department, category, approver_role, step_order, is_active`
-  - [ ] Alembic migration
-  - [ ] SQLAlchemy model in `app/models/approval.py`
-- [ ] Approval workflow engine: `build_approval_chain(db, invoice) -> list[ApprovalTask]`
-  - [ ] Look up applicable matrix rows by amount + department/category
-  - [ ] Sort by step_order
-  - [ ] Create task chain: Task 2 only created after Task 1 approved
-- [ ] Sequential chain: when Task N approved → auto-create Task N+1
-- [-] Delegation:
+- [x] `approval_matrix` table: `id, amount_min, amount_max, department, category, approver_role, step_order, is_active`
+  - [x] Alembic migration
+  - [x] SQLAlchemy model in `app/models/approval.py`
+- [x] Approval workflow engine: `build_approval_chain(db, invoice) -> list[ApprovalTask]`
+  - [x] Look up applicable matrix rows by amount + department/category
+  - [x] Sort by step_order
+  - [x] Create task chain: Task 2 only created after Task 1 approved
+- [x] Sequential chain: when Task N approved → auto-create Task N+1
+- [x] Delegation:
   - [x] `user_delegations` table: `delegator_id, delegate_id, valid_from, valid_to, created_at`
   - [x] Alembic migration
   - [x] When assigning approval task: check for active delegation, assign to delegate
-  - [ ] PUT `/api/v1/users/{id}/delegation` — set delegation (APPROVER or ADMIN)
-- [ ] Approval escalation:
-  - [ ] Celery beat task (daily): check `approval_tasks.due_at < now` for pending tasks
-  - [ ] Escalation: reassign to user's manager (or ADMIN role)
-  - [ ] Audit log: action="approval_escalated"
-  - [ ] Email notification to new assignee (console mock)
-- [ ] CRUD for approval matrix:
-  - [ ] GET `/api/v1/approval-matrix` — list all rules (ADMIN)
-  - [ ] POST `/api/v1/approval-matrix` — create rule (ADMIN)
-  - [ ] PUT `/api/v1/approval-matrix/{id}` — update rule (ADMIN)
-  - [ ] DELETE `/api/v1/approval-matrix/{id}` — soft delete (ADMIN)
+  - [x] PUT `/api/v1/users/{id}/delegation` — set delegation (APPROVER or ADMIN)
+- [x] Approval escalation:
+  - [x] Celery beat task (daily): check `approval_tasks.due_at < now` for pending tasks
+  - [x] Escalation: reassign to user's manager (or ADMIN role)
+  - [x] Audit log: action="approval_escalated"
+  - [x] Email notification to new assignee (console mock)
+- [x] CRUD for approval matrix:
+  - [x] GET `/api/v1/approval-matrix` — list all rules (ADMIN)
+  - [x] POST `/api/v1/approval-matrix` — create rule (ADMIN)
+  - [x] PUT `/api/v1/approval-matrix/{id}` — update rule (ADMIN)
+  - [x] DELETE `/api/v1/approval-matrix/{id}` — soft delete (ADMIN)
 
 #### Frontend
 - [x] Approval matrix config UI (Admin Settings → Approval Matrix)
   - [x] Table of rules: amount band · department · category → approver role · step
   - [x] Add/edit/delete rows
   - [x] Preview: "Invoice of $8,000 in Procurement → Step 1: AP_ANALYST → Step 2: ADMIN"
-- [ ] Approval chain visible in invoice detail → Approvals tab
-  - [ ] Timeline showing each step with status
+- [x] Approval chain visible in invoice detail → Approvals tab
+  - [x] Timeline showing each step with status
 
 ---
 
 ### Integration Layer
 
 #### Backend
-- [ ] CSV import: Purchase Orders from ERP export
-  - [ ] POST `/api/v1/import/pos` — multipart CSV file (ADMIN, AP_ANALYST)
-  - [ ] Configurable column mapping (e.g., `po_number`, `vendor_tax_id`, `total_amount`)
-  - [ ] Upsert by po_number; versioning via updated_at
-  - [ ] Return: `{created: N, updated: N, skipped: N, errors: [{row: N, message: str}]}`
-  - [ ] Celery task for large files (> 1000 rows)
-- [ ] CSV import: Goods Receipts from WMS/ERP
-  - [ ] POST `/api/v1/import/grns` — link by po_number
-  - [ ] Same upsert + error return pattern
-- [ ] CSV import: Vendor master data
-  - [ ] POST `/api/v1/import/vendors`
-  - [ ] Fuzzy dedup: if tax_id matches existing vendor → update; if name 90%+ similar → warn
+- [x] CSV import: Purchase Orders from ERP export
+  - [x] POST `/api/v1/import/pos` — multipart CSV file (ADMIN, AP_ANALYST)
+  - [x] Configurable column mapping (e.g., `po_number`, `vendor_tax_id`, `total_amount`)
+  - [x] Upsert by po_number; versioning via updated_at
+  - [x] Return: `{created: N, updated: N, skipped: N, errors: [{row: N, message: str}]}`
+  - [x] Celery task for large files (> 1000 rows)
+- [x] CSV import: Goods Receipts from WMS/ERP
+  - [x] POST `/api/v1/import/grns` — link by po_number
+  - [x] Same upsert + error return pattern
+- [x] CSV import: Vendor master data
+  - [x] POST `/api/v1/import/vendors`
+  - [x] Fuzzy dedup: if tax_id matches existing vendor → update; if name 90%+ similar → warn
 - [ ] Email ingestion pipeline
   - [ ] IMAP polling Celery beat task (every 5 min)
   - [ ] Config: `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD`, `IMAP_MAILBOX` in settings
@@ -472,7 +472,7 @@
   - [ ] Preview table: first 10 rows + column mapping dropdowns
   - [ ] Submit → show progress + results (created/updated/skipped/errors)
   - [ ] Download error report CSV
-- [ ] Invoice list: `source` badge ("email" vs "upload")
+- [x] Invoice list: `source` badge ("email" vs "upload")
 - [ ] Email ingestion status in settings: last poll time, total auto-ingested count
 
 ---
@@ -492,7 +492,7 @@
   - [x] Magic link auth: `?token=<vendor_token>` (similar pattern to approval tokens)
   - [x] Creates inbound VendorMessage, notifies AP team
 - [x] Unread message count: include `unread_vendor_messages` in InvoiceListItem response
-- [ ] All vendor messages included in `/invoices/{id}/audit` response (separate event type)
+- [x] All vendor messages included in `/invoices/{id}/audit` response (separate event type)
 
 #### Frontend
 - [x] Invoice detail: **Communications tab** (new tab)
@@ -535,8 +535,8 @@
 
 #### Backend
 - [ ] `RecurringInvoicePattern` model (already in `app/models/invoice.py`)
-  - [ ] Verify migration exists for recurring_invoice_patterns table
-  - [ ] Fields: vendor_id, frequency_days, avg_amount, tolerance_pct, auto_fast_track, last_detected_at
+  - [x] Verify migration exists for recurring_invoice_patterns table
+  - [x] Fields: vendor_id, frequency_days, avg_amount, tolerance_pct, auto_fast_track, last_detected_at
 - [ ] Detection Celery beat task (weekly):
   - [ ] For each vendor with ≥ 3 approved invoices
   - [ ] Group by vendor, compute inter-invoice intervals (days between consecutive invoices)
@@ -545,17 +545,17 @@
   - [ ] Create/update RecurringInvoicePattern records
   - [ ] Log to audit
 - [ ] Tagging: when new invoice uploaded and vendor has active pattern
-  - [ ] If invoice_amount within pattern.tolerance_pct of pattern.avg_amount → set is_recurring=True, recurring_pattern_id
-  - [ ] Run in Celery pipeline step before match
-- [ ] Fast-track workflow:
-  - [ ] After tagging is_recurring=True: skip full exception queue
-  - [ ] Create ApprovalTask immediately (bypass match wait)
-  - [ ] Flag in ApprovalTask: `is_fast_track=True`
-  - [ ] 1-click analyst confirmation UI
+  - [x] If invoice_amount within pattern.tolerance_pct of pattern.avg_amount → set is_recurring=True, recurring_pattern_id
+  - [x] Run in Celery pipeline step before match
+- [x] Fast-track workflow:
+  - [x] After tagging is_recurring=True: skip full exception queue
+  - [x] Create ApprovalTask immediately (bypass match wait)
+  - [x] Flag in ApprovalTask: `is_fast_track=True`
+  - [x] 1-click analyst confirmation UI
 
 #### Frontend
-- [ ] Recurring invoice badge: "🔄 Recurring" on invoice list and detail header
-- [ ] Fast-track banner: "Recurring invoice detected — 1-click approval available"
+- [x] Recurring invoice badge: "🔄 Recurring" on invoice list and detail header
+- [x] Fast-track banner: "Recurring invoice detected — 1-click approval available"
 - [ ] Admin → Recurring Patterns page:
   - [ ] Table: vendor · frequency · avg amount · tolerance · fast-track toggle · last detected
   - [ ] Enable/disable fast-track per pattern
@@ -578,7 +578,7 @@
   - [x] `fraud_incidents` table: invoice_id, score_at_flag, triggered_signals, reviewed_by, outcome, created_at
   - [x] All HIGH+ fraud flags auto-create a fraud_incident record
   - [x] GET `/api/v1/fraud-incidents` — list for ADMIN/AUDITOR
-- [ ] Dual-authorization flow for CRITICAL (≥60) — wire into approval service (see P0 TODO above)
+- [x] Dual-authorization flow for CRITICAL (≥60) — wire into approval service (see P0 TODO above)
 
 #### Frontend
 - [x] Fraud Incidents page (`/admin/fraud`) — ADMIN only
@@ -640,11 +640,11 @@
   - [x] Create user form (modal)
   - [x] Edit user: role change dropdown, deactivate toggle
   - [x] Role badge: color-coded (ADMIN=red, ANALYST=blue, CLERK=gray, APPROVER=green)
-- [ ] Per-role route guards:
-  - [ ] `/admin/*` — ADMIN only
-  - [ ] `/approvals` — APPROVER+ (AP_ANALYST, ADMIN can also view)
-  - [ ] `/exceptions` — AP_CLERK+
-  - [ ] `/kpi` — AP_ANALYST+
+- [x] Per-role route guards:
+  - [x] `/admin/*` — ADMIN only
+  - [x] `/approvals` — APPROVER+ (AP_ANALYST, ADMIN can also view)
+  - [x] `/exceptions` — AP_CLERK+
+  - [x] `/kpi` — AP_ANALYST+
 - [x] Unauthorized page (403) component
 
 ---
@@ -718,7 +718,7 @@
 - [x] Admin → Exception Routing page (`/admin/exception-routing`) — CRUD UI for routing rules
   - [x] Table: exception_code → assigned_role
   - [x] Edit mapping dropdowns
-  - [ ] Priority ordering (drag to reorder)
+  - [-] Priority ordering (drag to reorder, low priority)
 
 ---
 
@@ -864,23 +864,22 @@
 ### Vendor Portal (Read-Only + Disputes)
 
 #### Backend
-- [ ] Vendor portal auth: magic link email token (48h expiry, vendor_id scoped)
-  - [ ] POST `/api/v1/portal/auth` — send magic link to vendor email (console mock)
-  - [ ] GET `/api/v1/portal/auth?token=xxx` — validates token, returns short-lived session
-- [ ] GET `/api/v1/portal/invoices` — vendor's invoices (limited fields, no internal data)
-- [ ] GET `/api/v1/portal/invoices/{id}` — invoice status + payment_terms (no fraud score, no internal notes)
-- [ ] POST `/api/v1/portal/invoices/{id}/dispute` — submit dispute
-  - [ ] Creates ExceptionRecord with code="VENDOR_DISPUTE"
-  - [ ] Creates VendorMessage (inbound, is_internal=False)
-  - [ ] Notifies AP team
+- [x] Vendor portal auth: JWT token (30-day, vendor_id scoped) issued by ADMIN
+  - [x] POST `/api/v1/portal/auth/invite` — ADMIN issues vendor portal JWT (console mock)
+- [x] GET `/api/v1/portal/invoices` — vendor's invoices (limited fields, no internal data)
+- [x] GET `/api/v1/portal/invoices/{id}` — invoice status (no fraud score, no internal notes)
+- [x] POST `/api/v1/portal/invoices/{id}/dispute` — submit dispute
+  - [x] Creates ExceptionRecord with code="VENDOR_DISPUTE"
+  - [x] Creates VendorMessage (inbound, is_internal=False)
+  - [x] Notifies AP team
 
 #### Frontend
-- [ ] Vendor portal (separate Next.js layout at `/portal/*` or subdomain)
-  - [ ] Login via magic link (no password)
-  - [ ] Invoice list: invoice# · amount · status · due_date
-  - [ ] Invoice detail: status timeline · payment_terms · contact AP button
-  - [ ] Dispute form: reason + description + attachments
-  - [ ] Mobile-responsive (vendors may use phones)
+- [x] Vendor portal (separate Next.js layout at `/portal/*`)
+  - [x] Login via token paste (`/portal/login`)
+  - [x] Invoice list: invoice# · amount · status · due_date (`/portal/invoices`)
+  - [x] Invoice detail: status · payment_terms · contact AP button (`/portal/invoices/[id]`)
+  - [x] Dispute form: reason + description + submit
+  - [ ] Mobile-responsive (vendors may use phones — layout exists but not fully responsive)
 
 ---
 
