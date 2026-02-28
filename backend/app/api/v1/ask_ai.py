@@ -90,7 +90,7 @@ async def ask_ai(
         logger.warning("ask_ai SQL execution failed: %s | SQL: %s", exc, sql_query)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Query execution failed: {exc}",
+            detail="Query execution failed. Try rephrasing your question.",
         )
 
     # Step 4: Ask LLM to summarize the result
