@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -10,6 +11,16 @@ from app.core.config import settings
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
+
+# Initialize Sentry error monitoring
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+        environment=getattr(settings, 'APP_ENV', 'development'),
+        send_default_pii=False,
+    )
+    logger.info("Sentry initialized")
 
 
 @asynccontextmanager
