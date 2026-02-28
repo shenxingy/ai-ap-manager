@@ -968,7 +968,7 @@ committer "feat: add Record Payment dialog in invoice detail for ADMIN" \
 ## STATUS
 
 - [ ] Gap 1: Error leakage fix + global 500 handler
-- [ ] Gap 2: Rate limiting (slowapi)
+- [x] Gap 2: Rate limiting (slowapi)
 - [ ] Gap 3: Request ID middleware + structured logging
 - [ ] Gap 4: Sentry integration
 - [x] Gap 5: Payment columns migration + endpoint
