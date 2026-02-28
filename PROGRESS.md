@@ -1,6 +1,23 @@
 # Progress — AI AP Operations Manager
 
 ## [2026-02-27] Feature 4 Backend: Vendor Communications Endpoints
+### 2026-02-27 — Loop: goal-final-polish
+
+**Iterations:** 5
+**Goal file:** /home/alexshen/projects/ai-ap-manager/goal-final-polish.md
+**Commits since start:**
+```
+a7fd607 chore: mark all gaps complete in goal-final-polish.md
+716b0e4 feat: add DELETE /admin/users/{id} soft-delete endpoint
+d7bcb78 test: add P2 endpoint tests for overdue invoices, bulk actions, ask-ai, rule recommendations, analytics
+ef6ee67 Merge branch 'batch/task-3-20260227-191809'
+7c472f0 feat: add notification bell to AppShell and delete user button to admin/users page
+fd95b7d chore: mark compliance doc expiry task as complete in TODO
+c5e0ba5 feat: add expire_compliance_docs weekly celery beat task
+```
+
+---
+
 
 **Result**: success — vendor portal reply endpoint and unread message counting implemented.
 
