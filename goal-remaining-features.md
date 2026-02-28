@@ -324,7 +324,7 @@ Use TestClient for portal endpoint tests.
 - [ ] Gap 1: Vendor portal dispute endpoint (backend/app/api/v1/portal.py)
 - [x] Gap 2: Vendor portal frontend (frontend/src/app/portal/*.tsx)
 - [ ] Gap 3: Approval delegation wiring (backend/app/services/approval.py)
-- [ ] Gap 4: Invoice source badge frontend (frontend/src/app/(app)/invoices/page.tsx)
+- [x] Gap 4: Invoice source badge frontend (frontend/src/app/(app)/invoices/page.tsx)
 - [x] Gap 5: Approval chain step timeline (frontend/src/app/(app)/invoices/[id]/page.tsx)
 - [ ] Gap 6: Tests for portal and delegation (backend/tests/test_portal_and_delegation.py)
 
