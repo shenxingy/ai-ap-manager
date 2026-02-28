@@ -46,4 +46,8 @@ celery_app.conf.beat_schedule = {
         "task": "tasks.detect_recurring_patterns",
         "schedule": crontab(hour=2, minute=0, day_of_week="mon"),
     },
+    "expire-compliance-docs-weekly": {
+        "task": "app.workers.sla_tasks.expire_compliance_docs",
+        "schedule": crontab(hour=1, minute=0, day_of_week="mon"),
+    },
 }
