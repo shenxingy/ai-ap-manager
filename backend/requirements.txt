@@ -41,5 +41,8 @@ python-dateutil==2.9.0
 pytest==8.3.4
 pytest-asyncio==0.24.0
 
+# ─── Error Monitoring ──────────────────────────────────
+sentry-sdk[fastapi]==2.19.0
+
 # ─── Production ──────────────────────────────────────────
 gunicorn==23.0.0            # production WSGI server

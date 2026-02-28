@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     MAIL_FROM: str = "ap-system@yourcompany.com"
     MAIL_FROM_NAME: str = "AP Operations"
 
+    # Sentry (Error Monitoring)
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]
