@@ -14,6 +14,9 @@ from app.core.config import settings
 from app.core.security import create_approval_token, verify_approval_token
 from app.services import audit as audit_svc
 
+from app.models.exception_record import ExceptionRecord
+from app.models.vendor import VendorComplianceDoc
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +48,34 @@ def create_approval_task(
 
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(hours=due_hours)
+
+    # ─── Compliance doc expiry check ───
+    invoice_obj = db.execute(
+        select(Invoice).where(Invoice.id == invoice_id)
+    ).scalars().first()
+    if invoice_obj and invoice_obj.vendor_id is not None:
+        expired_docs = list(
+            db.execute(
+                select(VendorComplianceDoc).where(
+                    VendorComplianceDoc.vendor_id == invoice_obj.vendor_id,
+                    VendorComplianceDoc.status == "approved",
+                    VendorComplianceDoc.expiry_date < datetime.now(timezone.utc),
+                )
+            ).scalars().all()
+        )
+        if expired_docs:
+            exc = ExceptionRecord(
+                invoice_id=invoice_id,
+                exception_code="COMPLIANCE_DOC_EXPIRED",
+                severity="HIGH",
+                status="open",
+                description=(
+                    f"Vendor has {len(expired_docs)} expired compliance doc(s). "
+                    "Review before payment."
+                ),
+            )
+            db.add(exc)
+            db.flush()
 
     # Create the approval task
     task = ApprovalTask(
