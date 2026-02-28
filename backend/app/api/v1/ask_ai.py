@@ -2,12 +2,13 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
+from app.core.limiter import limiter
 from app.db.session import get_session
 from app.models.user import User
 
@@ -44,12 +45,14 @@ class AskAiResponse(BaseModel):
     row_count: int | None = None
 
 
+@limiter.limit("20/minute")
 @router.post(
     "",
     response_model=AskAiResponse,
     summary="Ask a natural language question about AP data (AP_ANALYST+)",
 )
 async def ask_ai(
+    request: Request,
     body: AskAiRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
