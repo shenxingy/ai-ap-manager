@@ -1,5 +1,6 @@
 """Admin user management and exception routing endpoints."""
 import uuid
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -145,6 +146,40 @@ async def update_user(
     await db.refresh(user)
 
     return AdminUserOut.model_validate(user)
+
+
+# ─── DELETE /admin/users/{id} ───
+
+
+@router.delete(
+    "/users/{user_id}",
+    status_code=204,
+    summary="Soft-delete a user (ADMIN only)",
+)
+async def delete_user(
+    user_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    """Soft-delete a user by setting deleted_at. ADMIN only."""
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete yourself",
+        )
+
+    user.deleted_at = datetime.now(timezone.utc)
+    await db.commit()
 
 
 # ─── GET /admin/exception-routing ───
