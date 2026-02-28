@@ -29,6 +29,10 @@ class InvoiceListItem(BaseModel):
     currency: str | None
     file_name: str
     created_at: datetime
+    due_date: datetime | None = None
+    fraud_score: int = 0
+    is_recurring: bool = False
+    source: str | None = None
     unread_vendor_messages: int = 0
 
 
