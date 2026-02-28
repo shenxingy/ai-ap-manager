@@ -34,6 +34,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.sla_tasks.check_sla_alerts",
         "schedule": crontab(hour=9, minute=0),
     },
+    "escalate-overdue-approvals-daily": {
+        "task": "app.workers.sla_tasks.escalate_overdue_approvals",
+        "schedule": crontab(hour=9, minute=30),
+    },
     "poll-ap-mailbox": {
         "task": "app.workers.email_ingestion.poll_ap_mailbox",
         "schedule": crontab(minute="*/5"),
