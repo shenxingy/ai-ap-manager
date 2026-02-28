@@ -20,10 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ─── invoices: source tracking columns ───
-    op.add_column('invoices', sa.Column('source', sa.String(50), nullable=False, server_default='upload'))
+    # ─── invoices: source_email (source and due_date already exist in DB) ───
     op.add_column('invoices', sa.Column('source_email', sa.String(255), nullable=True))
-    op.add_column('invoices', sa.Column('due_date', sa.DateTime(timezone=True), nullable=True))
 
     # ─── override_logs ───
     op.create_table(
@@ -43,6 +41,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table('override_logs')
-    op.drop_column('invoices', 'due_date')
     op.drop_column('invoices', 'source_email')
-    op.drop_column('invoices', 'source')
