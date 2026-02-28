@@ -495,14 +495,14 @@
 - [ ] All vendor messages included in `/invoices/{id}/audit` response (separate event type)
 
 #### Frontend
-- [ ] Invoice detail: **Communications tab** (new tab)
-  - [ ] Unified thread: internal notes + vendor-facing messages (visually distinct)
-  - [ ] Internal note = grey bubble, vendor message = blue bubble
-  - [ ] Compose box: toggle "Internal" vs "Vendor-facing"
-  - [ ] Attachment upload in compose box
-  - [ ] Send button → POST /invoices/{id}/messages
-- [ ] Invoice list: unread badge (orange dot) if vendor message awaiting response
-- [ ] Notification bell in header: count of invoices with unread vendor messages
+- [x] Invoice detail: **Communications tab** (new tab)
+  - [x] Unified thread: internal notes + vendor-facing messages (visually distinct)
+  - [x] Internal note = grey bubble, vendor message = blue bubble
+  - [x] Compose box: toggle "Internal" vs "Vendor-facing"
+  - [x] Attachment upload in compose box
+  - [x] Send button → POST /invoices/{id}/messages
+- [x] Invoice list: unread badge (orange dot) if vendor message awaiting response
+- [x] Notification bell in header: count of invoices with unread vendor messages
 
 ---
 
@@ -517,17 +517,17 @@
   - [x] Validate doc_type is in allowed set
 - [x] GET `/api/v1/vendors/{id}/compliance-docs` — list compliance docs
 - [x] Celery beat (weekly): check expiry_dates → update status to "expired" if past expiry
-- [ ] Compliance check in approval service:
-  - [ ] Before creating approval task: check if vendor has missing/expired W-9 or W-8BEN
-  - [ ] If missing → create `COMPLIANCE_MISSING` exception (no blocking, but flagged)
-  - [ ] Alert AP Analyst via email notification (console mock)
+- [x] Compliance check in approval service:
+  - [x] Before creating approval task: check if vendor has missing/expired W-9 or W-8BEN
+  - [x] If missing → create `COMPLIANCE_MISSING` exception (no blocking, but flagged)
+  - [x] Alert AP Analyst via email notification (console mock)
 
 #### Frontend
 - [x] Vendor detail page: Compliance Documents section
   - [x] List of docs with type, status badge (active/expired/missing), expiry date
   - [x] Upload button per doc type
   - [x] Status: green (active) · orange (expiring in 30 days) · red (expired/missing)
-- [ ] Invoice detail: compliance warning banner if vendor has expired docs
+- [x] Invoice detail: compliance warning banner if vendor has expired docs
 
 ---
 
@@ -566,22 +566,22 @@
 ### Fraud Detection Upgrade (V1)
 
 #### Backend
-- [ ] Behavioral signal: bank account change detection
-  - [ ] `vendor_bank_history` table: vendor_id, bank_account, changed_at, changed_by
-  - [ ] Alembic migration
-  - [ ] When vendor bank account updated: log to vendor_bank_history
-  - [ ] Fraud signal: bank account changed within 30 days before invoice → +25 score
-- [ ] Ghost vendor detection
-  - [ ] Cross-reference bank account across all vendors
-  - [ ] Signal: invoice from vendor sharing bank account with another vendor → +30 score
-- [ ] Fraud incident log:
-  - [ ] `fraud_incidents` table: invoice_id, score_at_flag, triggered_signals, reviewed_by, outcome, created_at
-  - [ ] All HIGH+ fraud flags auto-create a fraud_incident record
-  - [ ] GET `/api/v1/fraud-incidents` — list for ADMIN/AUDITOR
+- [x] Behavioral signal: bank account change detection
+  - [x] `vendor_bank_history` table: vendor_id, bank_account, changed_at, changed_by
+  - [x] Alembic migration
+  - [x] When vendor bank account updated: log to vendor_bank_history
+  - [x] Fraud signal: bank account changed within 30 days before invoice → +25 score
+- [x] Ghost vendor detection
+  - [x] Cross-reference bank account across all vendors
+  - [x] Signal: invoice from vendor sharing bank account with another vendor → +30 score
+- [x] Fraud incident log:
+  - [x] `fraud_incidents` table: invoice_id, score_at_flag, triggered_signals, reviewed_by, outcome, created_at
+  - [x] All HIGH+ fraud flags auto-create a fraud_incident record
+  - [x] GET `/api/v1/fraud-incidents` — list for ADMIN/AUDITOR
 - [ ] Dual-authorization flow for CRITICAL (≥60) — wire into approval service (see P0 TODO above)
 
 #### Frontend
-- [ ] Fraud Incidents page (`/admin/fraud`) — ADMIN only
+- [x] Fraud Incidents page (`/admin/fraud`) — ADMIN only
   - [ ] Table: invoice · score · signals · status (open/reviewed) · outcome
   - [ ] Mark as reviewed with outcome notes
 
@@ -632,7 +632,7 @@
   - [x] Body: email, name, role, password
   - [x] Hash password, send welcome email (console mock)
 - [x] PATCH `/api/v1/admin/users/{id}` — update name/role/is_active (ADMIN)
-- [ ] DELETE `/api/v1/admin/users/{id}` — soft delete (ADMIN)
+- [x] DELETE `/api/v1/admin/users/{id}` — soft delete (ADMIN)
 
 #### Frontend
 - [x] Admin panel (`/admin/users`) — scaffolded with user table, create/edit forms, role badges
@@ -645,7 +645,7 @@
   - [ ] `/approvals` — APPROVER+ (AP_ANALYST, ADMIN can also view)
   - [ ] `/exceptions` — AP_CLERK+
   - [ ] `/kpi` — AP_ANALYST+
-- [ ] Unauthorized page (403) component
+- [x] Unauthorized page (403) component
 
 ---
 
@@ -727,34 +727,34 @@
 ### AI Self-Optimization
 
 #### Backend
-- [ ] Override logging
-  - [ ] `ai_feedback` table: invoice_id, field_name, ai_value, human_value, actor_id, created_at
-  - [ ] Alembic migration
-  - [ ] Log when user corrects extracted field (from PATCH /invoices/{id}/fields)
-  - [ ] Log when user overrides GL coding (from PUT /invoices/{id}/lines/{id}/gl)
+- [x] Override logging
+  - [x] `ai_feedback` table: invoice_id, field_name, ai_value, human_value, actor_id, created_at
+  - [x] Alembic migration
+  - [x] Log when user corrects extracted field (from PATCH /invoices/{id}/fields)
+  - [x] Log when user overrides GL coding (from PUT /invoices/{id}/lines/{id}/gl)
   - [ ] Log when AP Analyst changes exception outcome (from PATCH /exceptions/{id})
-- [ ] Weekly analysis Celery job:
-  - [ ] Analyze ai_feedback: which fields have highest correction rate?
-  - [ ] For extraction: are certain vendor types consistently wrong on specific fields?
-  - [ ] For GL coding: compare ML model suggestion acceptance rate
-  - [ ] For match rules: simulate alternative tolerance values, compute exception reduction
-- [ ] Rule recommendation engine:
-  - [ ] `rule_recommendations` table: rule_type, current_config, suggested_config, expected_impact, confidence, status, created_at
-  - [ ] Auto-create recommendations weekly
+- [x] Weekly analysis Celery job:
+  - [x] Analyze ai_feedback: which fields have highest correction rate?
+  - [x] For extraction: are certain vendor types consistently wrong on specific fields?
+  - [x] For GL coding: compare ML model suggestion acceptance rate
+  - [x] For match rules: simulate alternative tolerance values, compute exception reduction
+- [x] Rule recommendation engine:
+  - [x] `rule_recommendations` table: rule_type, current_config, suggested_config, expected_impact, confidence, status, created_at
+  - [x] Auto-create recommendations weekly
   - [ ] Human review required before any rule change
-- [ ] GET `/api/v1/admin/rule-recommendations` — list pending recommendations (ADMIN)
-- [ ] POST `/api/v1/admin/rule-recommendations/{id}/accept` — apply recommendation as new rule draft
-- [ ] POST `/api/v1/admin/rule-recommendations/{id}/reject` — dismiss
+- [x] GET `/api/v1/admin/rule-recommendations` — list pending recommendations (ADMIN)
+- [x] POST `/api/v1/admin/rule-recommendations/{id}/accept` — apply recommendation as new rule draft
+- [x] POST `/api/v1/admin/rule-recommendations/{id}/reject` — dismiss
 - [ ] A/B testing framework:
   - [ ] `rule_ab_tests` table: rule_id, test_group (A/B), period, metric_results
   - [ ] Split invoices A/B, run different rule versions, compare exception rates
 
 #### Frontend
-- [ ] Admin → AI Insights page (`/admin/ai-insights`)
-  - [ ] Top extraction errors: which fields, which vendors, correction rate chart
-  - [ ] Rule recommendations list: current vs suggested config, expected improvement
-  - [ ] Accept / Reject / Ask AI to explain buttons
-  - [ ] A/B test results chart
+- [x] Admin → AI Insights page (`/admin/ai-insights`)
+  - [x] Top extraction errors: which fields, which vendors, correction rate chart
+  - [x] Rule recommendations list: current vs suggested config, expected improvement
+  - [x] Accept / Reject / Ask AI to explain buttons
+  - [x] A/B test results chart
 
 ---
 
@@ -769,22 +769,22 @@
   - [x] Z-score on exception_rate grouped by vendor/doc_type/period
   - [x] Alert when Z-score > 2.5 (exceptional spike)
   - [x] GET `/api/v1/analytics/anomalies` → `[{dimension, value, z_score, period}]`
-- [ ] LLM narrative report:
-  - [ ] POST `/api/v1/analytics/root-cause-report` → triggers async Claude narrative generation
-  - [ ] System prompt: provide anomaly data + process mining results
-  - [ ] Output: 3-5 paragraph natural language explanation
-  - [ ] Log to ai_call_logs (call_type="root_cause")
-  - [ ] Store report in `analytics_reports` table
-- [ ] Weekly digest:
-  - [ ] Celery beat: weekly job to generate and "send" digest (console mock)
-  - [ ] Include: top anomalies, process bottlenecks, AI narrative
+- [x] LLM narrative report:
+  - [x] POST `/api/v1/analytics/root-cause-report` → triggers async Claude narrative generation
+  - [x] System prompt: provide anomaly data + process mining results
+  - [x] Output: 3-5 paragraph natural language explanation
+  - [x] Log to ai_call_logs (call_type="root_cause")
+  - [x] Store report in `analytics_reports` table
+- [x] Weekly digest:
+  - [x] Celery beat: weekly job to generate and "send" digest (console mock)
+  - [x] Include: top anomalies, process bottlenecks, AI narrative
 
 #### Frontend
 - [x] Analytics page (`/analytics`)
   - [x] Process mining funnel chart: avg time per status step
   - [x] Anomaly alerts list: spike events with Z-score
-  - [ ] "Generate Root Cause Report" button → polling for completion → display narrative
-  - [ ] Report history: list of past weekly digests
+  - [x] "Generate Root Cause Report" button → polling for completion → display narrative
+  - [x] Report history: list of past weekly digests
 
 ---
 
@@ -847,17 +847,17 @@
 ### SLA Alerting
 
 #### Backend
-- [ ] Celery beat: daily job — check `invoices.due_date`
-  - [ ] Alert 3 days before due_date if still pending/matched (not yet approved)
-  - [ ] Alert on due_date if not yet approved (overdue)
-  - [ ] Send email notification to assigned AP Analyst + APPROVER (console mock)
-- [ ] `sla_alerts` table: invoice_id, alert_type (approaching/overdue), sent_at, actor_notified
-- [ ] GET `/api/v1/invoices?overdue=true` — filter for overdue invoices
+- [x] Celery beat: daily job — check `invoices.due_date`
+  - [x] Alert 3 days before due_date if still pending/matched (not yet approved)
+  - [x] Alert on due_date if not yet approved (overdue)
+  - [x] Send email notification to assigned AP Analyst + APPROVER (console mock)
+- [x] `sla_alerts` table: invoice_id, alert_type (approaching/overdue), sent_at, actor_notified
+- [x] GET `/api/v1/invoices?overdue=true` — filter for overdue invoices
 
 #### Frontend
-- [ ] Invoice list: "Overdue" red badge on past-due invoices
-- [ ] Dashboard: "⚠️ 3 invoices approaching due date" warning card
-- [ ] Notification bell: SLA alerts as in-app notifications
+- [x] Invoice list: "Overdue" red badge on past-due invoices
+- [x] Dashboard: "⚠️ 3 invoices approaching due date" warning card
+- [x] Notification bell: SLA alerts as in-app notifications
 
 ---
 
@@ -896,35 +896,35 @@
 ### Bulk Operations
 
 #### Backend
-- [ ] POST `/api/v1/exceptions/bulk-update`
-  - [ ] Body: `{ids: list[UUID], status: str, assigned_to?: UUID}`
-  - [ ] Batch update up to 100 exceptions
-  - [ ] Audit log each update
-- [ ] POST `/api/v1/approvals/bulk-approve`
-  - [ ] Batch approve multiple tasks (ADMIN only)
-  - [ ] Each approval still creates individual audit log entries
+- [x] POST `/api/v1/exceptions/bulk-update`
+  - [x] Body: `{ids: list[UUID], status: str, assigned_to?: UUID}`
+  - [x] Batch update up to 100 exceptions
+  - [x] Audit log each update
+- [x] POST `/api/v1/approvals/bulk-approve`
+  - [x] Batch approve multiple tasks (ADMIN only)
+  - [x] Each approval still creates individual audit log entries
 
 #### Frontend
-- [ ] Exception queue: checkbox column for multi-select
-- [ ] Bulk action toolbar: appears when ≥1 checked
-  - [ ] Bulk assign dropdown
-  - [ ] Bulk status change
-  - [ ] Bulk close (waive)
-  - [ ] "N items selected" count
+- [x] Exception queue: checkbox column for multi-select
+- [x] Bulk action toolbar: appears when ≥1 checked
+  - [x] Bulk assign dropdown
+  - [x] Bulk status change
+  - [x] Bulk close (waive)
+  - [x] "N items selected" count
 
 ---
 
 ### Conversational AI Query Interface — "Ask AI" (V2)
 
 #### Backend
-- [ ] POST `/api/v1/ask-ai` — natural language query → structured results
-  - [ ] Body: `{question: str}`
-  - [ ] Claude prompt: system context with DB schema (invoices, exceptions, vendors, POs)
-  - [ ] Safety: only allow SELECT on whitelist of tables (invoices, vendors, exceptions, approvals, audit_logs)
-  - [ ] Execute generated SQL via read-only DB connection
-  - [ ] Return: `{question, sql_generated, results: list[dict], row_count}`
-  - [ ] Log to ai_call_logs (call_type="nl_query")
-  - [ ] Hard limit: max 500 rows returned
+- [x] POST `/api/v1/ask-ai` — natural language query → structured results
+  - [x] Body: `{question: str}`
+  - [x] Claude prompt: system context with DB schema (invoices, exceptions, vendors, POs)
+  - [x] Safety: only allow SELECT on whitelist of tables (invoices, vendors, exceptions, approvals, audit_logs)
+  - [x] Execute generated SQL via read-only DB connection
+  - [x] Return: `{question, sql_generated, results: list[dict], row_count}`
+  - [x] Log to ai_call_logs (call_type="nl_query")
+  - [x] Hard limit: max 500 rows returned
 
 #### Frontend
 - [ ] "Ask AI" sidebar panel (all pages)
