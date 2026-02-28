@@ -319,29 +319,105 @@ def process_approval_decision(
                 ),
             )
         else:
-            # All required approvals collected — fully approve
+            # All required approvals collected — check for next step in chain
             task.status = "approved"
-            invoice.status = "approved"
             db.flush()
 
-            after_snapshot = {
-                "invoice_status": invoice.status,
-                "task_status": task.status,
-                "approved_count": approved_count,
-                "required_count": task.approval_required_count,
-                "decision_channel": channel,
-                "actor_id": str(actor_id) if actor_id else None,
-            }
-            audit_svc.log(
-                db=db,
-                action="invoice_approved",
-                entity_type="invoice",
-                entity_id=invoice.id,
-                actor_id=actor_id,
-                before=before_snapshot,
-                after=after_snapshot,
-                notes=f"Decision via {channel} channel. Notes: {notes}",
-            )
+            next_step = _get_next_approval_step(db, invoice, task.step_order)
+            if next_step:
+                # Chain continues — find an active user with the required role
+                from app.models.user import User as UserModel
+                next_approver = db.execute(
+                    select(UserModel).where(
+                        UserModel.role == next_step["approver_role"],
+                        UserModel.is_active.is_(True),
+                        UserModel.deleted_at.is_(None),
+                    )
+                ).scalars().first()
+
+                if next_approver:
+                    create_approval_task(
+                        db=db,
+                        invoice_id=invoice.id,
+                        approver_id=next_approver.id,
+                        step_order=next_step["step_order"],
+                        due_hours=72,
+                        required_count=1,
+                    )
+                    invoice.status = "matched"  # keep in approval pipeline
+                    db.flush()
+
+                    after_snapshot = {
+                        "invoice_status": invoice.status,
+                        "task_status": task.status,
+                        "next_step_order": next_step["step_order"],
+                        "next_approver_role": next_step["approver_role"],
+                        "decision_channel": channel,
+                        "actor_id": str(actor_id) if actor_id else None,
+                    }
+                    audit_svc.log(
+                        db=db,
+                        action="approval_chain_advanced",
+                        entity_type="invoice",
+                        entity_id=invoice.id,
+                        actor_id=actor_id,
+                        before=before_snapshot,
+                        after=after_snapshot,
+                        notes=(
+                            f"Step {task.step_order} approved. Advanced to step "
+                            f"{next_step['step_order']} (role: {next_step['approver_role']}). "
+                            f"Via {channel}. Notes: {notes}"
+                        ),
+                    )
+                else:
+                    # No active user found for next role — fall back to full approval
+                    invoice.status = "approved"
+                    db.flush()
+
+                    after_snapshot = {
+                        "invoice_status": invoice.status,
+                        "task_status": task.status,
+                        "approved_count": approved_count,
+                        "required_count": task.approval_required_count,
+                        "decision_channel": channel,
+                        "actor_id": str(actor_id) if actor_id else None,
+                    }
+                    audit_svc.log(
+                        db=db,
+                        action="invoice_approved",
+                        entity_type="invoice",
+                        entity_id=invoice.id,
+                        actor_id=actor_id,
+                        before=before_snapshot,
+                        after=after_snapshot,
+                        notes=(
+                            f"Decision via {channel} channel. Notes: {notes} "
+                            f"(chain fallback: no active user with role {next_step['approver_role']})"
+                        ),
+                    )
+            else:
+                # No next step — chain complete, mark invoice approved
+                invoice.status = "approved"
+                db.flush()
+
+                after_snapshot = {
+                    "invoice_status": invoice.status,
+                    "task_status": task.status,
+                    "approved_count": approved_count,
+                    "required_count": task.approval_required_count,
+                    "decision_channel": channel,
+                    "actor_id": str(actor_id) if actor_id else None,
+                }
+                audit_svc.log(
+                    db=db,
+                    action="invoice_approved",
+                    entity_type="invoice",
+                    entity_id=invoice.id,
+                    actor_id=actor_id,
+                    before=before_snapshot,
+                    after=after_snapshot,
+                    notes=f"Decision via {channel} channel. Notes: {notes}",
+                )
 
     db.commit()
 
@@ -498,6 +574,17 @@ def build_approval_chain(db: Session, invoice) -> list[dict]:
         {"step_order": rule.step_order, "approver_role": rule.approver_role}
         for rule in rules
     ]
+
+
+# ─── Approval chain helpers ───
+
+def _get_next_approval_step(db: Session, invoice, current_step_order: int) -> "dict | None":
+    """Return the next approval step after current_step_order, or None if chain is complete."""
+    chain = build_approval_chain(db, invoice)
+    for step in chain:
+        if step["step_order"] > current_step_order:
+            return step
+    return None
 
 
 # ─── Internal helper ───
