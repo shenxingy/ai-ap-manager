@@ -516,7 +516,7 @@
   - [x] Store in MinIO under `compliance/` prefix
   - [x] Validate doc_type is in allowed set
 - [x] GET `/api/v1/vendors/{id}/compliance-docs` — list compliance docs
-- [ ] Celery beat (weekly): check expiry_dates → update status to "expired" if past expiry
+- [x] Celery beat (weekly): check expiry_dates → update status to "expired" if past expiry
 - [ ] Compliance check in approval service:
   - [ ] Before creating approval task: check if vendor has missing/expired W-9 or W-8BEN
   - [ ] If missing → create `COMPLIANCE_MISSING` exception (no blocking, but flagged)
