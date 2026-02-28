@@ -7,8 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 
 // ─── Types ───
 
@@ -41,6 +54,10 @@ interface Invoice {
   confidence_score?: number | null;
   extracted_fields?: Record<string, ExtractedField>;
   extraction_results?: ExtractionResult[];
+  payment_status?: string | null;
+  payment_date?: string | null;
+  payment_method?: string | null;
+  payment_reference?: string | null;
 }
 
 interface LineItem {
@@ -213,11 +230,86 @@ function matchTypeBadge(matchType: string): { label: string; cls: string } {
   return { label: "Non-PO", cls: "bg-gray-100 text-gray-600 border border-gray-200" };
 }
 
+// ─── Record Payment Dialog ───
+
+function RecordPaymentDialog({
+  invoiceId,
+  onSuccess,
+}: {
+  invoiceId: string;
+  onSuccess: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [method, setMethod] = React.useState("ACH");
+  const [reference, setReference] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      await api.post(`/invoices/${invoiceId}/payment`, {
+        payment_method: method,
+        payment_reference: reference || null,
+      });
+      setOpen(false);
+      onSuccess();
+    } catch {
+      // Error is shown via existing error boundary
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+          Record Payment
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Record Payment</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1">
+            <Label>Payment Method</Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACH">ACH</SelectItem>
+                <SelectItem value="Wire">Wire Transfer</SelectItem>
+                <SelectItem value="Check">Check</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Reference / Trace Number (optional)</Label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="ACH trace number or check #"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? "Recording..." : "Confirm Payment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Page ───
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   // Action bar state
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -547,6 +639,11 @@ export default function InvoiceDetailPage() {
             {invoice.total_amount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </span>
           <Badge>{invoice.status}</Badge>
+          {invoice.payment_status && (
+            <Badge variant="outline" className="border-green-400 text-green-700">
+              Paid
+            </Badge>
+          )}
           <Badge variant="outline">{fraudBadge(invoice.fraud_score)}</Badge>
           {invoice.is_duplicate && (
             <Badge variant="destructive">Duplicate</Badge>
@@ -613,6 +710,12 @@ export default function InvoiceDetailPage() {
           )}
           Download Original
         </button>
+        {invoice.status === "approved" && user?.role === "ADMIN" && (
+          <RecordPaymentDialog
+            invoiceId={invoice.id}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["invoice", id] })}
+          />
+        )}
       </div>
 
       {/* Tabs */}
