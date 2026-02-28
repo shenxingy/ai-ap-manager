@@ -970,11 +970,11 @@ committer "feat: add Record Payment dialog in invoice detail for ADMIN" \
 - [ ] Gap 1: Error leakage fix + global 500 handler
 - [ ] Gap 2: Rate limiting (slowapi)
 - [ ] Gap 3: Request ID middleware + structured logging
-- [ ] Gap 4: Sentry integration
+- [x] Gap 4: Sentry integration
 - [x] Gap 5: Payment columns migration + endpoint
 - [x] Gap 6: Performance indexes migration
 - [x] Gap 7: Production deployment config (docker-compose.prod, nginx, gunicorn)
-- [ ] Gap 8: Login audit events
+- [x] Gap 8: Login audit events
 - [x] Gap 9: Security tests
 - [x] Gap 10: Frontend payment dialog
 
