@@ -56,6 +56,17 @@ class VendorInviteResponse(BaseModel):
     vendor_id: uuid.UUID
 
 
+class VendorDisputeIn(BaseModel):
+    reason: str
+    description: str
+
+
+class VendorDisputeResponse(BaseModel):
+    status: str
+    exception_id: uuid.UUID
+    message_id: uuid.UUID
+
+
 class VendorInvoiceItem(BaseModel):
     """Minimal invoice view safe to expose to vendors."""
 
@@ -268,4 +279,65 @@ async def vendor_reply(
     return VendorReplyResponse(
         status="reply_received",
         message_id=message.id,
+    )
+
+
+@router.post(
+    "/invoices/{invoice_id}/dispute",
+    response_model=VendorDisputeResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Vendor submits a formal dispute for an invoice",
+)
+async def submit_vendor_dispute(
+    invoice_id: uuid.UUID,
+    body: VendorDisputeIn,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    vendor_id: Annotated[uuid.UUID, Depends(get_current_vendor_id)],
+):
+    """Create an ExceptionRecord (VENDOR_DISPUTE) and a VendorMessage for the dispute.
+
+    Only the owning vendor may dispute their own invoice.
+    """
+    from app.models.exception_record import ExceptionRecord
+
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.id == invoice_id,
+            Invoice.vendor_id == vendor_id,
+            Invoice.deleted_at.is_(None),
+        )
+    )
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
+
+    exc = ExceptionRecord(
+        invoice_id=invoice_id,
+        exception_code="VENDOR_DISPUTE",
+        description=f"Vendor dispute: {body.reason} — {body.description}",
+        severity="medium",
+        status="open",
+    )
+    msg = VendorMessage(
+        invoice_id=invoice_id,
+        sender_id=None,
+        sender_email=None,
+        direction="inbound",
+        body=f"[DISPUTE] {body.reason}: {body.description}",
+        is_internal=False,
+        attachments=[],
+    )
+
+    db.add(exc)
+    db.add(msg)
+    await db.commit()
+    await db.refresh(exc)
+    await db.refresh(msg)
+
+    logger.info("Vendor dispute submitted for invoice %s (exception_id=%s)", invoice_id, exc.id)
+
+    return VendorDisputeResponse(
+        status="dispute_submitted",
+        exception_id=exc.id,
+        message_id=msg.id,
     )
