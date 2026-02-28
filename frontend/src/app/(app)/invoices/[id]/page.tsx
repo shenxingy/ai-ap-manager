@@ -1181,6 +1181,7 @@ export default function InvoiceDetailPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Assignee</TableHead>
+                    <TableHead>Step</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Assigned At</TableHead>
                     <TableHead>Decided At</TableHead>
@@ -1191,6 +1192,11 @@ export default function InvoiceDetailPage() {
                   {approvals.map((task) => (
                     <TableRow key={task.id}>
                       <TableCell>{task.assignee_name}</TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {task.chain_step && task.chain_total
+                          ? `${task.chain_step}/${task.chain_total}`
+                          : "—"}
+                      </TableCell>
                       <TableCell>
                         <Badge>{task.status}</Badge>
                       </TableCell>
@@ -1205,7 +1211,7 @@ export default function InvoiceDetailPage() {
                   ))}
                   {approvals.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-gray-400 py-6">
+                      <TableCell colSpan={6} className="text-center text-gray-400 py-6">
                         No approval tasks.
                       </TableCell>
                     </TableRow>
