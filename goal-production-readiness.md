@@ -975,7 +975,7 @@ committer "feat: add Record Payment dialog in invoice detail for ADMIN" \
 - [x] Gap 6: Performance indexes migration
 - [ ] Gap 7: Production deployment config (docker-compose.prod, nginx, gunicorn)
 - [ ] Gap 8: Login audit events
-- [ ] Gap 9: Security tests
-- [ ] Gap 10: Frontend payment dialog
+- [x] Gap 9: Security tests
+- [x] Gap 10: Frontend payment dialog
 
 STATUS: NOT CONVERGED
