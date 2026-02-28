@@ -109,3 +109,56 @@ def check_sla_alerts():
     except Exception as exc:
         logger.exception("check_sla_alerts failed: %s", exc)
         return {"status": "error", "error": str(exc)}
+
+
+@celery_app.task(name="app.workers.sla_tasks.expire_compliance_docs")
+def expire_compliance_docs():
+    """Expire vendor compliance documents past their expiry_date.
+
+    Runs weekly on Monday at 1 AM UTC. For each vendor compliance doc with:
+    - expiry_date < today AND
+    - status IN ("approved", "active")
+
+    Set status = "expired" and commit.
+    """
+    logger.info("expire_compliance_docs: starting weekly compliance doc expiry check")
+    try:
+        from sqlalchemy import create_engine, select
+        from sqlalchemy.orm import sessionmaker
+        from app.core.config import settings
+        from app.models.vendor import VendorComplianceDoc
+
+        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+        today = date.today()
+        stats = {"expired": 0}
+
+        with Session() as db:
+            # Load docs that are past expiry and in active/approved status
+            docs = db.execute(
+                select(VendorComplianceDoc).where(
+                    VendorComplianceDoc.expiry_date < today,
+                    VendorComplianceDoc.status.in_(["approved", "active"]),
+                )
+            ).scalars().all()
+
+            for doc in docs:
+                doc.status = "expired"
+                stats["expired"] += 1
+                logger.info(
+                    "Expired compliance doc %s for vendor %s (was %s)",
+                    doc.id, doc.vendor_id, "approved" if doc.status == "approved" else "active",
+                )
+
+            db.commit()
+
+        logger.info(
+            "expire_compliance_docs: complete — expired=%d docs",
+            stats["expired"],
+        )
+        return stats
+
+    except Exception as exc:
+        logger.exception("expire_compliance_docs failed: %s", exc)
+        return {"status": "error", "error": str(exc)}
