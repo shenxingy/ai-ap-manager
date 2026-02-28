@@ -327,14 +327,51 @@ async def get_invoice_audit(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
 ):
+    import json as _json
     from app.models.audit import AuditLog
+    from app.schemas.invoice import AuditLogOut
+
+    # Real audit log entries
     stmt = (
         select(AuditLog)
         .where(AuditLog.entity_type == "invoice", AuditLog.entity_id == invoice_id)
         .order_by(AuditLog.created_at.asc())
     )
-    logs = (await db.execute(stmt)).scalars().all()
-    return logs
+    logs = list((await db.execute(stmt)).scalars().all())
+
+    # Synthetic entries for vendor messages
+    msg_stmt = (
+        select(VendorMessage)
+        .where(VendorMessage.invoice_id == invoice_id)
+        .order_by(VendorMessage.created_at.asc())
+    )
+    messages = list((await db.execute(msg_stmt)).scalars().all())
+
+    synthetic = []
+    for msg in messages:
+        action = "vendor_message_sent" if msg.direction == "outbound" else "vendor_message_received"
+        after_payload = _json.dumps({
+            "direction": msg.direction,
+            "is_internal": msg.is_internal,
+            "body_preview": (msg.body or "")[:200],
+        })
+        synthetic.append(AuditLogOut(
+            id=msg.id,
+            action=action,
+            actor_id=msg.sender_id,
+            actor_email=msg.sender_email,
+            entity_type="invoice",
+            entity_id=invoice_id,
+            before_state=None,
+            after_state=after_payload,
+            notes=f"[{'Internal' if msg.is_internal else 'Vendor-facing'}] {(msg.body or '')[:100]}",
+            created_at=msg.created_at,
+        ))
+
+    # Merge and sort by created_at
+    combined = [AuditLogOut.model_validate(log) for log in logs] + synthetic
+    combined.sort(key=lambda e: e.created_at)
+    return combined
 
 
 # ─── Field correction endpoint ───
