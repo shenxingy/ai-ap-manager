@@ -246,6 +246,7 @@ export default function InvoicesPage() {
                     <Badge variant={STATUS_VARIANTS[inv.status] ?? "outline"}>
                       {inv.status}
                     </Badge>
+                    {inv.is_recurring && <Badge className="bg-blue-100 text-blue-700 ml-1">Recurring</Badge>}
                   </TableCell>
                   <TableCell>
                     <span title={inv.fraud_score != null ? `Fraud score: ${inv.fraud_score}%` : "No fraud data"}>{fraudBadge(inv.fraud_score)}</span>
