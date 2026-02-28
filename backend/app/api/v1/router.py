@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import admin, auth, invoices, match, exceptions, approvals, kpi, users, vendors
 from app.api.v1 import fraud_incidents, recurring_patterns, analytics, import_routes, portal
 from app.api.v1 import approval_matrix as am_module
-from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai
+from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai, audit
 
 api_router = APIRouter()
 
@@ -27,3 +27,4 @@ api_router.include_router(rules.router, prefix="/rules", tags=["rules"])
 api_router.include_router(override_logs.router, prefix="/admin", tags=["admin"])
 api_router.include_router(rule_recommendations.router, prefix="/admin", tags=["admin"])
 api_router.include_router(ask_ai.router, prefix="/ask-ai", tags=["ask-ai"])
+api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
