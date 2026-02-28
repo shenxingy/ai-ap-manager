@@ -162,3 +162,76 @@ def expire_compliance_docs():
     except Exception as exc:
         logger.exception("expire_compliance_docs failed: %s", exc)
         return {"status": "error", "error": str(exc)}
+
+
+@celery_app.task(name="app.workers.sla_tasks.escalate_overdue_approvals")
+def escalate_overdue_approvals():
+    """Escalate pending approval tasks that are past their due_at to first ADMIN user.
+
+    Runs daily at 9:30 AM UTC. For each ApprovalTask with:
+    - status == "pending" AND
+    - due_at < now
+
+    Reassign the task's approver_id to the first ADMIN user (if not already).
+    """
+    logger.info("escalate_overdue_approvals: starting daily approval escalation")
+    try:
+        from sqlalchemy import create_engine, select
+        from sqlalchemy.orm import sessionmaker
+        from app.core.config import settings
+        from app.models.approval import ApprovalTask
+        from app.models.user import User
+
+        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+        now = datetime.now(timezone.utc)
+        stats = {"escalated": 0, "already_admin": 0, "no_admin_found": 0}
+
+        with Session() as db:
+            # Find first ADMIN user
+            admin_user = db.execute(
+                select(User).where(User.role == "ADMIN", User.deleted_at.is_(None))
+            ).scalars().first()
+
+            if not admin_user:
+                stats["no_admin_found"] = 1
+                logger.warning("escalate_overdue_approvals: No ADMIN user found to escalate to")
+                return stats
+
+            # Load pending approval tasks past their due_at
+            tasks = db.execute(
+                select(ApprovalTask).where(
+                    ApprovalTask.status == "pending",
+                    ApprovalTask.due_at.isnot(None),
+                    ApprovalTask.due_at < now,
+                )
+            ).scalars().all()
+
+            for task in tasks:
+                if task.approver_id == admin_user.id:
+                    stats["already_admin"] += 1
+                    logger.info(
+                        "Approval task %s (invoice %s) already assigned to ADMIN",
+                        task.id, task.invoice_id,
+                    )
+                else:
+                    task.approver_id = admin_user.id
+                    stats["escalated"] += 1
+                    logger.info(
+                        "Escalated approval task %s (invoice %s) to ADMIN user %s",
+                        task.id, task.invoice_id, admin_user.email,
+                    )
+
+            db.flush()
+            db.commit()
+
+        logger.info(
+            "escalate_overdue_approvals: complete — escalated=%d, already_admin=%d",
+            stats["escalated"], stats["already_admin"],
+        )
+        return stats
+
+    except Exception as exc:
+        logger.exception("escalate_overdue_approvals failed: %s", exc)
+        return {"status": "error", "error": str(exc)}
