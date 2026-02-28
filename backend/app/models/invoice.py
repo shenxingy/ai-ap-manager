@@ -34,6 +34,10 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     invoice_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     payment_terms: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    payment_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payment_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payment_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payment_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     vendor_name_raw: Mapped[str | None] = mapped_column(String(255), nullable=True)  # extracted text before vendor lookup
     vendor_address_raw: Mapped[str | None] = mapped_column(Text, nullable=True)
     remit_to: Mapped[str | None] = mapped_column(Text, nullable=True)
