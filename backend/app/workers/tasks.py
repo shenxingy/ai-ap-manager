@@ -289,6 +289,12 @@ def process_invoice(self, invoice_id: str) -> dict:
         except Exception as fraud_exc:
             logger.warning("Fraud scoring failed for invoice %s: %s", invoice_id, fraud_exc)
 
+        # ── Step: Recurring invoice detection ──
+        try:
+            _check_recurring_pattern(db, invoice)
+        except Exception as exc:
+            logger.warning("Recurring check failed for invoice %s: %s", invoice_id, exc)
+
         # 8. Run 2-way match (only if extraction succeeded)
         if final_status == "extracted":
             try:
@@ -341,6 +347,58 @@ def run_ocr(self, invoice_id: str, storage_path: str) -> dict:
     """Extract text from invoice file using Tesseract."""
     logger.info("run_ocr for invoice %s", invoice_id)
     return {"invoice_id": invoice_id, "status": "delegated_to_process_invoice"}
+
+
+# ─── Recurring invoice check (called inline during processing) ───
+
+def _check_recurring_pattern(db, invoice) -> None:
+    """Tag invoice as recurring if it matches a known vendor pattern.
+
+    Compares invoice total against RecurringInvoicePattern.avg_amount within
+    tolerance_pct. On match: sets is_recurring=True, recurring_pattern_id.
+    If auto_fast_track: creates approval task and advances status to 'matched'.
+    """
+    from sqlalchemy import select
+    from app.models.recurring_pattern import RecurringInvoicePattern
+
+    if invoice.vendor_id is None or invoice.total_amount is None:
+        return
+
+    pattern = db.execute(
+        select(RecurringInvoicePattern).where(
+            RecurringInvoicePattern.vendor_id == invoice.vendor_id
+        )
+    ).scalars().first()
+
+    if pattern is None:
+        return
+
+    avg = float(pattern.avg_amount)
+    if avg == 0:
+        return
+
+    inv_total = float(invoice.total_amount)
+    deviation = abs(inv_total - avg) / avg
+
+    if deviation > float(pattern.tolerance_pct):
+        return
+
+    # Match — tag as recurring
+    invoice.is_recurring = True
+    invoice.recurring_pattern_id = pattern.id
+    db.flush()
+
+    logger.info(
+        "Invoice %s tagged as recurring (vendor=%s deviation=%.2f%%)",
+        invoice.id, invoice.vendor_id, deviation * 100,
+    )
+
+    if pattern.auto_fast_track:
+        from app.services.approval import auto_create_approval_task
+        auto_create_approval_task(db, invoice.id)
+        invoice.status = "matched"
+        db.flush()
+        logger.info("Invoice %s fast-tracked via recurring pattern", invoice.id)
 
 
 # ─── Recurring pattern detection ───
