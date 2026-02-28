@@ -12,7 +12,7 @@ Tests: `docker exec ai-ap-manager-backend-1 python -m pytest tests/ -x -q`
 
 ---
 
-## Gap 1: Delete User Endpoint (Backend)
+## Gap 1: Delete User Endpoint (Backend) ✅ DONE
 
 **Problem**: `backend/app/api/v1/admin.py` has `GET /admin/users`, `POST /admin/users`,
 `PATCH /admin/users/{id}` but NO delete endpoint. The admin users page can't deactivate users.
