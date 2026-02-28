@@ -326,6 +326,6 @@ Use TestClient for portal endpoint tests.
 - [ ] Gap 3: Approval delegation wiring (backend/app/services/approval.py)
 - [x] Gap 4: Invoice source badge frontend (frontend/src/app/(app)/invoices/page.tsx)
 - [x] Gap 5: Approval chain step timeline (frontend/src/app/(app)/invoices/[id]/page.tsx)
-- [ ] Gap 6: Tests for portal and delegation (backend/tests/test_portal_and_delegation.py)
+- [x] Gap 6: Tests for portal and delegation (backend/tests/test_portal_and_delegation.py)
 
 STATUS: NOT CONVERGED
