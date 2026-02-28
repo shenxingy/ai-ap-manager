@@ -973,7 +973,7 @@ committer "feat: add Record Payment dialog in invoice detail for ADMIN" \
 - [ ] Gap 4: Sentry integration
 - [x] Gap 5: Payment columns migration + endpoint
 - [x] Gap 6: Performance indexes migration
-- [ ] Gap 7: Production deployment config (docker-compose.prod, nginx, gunicorn)
+- [x] Gap 7: Production deployment config (docker-compose.prod, nginx, gunicorn)
 - [ ] Gap 8: Login audit events
 - [ ] Gap 9: Security tests
 - [ ] Gap 10: Frontend payment dialog
