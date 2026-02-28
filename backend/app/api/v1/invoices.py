@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.deps import get_current_user, require_role
+from app.core.limiter import limiter
 from app.db.session import get_session
 from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult
 from app.models.approval import VendorMessage
@@ -83,6 +84,7 @@ class GLCodingResponse(BaseModel):
 
 # ─── Upload endpoint ───
 
+@limiter.limit("30/minute")
 @router.post(
     "/upload",
     response_model=InvoiceUploadResponse,
@@ -90,6 +92,7 @@ class GLCodingResponse(BaseModel):
     summary="Upload an invoice PDF or image",
 )
 async def upload_invoice(
+    request: Request,
     file: Annotated[UploadFile, File(description="PDF or image (JPEG/PNG), max 20 MB")],
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN"))],
