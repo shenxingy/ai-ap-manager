@@ -3,12 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { InboxIcon } from "lucide-react";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -39,6 +42,13 @@ interface KpiTrendPoint {
   date: string;
   touchless_rate: number;
   exception_rate: number;
+}
+
+interface CashFlowForecastPoint {
+  week_start: string;
+  expected_outflow: number;
+  invoice_count: number;
+  confidence: number;
 }
 
 // ─── KPI Card ───
@@ -125,6 +135,12 @@ export default function DashboardPage() {
     queryKey: ["kpi-sla-summary"],
     queryFn: () => api.get("/kpi/sla-summary").then((r) => r.data),
     refetchInterval: 5 * 60 * 1000,
+  });
+
+  const { data: cashFlowForecast = [] } = useQuery<CashFlowForecastPoint[]>({
+    queryKey: ["kpi-cash-flow-forecast"],
+    queryFn: () => api.get("/kpi/cash-flow-forecast").then((r) => r.data),
+    refetchInterval: 15 * 60 * 1000,
   });
 
   const isLoading = summaryLoading || summaryFetching || trendsLoading || trendsFetching;
@@ -288,6 +304,63 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Cash Flow Forecast */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Cash Flow Forecast — Next 12 Weeks</CardTitle>
+            <CardDescription className="text-sm text-gray-500 mt-1">
+              Expected AP outflows from pending invoices
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002"}/api/v1/kpi/cash-flow-export`}
+              download
+            >
+              Export CSV
+            </a>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={cashFlowForecast} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="week_start"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v: string) => {
+                  const d = new Date(v);
+                  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                }}
+              />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v: number) =>
+                  v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
+                }
+              />
+              <Tooltip
+                formatter={(v: number | undefined) => [`$${(v ?? 0).toLocaleString()}`, "Expected Outflow"]}
+                labelFormatter={(label) => {
+                  const d = new Date(String(label));
+                  return `Week of ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+                }}
+              />
+              <Bar dataKey="expected_outflow" name="Expected Outflow" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          {cashFlowForecast.length > 0 && (
+            <p className="text-sm text-gray-500 mt-2 text-right">
+              Total expected outflow:{" "}
+              <span className="font-semibold text-gray-800">
+                ${cashFlowForecast.reduce((sum, w) => sum + w.expected_outflow, 0).toLocaleString()}
+              </span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
