@@ -2,16 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
 import { Sidebar } from "./Sidebar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, X } from "lucide-react";
+import { Bell, LogOut, Menu, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { token, user, setAuth, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ["pending-approvals-count"],
+    queryFn: () =>
+      api
+        .get("/approvals?status=pending&page_size=1")
+        .then((r) => r.data.total ?? 0),
+    refetchInterval: 30000,
+    enabled: !!(token && user),
+  });
 
   // Auth guard
   useEffect(() => {
@@ -78,6 +90,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="text-sm text-gray-600">
                 {user.name} <span className="text-gray-400">({user.role})</span>
               </span>
+            )}
+            {token && user && (
+              <Link href="/approvals">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                      {pendingCount > 9 ? "9+" : pendingCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
             )}
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-1" />
