@@ -1,10 +1,13 @@
 """KPI Dashboard API endpoints."""
+import csv
+import io
 import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select, not_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 PENDING_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched"}
+FORECAST_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched", "exception"}
 
 
 @router.get("/summary", response_model=KPISummary, summary="KPI summary for the last N days")
@@ -184,3 +188,109 @@ async def get_kpi_trends(
         ))
 
     return KPITrends(period=period, points=points)
+
+
+@router.get("/cash-flow-forecast", summary="12-week cash flow forecast from pending invoices")
+async def get_cash_flow_forecast(
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    current_user=Depends(require_role("AP_ANALYST", "ADMIN", "AUDITOR")),
+):
+    """Return 12 weeks of expected outflows bucketed by payment week.
+
+    Payment date = due_date (confirmed, confidence=0.9) or invoice_date+30 days
+    (estimated, confidence=0.5). Invoices with no date fall in the current week
+    (confidence=0.3).
+    """
+    now = datetime.now(timezone.utc)
+    # Monday of current week (as date for simple arithmetic)
+    today = now.date()
+    week_start_0 = today - timedelta(days=today.weekday())
+
+    invoices = (await db.execute(
+        select(Invoice).where(
+            Invoice.deleted_at.is_(None),
+            Invoice.status.in_(FORECAST_STATUSES),
+            Invoice.total_amount.isnot(None),
+        )
+    )).scalars().all()
+
+    # Initialise 12 weekly buckets
+    buckets = {}
+    for i in range(12):
+        ws = week_start_0 + timedelta(weeks=i)
+        buckets[ws] = {"expected_outflow": 0.0, "invoice_count": 0, "conf_sum": 0.0}
+
+    for inv in invoices:
+        if inv.due_date is not None:
+            raw = inv.due_date
+            pay_date = raw.date() if hasattr(raw, "date") else raw
+            confidence = 0.9
+        elif inv.invoice_date is not None:
+            raw = inv.invoice_date
+            base = raw.date() if hasattr(raw, "date") else raw
+            pay_date = base + timedelta(days=30)
+            confidence = 0.5
+        else:
+            pay_date = today
+            confidence = 0.3
+
+        # Week start (Monday) for this payment date
+        ws = pay_date - timedelta(days=pay_date.weekday())
+
+        if ws in buckets:
+            buckets[ws]["expected_outflow"] += float(inv.total_amount)
+            buckets[ws]["invoice_count"] += 1
+            buckets[ws]["conf_sum"] += confidence
+
+    result = []
+    for i in range(12):
+        ws = week_start_0 + timedelta(weeks=i)
+        b = buckets[ws]
+        avg_conf = b["conf_sum"] / b["invoice_count"] if b["invoice_count"] > 0 else 0.0
+        result.append({
+            "week_start": ws.isoformat(),
+            "expected_outflow": round(b["expected_outflow"], 2),
+            "invoice_count": b["invoice_count"],
+            "confidence": round(avg_conf, 2),
+        })
+
+    return result
+
+
+@router.get("/cash-flow-export", summary="Cash flow forecast exported as CSV")
+async def get_cash_flow_export(
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    current_user=Depends(require_role("AP_ANALYST", "ADMIN", "AUDITOR")),
+):
+    """Stream pending invoices as CSV for treasury/cash-flow planning."""
+    invoices = (await db.execute(
+        select(Invoice).where(
+            Invoice.deleted_at.is_(None),
+            Invoice.status.in_(FORECAST_STATUSES),
+        )
+    )).scalars().all()
+
+    def _generate():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow([
+            "invoice_number", "vendor", "amount", "currency",
+            "status", "due_date", "invoice_date",
+        ])
+        for inv in invoices:
+            writer.writerow([
+                inv.invoice_number or "",
+                inv.vendor_name_raw or "",
+                str(inv.total_amount) if inv.total_amount is not None else "",
+                inv.currency or "",
+                inv.status or "",
+                inv.due_date.date().isoformat() if inv.due_date else "",
+                inv.invoice_date.date().isoformat() if inv.invoice_date else "",
+            ])
+        yield buf.getvalue()
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=cash-flow-forecast.csv"},
+    )
