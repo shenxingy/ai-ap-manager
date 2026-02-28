@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, LogOut, Menu, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { AskAiPanel } from "@/components/AskAiPanel";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -103,6 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Button>
               </Link>
             )}
+            <AskAiPanel />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-1" />
               Logout

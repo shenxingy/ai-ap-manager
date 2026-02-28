@@ -22,6 +22,7 @@ interface ApprovalTask {
   total_amount: number | null;
   status: string;
   approval_required_count?: number;
+  step_order?: number;
   assigned_at: string;
   created_at: string;
   decided_at: string | null;
@@ -450,6 +451,7 @@ export default function ApprovalsPage() {
                   <TableHead>Invoice</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Step</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Assigned At</TableHead>
                   <TableHead>Actions</TableHead>
@@ -458,7 +460,7 @@ export default function ApprovalsPage() {
               <TableBody>
                 {tasks.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-400 py-8">
+                    <TableCell colSpan={8} className="text-center text-gray-400 py-8">
                       No pending approvals.
                     </TableCell>
                   </TableRow>
@@ -486,6 +488,9 @@ export default function ApprovalsPage() {
                       {task.total_amount != null
                         ? `$${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                         : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {task.step_order != null ? `Step ${task.step_order}` : "—"}
                     </TableCell>
                     <TableCell>
                       {task.status === "partially_approved" ? (
