@@ -5,7 +5,7 @@ Celery tasks (which cannot use async sessions).
 """
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from app.services import audit as audit_svc
 
 from app.models.exception_record import ExceptionRecord
 from app.models.vendor import VendorComplianceDoc
+from app.models.approval_matrix import UserDelegation
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,22 @@ def create_approval_task(
             db.add(exc)
             db.flush()
 
+    # ─── Check for active delegation ───
+    today = date.today()
+    stmt = select(UserDelegation).where(
+        UserDelegation.delegator_id == approver_id,
+        UserDelegation.is_active.is_(True),
+        UserDelegation.valid_from <= today,
+    )
+    delegation_result = db.execute(stmt).scalars().first()
+    # Handle valid_until=None (no end date = indefinite)
+    if delegation_result is not None and (delegation_result.valid_until is None or delegation_result.valid_until >= today):
+        original_approver_id = approver_id
+        approver_id = delegation_result.delegate_id
+        delegated_to_id = original_approver_id
+    else:
+        delegated_to_id = None
+
     # Create the approval task
     task = ApprovalTask(
         invoice_id=invoice_id,
@@ -85,6 +102,7 @@ def create_approval_task(
         approval_required_count=required_count,
         status="pending",
         due_at=expires_at,
+        delegated_to=delegated_to_id,
     )
     db.add(task)
     db.flush()  # get task.id before creating tokens
