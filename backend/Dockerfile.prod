@@ -1,13 +1,32 @@
 FROM python:3.11-slim AS builder
+
+# System deps for building: tesseract for OCR, poppler for pdf2image, libpq for psycopg2, gcc for C extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    poppler-utils \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.11-slim
+
+# Runtime deps: tesseract for OCR, poppler for pdf2image
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 COPY . .
 ENV PATH=/root/.local/bin:$PATH
+
+# Create non-root user for security
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
