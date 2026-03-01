@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.recurring_pattern import RecurringInvoicePattern
+from app.models.vendor import Vendor
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ router = APIRouter()
 class RecurringPatternOut(BaseModel):
     id: uuid.UUID
     vendor_id: uuid.UUID
+    vendor_name: str | None
     frequency_days: int
     avg_amount: float
     tolerance_pct: float
@@ -61,15 +63,20 @@ async def list_recurring_patterns(
     # Get total count
     total = await db.scalar(select(func.count()).select_from(RecurringInvoicePattern)) or 0
 
-    # Get paginated results
+    # Get paginated results with vendor name via join
     stmt = (
-        select(RecurringInvoicePattern)
+        select(RecurringInvoicePattern, Vendor.name.label("vendor_name"))
+        .outerjoin(Vendor, RecurringInvoicePattern.vendor_id == Vendor.id)
         .order_by(RecurringInvoicePattern.created_at.desc())
         .offset(skip)
         .limit(limit)
     )
     result = await db.execute(stmt)
-    items = [RecurringPatternOut.model_validate(row) for row in result.scalars().all()]
+    items = []
+    for pattern, vendor_name in result.all():
+        data = RecurringPatternOut.model_validate(pattern)
+        data.vendor_name = vendor_name
+        items.append(data)
 
     return RecurringPatternListResponse(items=items, total=total)
 
@@ -119,24 +126,28 @@ async def update_recurring_pattern(
 )
 async def trigger_detect_recurring_patterns(
     current_user: Annotated[User, Depends(require_role("ADMIN"))],
+    vendor_id: uuid.UUID | None = Query(default=None, description="Limit detection to a single vendor"),
 ):
-    """Enqueue the detect_recurring_patterns Celery task.
+    """Enqueue the detect_recurring_patterns Celery task, optionally scoped to one vendor.
     Falls back to synchronous inline execution if Celery is unavailable.
     """
+    kwargs = {}
+    if vendor_id is not None:
+        kwargs["vendor_id"] = str(vendor_id)
+
     try:
         from app.workers.tasks import detect_recurring_patterns
-        task = detect_recurring_patterns.delay()
+        task = detect_recurring_patterns.apply_async(kwargs=kwargs)
         return {"status": "queued", "task_id": str(task.id)}
     except Exception as exc:
         logger.warning("Celery unavailable, running inline: %s", exc)
-        # Inline fallback — import and run directly (no retry logic)
         try:
             from app.workers.tasks import detect_recurring_patterns
-            result = detect_recurring_patterns()
+            result = detect_recurring_patterns(**kwargs)
             return {"status": "completed_inline", "result": result}
         except Exception as inline_exc:
             logger.exception("Inline detect_recurring_patterns failed: %s", inline_exc)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Pattern detection failed: {inline_exc}",
+                detail="Pattern detection failed",
             )

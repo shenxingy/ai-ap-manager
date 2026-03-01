@@ -404,7 +404,7 @@ def _check_recurring_pattern(db, invoice) -> None:
 # ─── Recurring pattern detection ───
 
 @celery_app.task(bind=True, name="app.workers.tasks.detect_recurring_patterns", max_retries=2)
-def detect_recurring_patterns(self) -> dict:
+def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
     """Detect recurring invoice patterns per vendor and upsert RecurringInvoicePattern rows.
 
     Algorithm:
@@ -412,6 +412,9 @@ def detect_recurring_patterns(self) -> dict:
     2. Sort by invoice_date; compute day intervals between consecutive invoices
     3. If intervals cluster near {7, 14, 30, 60, 90} days (±20%), record as recurring
     4. Compute avg_amount; upsert RecurringInvoicePattern
+
+    Args:
+        vendor_id: Optional UUID string — limit detection to a single vendor.
     """
     from datetime import date, timedelta as td
     from decimal import Decimal
@@ -420,7 +423,7 @@ def detect_recurring_patterns(self) -> dict:
     from app.models.vendor import Vendor
     from app.models.recurring_pattern import RecurringInvoicePattern
 
-    logger.info("detect_recurring_patterns started")
+    logger.info("detect_recurring_patterns started vendor_id=%s", vendor_id)
     db = _get_sync_session()
 
     CANDIDATE_FREQUENCIES = [7, 14, 30, 60, 90]
@@ -434,10 +437,12 @@ def detect_recurring_patterns(self) -> dict:
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
 
-        # Get all vendors with enough approved invoices in the window
-        vendors_result = db.execute(
-            select(Vendor.id).where(Vendor.deleted_at.is_(None))
-        ).scalars().all()
+        # Get vendors to scan — optionally scoped to a single vendor
+        vendor_stmt = select(Vendor.id).where(Vendor.deleted_at.is_(None))
+        if vendor_id is not None:
+            import uuid as _uuid
+            vendor_stmt = vendor_stmt.where(Vendor.id == _uuid.UUID(vendor_id))
+        vendors_result = db.execute(vendor_stmt).scalars().all()
 
         for vendor_id in vendors_result:
             invoices = db.execute(
