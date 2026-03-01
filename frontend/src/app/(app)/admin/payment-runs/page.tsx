@@ -44,7 +44,7 @@ import api from "@/lib/api";
 
 interface PaymentRun {
   id: string;
-  run_name: string;
+  name: string;
   vendor_name: string | null;
   scheduled_date: string;
   invoice_count: number;
@@ -62,10 +62,10 @@ interface PaymentRunDetail extends PaymentRun {
 
 interface RunInvoice {
   id: string;
-  invoice_number: string;
-  vendor_name: string;
-  amount: number;
-  currency: string;
+  invoice_number: string | null;
+  vendor_name: string | null;
+  total_amount: number | null;
+  currency: string | null;
 }
 
 interface PaymentRunListResponse {
@@ -267,7 +267,7 @@ function ExecuteDialog({ run, onClose, onSuccess, onError }: ExecuteDialogProps)
         {run && (
           <div className="py-2 space-y-2">
             <p className="text-sm text-gray-600">
-              Are you sure you want to execute <strong>{run.run_name}</strong>?
+              Are you sure you want to execute <strong>{run.name}</strong>?
             </p>
             <p className="text-sm text-gray-500">
               This will process{" "}
@@ -317,7 +317,7 @@ function RunDetailSheet({ runId, onClose }: RunDetailSheetProps) {
     <Sheet open={!!runId} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>{data?.run_name ?? "Payment Run Detail"}</SheetTitle>
+          <SheetTitle>{data?.name ?? "Payment Run Detail"}</SheetTitle>
         </SheetHeader>
         {isLoading && (
           <p className="text-sm text-gray-400 mt-6">Loading…</p>
@@ -367,12 +367,14 @@ function RunDetailSheet({ runId, onClose }: RunDetailSheetProps) {
                 {(data.invoices ?? []).map((inv) => (
                   <div key={inv.id} className="px-3 py-2 text-sm flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{inv.invoice_number}</p>
-                      <p className="text-gray-500 text-xs">{inv.vendor_name}</p>
+                      <p className="font-medium">{inv.invoice_number ?? "—"}</p>
+                      {inv.vendor_name && (
+                        <p className="text-gray-500 text-xs">{inv.vendor_name}</p>
+                      )}
                     </div>
                     <p className="font-medium tabular-nums">
-                      {inv.currency}{" "}
-                      {inv.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {inv.currency ?? ""}{" "}
+                      {(inv.total_amount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 ))}
@@ -464,7 +466,7 @@ export default function PaymentRunsPage() {
               )}
               {runs.map((run) => (
                 <TableRow key={run.id}>
-                  <TableCell className="font-medium">{run.run_name}</TableCell>
+                  <TableCell className="font-medium">{run.name}</TableCell>
                   <TableCell className="text-gray-600">
                     {run.vendor_name ?? "—"}
                   </TableCell>
