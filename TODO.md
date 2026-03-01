@@ -840,7 +840,7 @@
 #### Frontend
 - [ ] Invoice list: show currency flag/code next to amount
 - [ ] KPI dashboard: "All amounts shown in USD (base currency)" note
-- [ ] Invoice detail: "Original: €5,200 — Normalized: $5,618 (rate: 1.0804 on 2026-02-26)"
+- [x] Invoice detail: show normalized USD amount when currency ≠ USD (rate + date shown)
 
 ---
 
@@ -888,7 +888,7 @@
 - [x] Approvals page: fully responsive (stacked cards on mobile < 768px)
 - [x] Invoice detail: horizontal scroll for tables on mobile
 - [x] PWA manifest (`manifest.json`) for "Add to Home Screen" on iOS/Android
-- [x] Service worker: cache API responses for offline viewing
+- [ ] Service worker: cache API responses for offline viewing
 
 ---
 
@@ -1025,20 +1025,19 @@
 - [x] High-risk vendor → auto-create "VENDOR_RISK" flag on future invoices
 
 ### Compliance & Retention
-- [ ] GDPR/data retention:
-  - [ ] Celery beat (monthly): find invoices created > 7 years ago
-  - [ ] Archive to cold storage (MinIO `archive/` bucket)
-  - [ ] Soft-delete from active DB (already supported via deleted_at)
-  - [ ] Configurable retention period per data category
-- [ ] Audit log export:
-  - [ ] GET `/api/v1/audit/export` → downloads full audit log as CSV or JSON (AUDITOR role)
-  - [ ] Date range filter
-  - [ ] Signed URL for large exports
+- [x] GDPR/data retention:
+  - [x] Celery beat (monthly): soft-delete invoices older than RETENTION_DAYS_INVOICES (default 7yr)
+  - [x] Hard-delete audit logs older than RETENTION_DAYS_AUDIT_LOGS (default 1yr)
+  - [x] Configurable via RETENTION_DAYS_INVOICES, RETENTION_DAYS_AUDIT_LOGS env vars
+  - [ ] Archive to cold storage (MinIO `archive/` bucket) — deferred to P3
+- [x] Audit log export:
+  - [x] GET `/api/v1/audit/export` → downloads full audit log as CSV (AUDITOR role)
+  - [ ] Date range filter + signed URL for large exports — deferred to P3
 
 ### Multi-Entity Support
 - [x] `entities` table: legal entity name, tax_id, currency, contact info
 - [x] All invoices, POs, vendors scoped by entity_id
-- [x] Cross-entity consolidated KPI reporting (ADMIN)
+- [ ] Cross-entity consolidated KPI reporting (ADMIN) — entity filter in KPI queries not yet wired
 - [x] Entity selector in frontend header
 
 ### Testing Infrastructure
