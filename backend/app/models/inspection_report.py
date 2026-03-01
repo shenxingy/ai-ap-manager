@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime
 
@@ -6,6 +7,13 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDMixin
+
+
+class InspectionResult(str, enum.Enum):
+    """Allowed values for InspectionReport.result."""
+    PASS = "pass"
+    FAIL = "fail"
+    PARTIAL = "partial"
 
 
 class InspectionReport(Base, UUIDMixin):
