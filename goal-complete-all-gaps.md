@@ -270,7 +270,7 @@ cd frontend && npm run build
 - [x] GAP-3: Multi-currency FX support
 - [x] GAP-11: Vendor risk scoring
 - [x] GAP-10: GDPR data retention
-- [ ] GAP-2: ERP CSV connectors (SAP + Oracle)
+- [x] GAP-2: ERP CSV connectors (SAP + Oracle)
 - [x] GAP-5: KPI benchmark comparison
 - [ ] GAP-6: 4-way match (inspection reports)
 - [x] GAP-7: GL coding ML classifier
