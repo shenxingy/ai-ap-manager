@@ -1065,10 +1065,10 @@
   - [x] ~~[OUT OF SCOPE — needs external infra]~~ Celery: 50 simultaneous processing tasks
 
 ### DevOps & Observability
-- [ ] Production Dockerfile:
-  - [ ] Multi-stage build (builder + runtime)
-  - [ ] Non-root user (UID 1001)
-  - [ ] Minimal image (python:3.11-slim)
+- [x] Production Dockerfile:
+  - [x] Multi-stage build (builder + runtime)
+  - [x] Non-root user (UID 1001)
+  - [x] Minimal image (python:3.11-slim)
 - [x] Structured logging:
   - [x] JSON log format for all backend services
   - [x] Log fields: timestamp, level, service, trace_id, invoice_id (when applicable)
