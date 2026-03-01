@@ -1,28 +1,44 @@
 # Progress — AI AP Operations Manager
 
-## [2026-03-01] Complete All Remaining Gaps — 15-Gap Goal
+## [2026-03-01] Complete All Remaining Gaps — 15/15 Done
+
 ### 2026-03-01 — Loop: goal-complete-all-gaps.md
 
-**Iterations:** (running)
+**Iterations:** 7 (converged)
 **Goal file:** goal-complete-all-gaps.md
-**Commits since start:**
-```
-c435afe chore: fix 5 TODO.md drift items (mark actually-done features as complete)
-1a80fa6 docs: comprehensive gap analysis audit (P0-P3)
-```
+**Workers:** 3 parallel sonnet workers, ~6 iterations of real work
 
-**Result**: in progress — phased gap completion plan
+**Result**: success — all 15 gaps closed, 68 tests passing, frontend builds clean
 
-**What was done (Phase 0: Quick Fixes)**:
-- Fixed TODO.md drift: marked 5 items as `[x]` that were already implemented:
-  1. Import page `/admin/import` — exists with PO/GRN/Vendor upload tabs
-  2. Email ingestion status in settings UI — exists in `/admin/settings`
-  3. Recurring pattern detection beat task — registered in Celery beat schedule
-  4. Ask AI sidebar panel — implemented as `AskAiPanel.tsx` component
-  5. Cash flow forecast API + dashboard chart — both endpoints exist in KPI routes
-- No code changes needed; verification confirmed all features are already in codebase
+**What was done:**
+| Gap | Feature | Notes |
+|-----|---------|-------|
+| Gap 0 | TODO.md drift fix | 5 items corrected |
+| GAP-1 | Real IMAP email ingestion | `imaplib.IMAP4_SSL`, email metadata columns, skips if unconfigured |
+| GAP-2 | ERP CSV connectors | SAP POs (semicolon) + Oracle GRNs (comma), `/admin/erp/sync/*`, frontend upload tabs |
+| GAP-3 | Multi-currency FX | `fx_rates` table, ECB XML daily beat task, `normalized_amount_usd` on invoices |
+| GAP-4 | Mobile PWA | `manifest.json`, responsive card layout for approvals on mobile |
+| GAP-5 | KPI benchmarks | `GET /kpi/benchmarks` hardcoded industry data, dashboard benchmark card |
+| GAP-6 | 4-way match | `inspection_reports` model + migration, `POST /gr/{id}/inspection`, `run_4way_match()` |
+| GAP-7 | GL coding ML | scikit-learn TF-IDF + LogisticRegression, weekly retrain beat, MinIO model storage |
+| GAP-8 | Slack/Teams webhooks | `notifications.py`, wired into approval + fraud scoring (no-op when unconfigured) |
+| GAP-9 | Multi-entity | `entities` table, nullable `entity_id` FK on invoices/POs/vendors/GRs, CRUD API |
+| GAP-10 | GDPR retention | Monthly beat, soft-deletes old invoices, hard-deletes old audit logs, disabled by default |
+| GAP-11 | Vendor risk scoring | `vendor_risk_scores` table, weekly beat, auto-creates VENDOR_RISK exception on HIGH/CRITICAL |
+| GAP-12 | Invoice templates | Model + migration, `/admin/invoice-templates` CRUD, `/portal/templates`, admin page |
+| NEAR-2 | Permission audit | All endpoints verified; portal public endpoints documented with comment block |
+| NEAR-4 | Test coverage | `test_new_features.py` — 11 new tests covering IMAP, ERP CSV, GL, 4-way, entities |
 
-**Next**: Phase 1 (Email IMAP) tasks will be queued for worker parallelization
+**Patterns confirmed:**
+- Loop goal files must be concise (<20KB) — 101KB caused 300s supervisor timeout; rewrote to 17KB
+- Stale `batch/task-N` git branches block worktree creation in subsequent iterations — monitor and delete after failed iterations
+- Serial retry handles merge conflicts cleanly — no manual intervention needed
+- `ON CONFLICT DO UPDATE` upsert pattern works cleanly for FX rates daily refresh
+
+**Key lessons:**
+- When `claude -p` is used as supervisor with a large stdin, timeout is the failure mode (no stderr, exit 124) — keep goal files short
+- Worktree slot reuse: `git branch "$name" HEAD 2>/dev/null` silently fails if branch exists, leaving stale state that blocks next iteration's `worktree add`
+- 68 tests all pass after gap closure; no regression from new models/migrations
 
 ---
 
