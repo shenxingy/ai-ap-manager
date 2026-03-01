@@ -1,30 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
 import { Sidebar } from "./Sidebar";
 import { Button } from "@/components/ui/button";
 import { Bell, LogOut, Menu, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { AskAiPanel } from "@/components/AskAiPanel";
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  invoice_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { token, user, setAuth, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  const { data: pendingCount = 0 } = useQuery({
-    queryKey: ["pending-approvals-count"],
-    queryFn: () =>
-      api
-        .get("/approvals?status=pending&page_size=1")
-        .then((r) => r.data.total ?? 0),
+  const { data: notifications = [] } = useQuery<Notification[]>({
+    queryKey: ["notifications"],
+    queryFn: () => api.get("/notifications").then((r) => r.data),
     refetchInterval: 30000,
     enabled: !!(token && user),
   });
+
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
+
+  const markAllRead = useMutation({
+    mutationFn: () => api.post("/notifications/read-all"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    if (notifOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [notifOpen]);
 
   // Auth guard
   useEffect(() => {
@@ -93,16 +121,60 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
             {token && user && (
-              <Link href="/approvals">
-                <Button variant="ghost" size="icon" className="relative">
+              <div className="relative" ref={notifRef}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative"
+                  onClick={() => setNotifOpen((v) => !v)}
+                >
                   <Bell className="h-5 w-5" />
-                  {pendingCount > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                      {pendingCount > 9 ? "9+" : pendingCount}
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                 </Button>
-              </Link>
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+                      <span className="text-sm font-semibold text-gray-700">Notifications</span>
+                      {unreadCount > 0 && (
+                        <button
+                          className="text-xs text-blue-600 hover:underline"
+                          onClick={() => markAllRead.mutate()}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="text-sm text-gray-500 px-4 py-6 text-center">No notifications</p>
+                      ) : (
+                        notifications.slice(0, 10).map((n) => (
+                          <div
+                            key={n.id}
+                            className={`px-4 py-3 border-b border-gray-50 last:border-0 ${!n.read_at ? "bg-blue-50" : ""}`}
+                          >
+                            <p className="text-sm font-medium text-gray-800">{n.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
+                            {n.invoice_id && (
+                              <Link
+                                href={`/invoices/${n.invoice_id}`}
+                                className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+                                onClick={() => setNotifOpen(false)}
+                              >
+                                View invoice
+                              </Link>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             <AskAiPanel />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
