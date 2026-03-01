@@ -37,7 +37,7 @@ BUT `purchase_order.py` and `goods_receipt.py` do NOT. Multi-entity support is i
 
 ---
 
-### GAP-B: GL Classifier Status API + Frontend Settings Card
+### [x] GAP-B: GL Classifier Status API + Frontend Settings Card
 
 **Priority**: P1
 
@@ -104,7 +104,7 @@ Users managing multiple business entities have no way to scope the view.
 
 ---
 
-### GAP-D: FX Normalized Amount in Invoice Detail
+### [x] GAP-D: FX Normalized Amount in Invoice Detail
 
 **Priority**: P2
 
@@ -174,4 +174,4 @@ All of the following must be true:
 6. `grep "normalized_amount_usd" backend/app/api/v1/invoices.py` → found
 7. `grep -c "^\- \[ \]" TODO.md` → less than 120
 
-STATUS: GAP-A (pending), GAP-B (pending), GAP-C (✓ DONE), GAP-D (pending), GAP-E (✓ DONE)
+STATUS: GAP-A (✓ DONE), GAP-B (pending), GAP-C (✓ DONE), GAP-D (✓ DONE), GAP-E (✓ DONE)
