@@ -12,6 +12,7 @@ class Base(DeclarativeBase):
 
 # Register all models for Alembic autogenerate
 from app.models import entity as _entity_mod  # noqa: E402, F401
+from app.models.inspection_report import InspectionReport  # noqa: E402, F401
 
 
 class UUIDMixin:
