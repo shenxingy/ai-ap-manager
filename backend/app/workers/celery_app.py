@@ -16,6 +16,7 @@ celery_app = Celery(
         "app.workers.analytics_tasks",
         "app.workers.ml_tasks",
         "app.workers.retention_tasks",
+        "app.workers.vendor_risk_tasks",
     ],
 )
 
@@ -63,5 +64,9 @@ celery_app.conf.beat_schedule = {
     "data-retention-monthly": {
         "task": "run_data_retention",
         "schedule": crontab(day_of_month=1, hour=3, minute=0),
+    },
+    "vendor-risk-weekly": {
+        "task": "vendor_risk.compute_vendor_risk_scores",
+        "schedule": crontab(hour=2, minute=0, day_of_week=0),  # Sunday 2 AM
     },
 }
