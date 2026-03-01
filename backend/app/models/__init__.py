@@ -16,6 +16,7 @@ from app.models.feedback import AiFeedback, RuleRecommendation
 from app.models.analytics_report import AnalyticsReport
 from app.models.sla_alert import SLAAlert
 from app.models.override_log import OverrideLog
+from app.models.vendor_risk import VendorRiskScore
 
 __all__ = [
     "User",
@@ -36,4 +37,5 @@ __all__ = [
     "AnalyticsReport",
     "SLAAlert",
     "OverrideLog",
+    "VendorRiskScore",
 ]
