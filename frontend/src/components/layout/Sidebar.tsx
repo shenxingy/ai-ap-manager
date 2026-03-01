@@ -19,6 +19,8 @@ import {
   Settings,
   BookOpen,
   Sparkles,
+  Database,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
@@ -81,6 +83,8 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/approval-matrix", label: "Approval Matrix", icon: Layers },
       { href: "/admin/rules", label: "Rules", icon: BookOpen },
       { href: "/admin/import", label: "Import", icon: Upload },
+      { href: "/admin/erp", label: "ERP Sync", icon: Database },
+      { href: "/admin/invoice-templates", label: "Invoice Templates", icon: LayoutTemplate },
       { href: "/admin/settings", label: "Settings", icon: Settings },
       { href: "/admin/exception-routing", label: "Exception Routing", icon: GitBranch },
       { href: "/admin/ai-insights", label: "AI Insights", icon: Sparkles },
