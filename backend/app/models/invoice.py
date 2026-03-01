@@ -12,6 +12,9 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "invoices"
 
     invoice_number: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id"), nullable=True, index=True
+    )
     vendor_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=True, index=True
     )
