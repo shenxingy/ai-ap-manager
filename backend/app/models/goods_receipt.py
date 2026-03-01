@@ -18,6 +18,9 @@ class GoodsReceipt(Base, UUIDMixin, TimestampMixin):
     vendor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=False, index=True
     )
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id"), nullable=True, index=True
+    )
     received_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )

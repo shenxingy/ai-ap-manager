@@ -22,6 +22,9 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin):
     total_amount: Mapped[float] = mapped_column(Numeric(18, 4), nullable=False)
     cost_center: Mapped[str | None] = mapped_column(String(100), nullable=True)
     gl_account: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id"), nullable=True, index=True
+    )
     buyer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
