@@ -450,14 +450,14 @@
 - [x] CSV import: Vendor master data
   - [x] POST `/api/v1/import/vendors`
   - [x] Fuzzy dedup: if tax_id matches existing vendor → update; if name 90%+ similar → warn
-- [ ] Email ingestion pipeline
-  - [ ] IMAP polling Celery beat task (every 5 min)
-  - [ ] Config: `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD`, `IMAP_MAILBOX` in settings
-  - [ ] Fetch unread emails from AP mailbox
-  - [ ] Extract PDF/image attachments → auto-create Invoice records + trigger processing
-  - [ ] Store `email_from`, `email_subject`, `email_received_at` on invoice
-  - [ ] Mark email as read after processing
-  - [ ] Error: no attachment → log warning, skip
+- [x] Email ingestion pipeline
+  - [x] IMAP polling Celery beat task (every 5 min)
+  - [x] Config: `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD`, `IMAP_MAILBOX` in settings
+  - [x] Fetch unread emails from AP mailbox
+  - [x] Extract PDF/image attachments → auto-create Invoice records + trigger processing
+  - [x] Store `email_from`, `email_subject`, `email_received_at` on invoice
+  - [x] Mark email as read after processing
+  - [x] Error: no attachment → log warning, skip
 - [x] Duplicate invoice detection (enhanced)
   - [x] Detect: same vendor_id + invoice_number (exact) → block as `DUPLICATE_INVOICE`
   - [x] Detect: same vendor_id + total_amount + invoice_date ± 7 days → soft flag
@@ -534,7 +534,7 @@
 ### Recurring Invoice Detection (V1)
 
 #### Backend
-- [ ] `RecurringInvoicePattern` model (already in `app/models/invoice.py`)
+- [x] `RecurringInvoicePattern` model (already in `app/models/invoice.py`)
   - [x] Verify migration exists for recurring_invoice_patterns table
   - [x] Fields: vendor_id, frequency_days, avg_amount, tolerance_pct, auto_fast_track, last_detected_at
 - [x] Detection Celery beat task (weekly):
@@ -544,7 +544,7 @@
   - [x] Compute amount cluster: mean ± std dev
   - [x] Create/update RecurringInvoicePattern records
   - [x] Log to audit
-- [ ] Tagging: when new invoice uploaded and vendor has active pattern
+- [x] Tagging: when new invoice uploaded and vendor has active pattern
   - [x] If invoice_amount within pattern.tolerance_pct of pattern.avg_amount → set is_recurring=True, recurring_pattern_id
   - [x] Run in Celery pipeline step before match
 - [x] Fast-track workflow:
@@ -680,21 +680,21 @@
 ### GL Smart Coding Upgrade — ML Model (V1)
 
 #### Backend
-- [ ] Training data collection
-  - [ ] Query: all InvoiceLineItems with confirmed gl_account (is_confirmed=True or from approved invoices)
-  - [ ] Features: vendor_name + line_description + category → label: gl_account
-- [ ] Train scikit-learn classifier
-  - [ ] TF-IDF vectorizer on (vendor_name + description) text
-  - [ ] Logistic Regression or Linear SVM
-  - [ ] Evaluate on holdout set: accuracy, top-3 accuracy
-- [ ] Celery beat: weekly retrain job using new confirmed data
-- [ ] Model artifact storage: serialize with joblib → store in MinIO `models/gl-coding-v{N}.pkl`
-- [ ] Serve prediction in `gl_coding.py`: load model from MinIO, add `ml_model` as suggestion source
-- [ ] A/B test framework:
-  - [ ] Split invoices by hash(invoice_id) % 2 → group A (frequency) vs group B (ML)
-  - [ ] Log which method was used and whether user accepted/overrode
-  - [ ] Report endpoint: GET `/api/v1/admin/gl-model-stats` → accuracy per group
-- [ ] Admin panel: model version, last retrain date, accuracy stats
+- [x] Training data collection
+  - [x] Query: all InvoiceLineItems with confirmed gl_account (is_confirmed=True or from approved invoices)
+  - [x] Features: vendor_name + line_description + category → label: gl_account
+- [x] Train scikit-learn classifier
+  - [x] TF-IDF vectorizer on (vendor_name + description) text
+  - [x] Logistic Regression or Linear SVM
+  - [x] Evaluate on holdout set: accuracy, top-3 accuracy
+- [x] Celery beat: weekly retrain job using new confirmed data
+- [x] Model artifact storage: serialize with joblib → store in MinIO `models/gl-coding-v{N}.pkl`
+- [x] Serve prediction in `gl_coding.py`: load model from MinIO, add `ml_model` as suggestion source
+- [x] A/B test framework:
+  - [x] Split invoices by hash(invoice_id) % 2 → group A (frequency) vs group B (ML)
+  - [x] Log which method was used and whether user accepted/overrode
+  - [x] Report endpoint: GET `/api/v1/admin/gl-model-stats` → accuracy per group
+- [x] Admin panel: model version, last retrain date, accuracy stats
 
 ---
 
@@ -825,17 +825,17 @@
 ### Multi-Currency Support + FX Rate Tolerance
 
 #### Backend
-- [ ] `fx_rates` table: `base_currency, quote_currency, rate, valid_date`
-  - [ ] Alembic migration
-- [ ] Celery beat: daily FX rate fetch from Open Exchange Rates API (or ECB XML)
-  - [ ] Config: `OPEN_EXCHANGE_RATES_APP_ID` in settings
-  - [ ] Store rates for all invoice currencies in DB
-- [ ] Invoice normalization: `normalized_amount_usd` (base currency amount) on invoices
-  - [ ] Compute on extraction: total_amount × fx_rate_to_usd
-  - [ ] Update when fx rate refreshed
-- [ ] Match engine: compare normalized amounts when currency mismatch between invoice and PO
-- [ ] Tolerance: configurable `fx_tolerance_pct` in matching_tolerance rule config
-- [ ] KPI: aggregate totals in base currency
+- [x] `fx_rates` table: `base_currency, quote_currency, rate, valid_date`
+  - [x] Alembic migration
+- [x] Celery beat: daily FX rate fetch from Open Exchange Rates API (or ECB XML)
+  - [x] Config: `OPEN_EXCHANGE_RATES_APP_ID` in settings
+  - [x] Store rates for all invoice currencies in DB
+- [x] Invoice normalization: `normalized_amount_usd` (base currency amount) on invoices
+  - [x] Compute on extraction: total_amount × fx_rate_to_usd
+  - [x] Update when fx rate refreshed
+- [x] Match engine: compare normalized amounts when currency mismatch between invoice and PO
+- [x] Tolerance: configurable `fx_tolerance_pct` in matching_tolerance rule config
+- [x] KPI: aggregate totals in base currency
 
 #### Frontend
 - [ ] Invoice list: show currency flag/code next to amount
@@ -885,10 +885,10 @@
 
 ### Mobile-Responsive Approver View
 
-- [ ] Approvals page: fully responsive (stacked cards on mobile < 768px)
-- [ ] Invoice detail: horizontal scroll for tables on mobile
-- [ ] PWA manifest (`manifest.json`) for "Add to Home Screen" on iOS/Android
-- [ ] Service worker: cache API responses for offline viewing
+- [x] Approvals page: fully responsive (stacked cards on mobile < 768px)
+- [x] Invoice detail: horizontal scroll for tables on mobile
+- [x] PWA manifest (`manifest.json`) for "Add to Home Screen" on iOS/Android
+- [x] Service worker: cache API responses for offline viewing
 
 ---
 
@@ -966,24 +966,24 @@
 
 > Requires multi-tenant architecture first
 
-- [ ] Anonymize and aggregate KPI data by industry segment + company_size
-- [ ] Benchmark endpoint: GET `/api/v1/kpi/benchmarks`
-  - [ ] Returns: `{your_touchless_rate: 0.63, industry_median: 0.58, percentile: 72}`
-- [ ] KPI dashboard: benchmark comparison card
-  - [ ] "Your touchless rate is 63% — manufacturing median is 58% (72nd percentile)"
+- [x] Anonymize and aggregate KPI data by industry segment + company_size
+- [x] Benchmark endpoint: GET `/api/v1/kpi/benchmarks`
+  - [x] Returns: `{your_touchless_rate: 0.63, industry_median: 0.58, percentile: 72}`
+- [x] KPI dashboard: benchmark comparison card
+  - [x] "Your touchless rate is 63% — manufacturing median is 58% (72nd percentile)"
 
 ---
 
 ### 4-Way Matching (V2 — inspection-heavy industries)
 
 #### Backend
-- [ ] `inspection_reports` table: `id, gr_id FK, inspector_id FK, result (pass/fail/partial), notes, inspected_at`
-  - [ ] Alembic migration
-- [ ] Extend match engine: `run_4way_match(db, invoice_id)`
-  - [ ] After 3-way: for each GRN line, check inspection_report.result = "pass"
-  - [ ] Exception: `INSPECTION_FAILED` if any inspection report is fail/partial
-  - [ ] Block invoice approval until inspection passes
-- [ ] POST `/api/v1/gr/{gr_id}/inspection` — log inspection result (ADMIN, AP_ANALYST)
+- [x] `inspection_reports` table: `id, gr_id FK, inspector_id FK, result (pass/fail/partial), notes, inspected_at`
+  - [x] Alembic migration
+- [x] Extend match engine: `run_4way_match(db, invoice_id)`
+  - [x] After 3-way: for each GRN line, check inspection_report.result = "pass"
+  - [x] Exception: `INSPECTION_FAILED` if any inspection report is fail/partial
+  - [x] Block invoice approval until inspection passes
+- [x] POST `/api/v1/gr/{gr_id}/inspection` — log inspection result (ADMIN, AP_ANALYST)
 
 #### Frontend
 - [ ] Invoice match tab: show inspection status per GRN line
@@ -994,19 +994,19 @@
 ## P3 — Backlog / Nice-to-Have
 
 ### Notifications
-- [ ] Slack notifications for approval requests (Slack webhook integration)
-  - [ ] Config: `SLACK_WEBHOOK_URL` in settings
-  - [ ] Message format: invoice# · vendor · amount · Approve/Reject links
-- [ ] Microsoft Teams notifications (Teams webhook)
+- [x] Slack notifications for approval requests (Slack webhook integration)
+  - [x] Config: `SLACK_WEBHOOK_URL` in settings
+  - [x] Message format: invoice# · vendor · amount · Approve/Reject links
+- [x] Microsoft Teams notifications (Teams webhook)
 - [ ] In-app notification center (bell icon with unread count)
   - [ ] WebSocket or SSE push for real-time updates
   - [ ] Notification types: approval_request, exception_assigned, sla_alert, vendor_message
 - [ ] User notification preferences: per-channel (email/Slack/in-app) opt-in per notification type
 
 ### Vendor Invoice Templating
-- [ ] Template builder: AP team creates pre-approved invoice template per vendor
-- [ ] Vendor portal: vendor drafts invoice from template (fields pre-filled)
-- [ ] Template invoice submitted → enters pipeline as "template-sourced" (higher trust, faster processing)
+- [x] Template builder: AP team creates pre-approved invoice template per vendor
+- [x] Vendor portal: vendor drafts invoice from template (fields pre-filled)
+- [x] Template invoice submitted → enters pipeline as "template-sourced" (higher trust, faster processing)
 
 ### Payment Operations
 - [ ] Automated bill batching
@@ -1019,10 +1019,10 @@
   - [ ] Report: "Paying 3 days early saves $1,200 on Acme Corp invoices this month"
 
 ### Vendor Risk Score
-- [ ] `vendor_risk_scores` table: vendor_id, ocr_error_rate, exception_rate, avg_extraction_confidence, score, computed_at
-- [ ] Weekly Celery job: recompute vendor risk scores from invoice history
-- [ ] Risk score displayed on vendor detail page + invoice header
-- [ ] High-risk vendor → auto-create "VENDOR_RISK" flag on future invoices
+- [x] `vendor_risk_scores` table: vendor_id, ocr_error_rate, exception_rate, avg_extraction_confidence, score, computed_at
+- [x] Weekly Celery job: recompute vendor risk scores from invoice history
+- [x] Risk score displayed on vendor detail page + invoice header
+- [x] High-risk vendor → auto-create "VENDOR_RISK" flag on future invoices
 
 ### Compliance & Retention
 - [ ] GDPR/data retention:
@@ -1036,10 +1036,10 @@
   - [ ] Signed URL for large exports
 
 ### Multi-Entity Support
-- [ ] `entities` table: legal entity name, tax_id, currency, contact info
-- [ ] All invoices, POs, vendors scoped by entity_id
-- [ ] Cross-entity consolidated KPI reporting (ADMIN)
-- [ ] Entity selector in frontend header
+- [x] `entities` table: legal entity name, tax_id, currency, contact info
+- [x] All invoices, POs, vendors scoped by entity_id
+- [x] Cross-entity consolidated KPI reporting (ADMIN)
+- [x] Entity selector in frontend header
 
 ### Testing Infrastructure
 - [ ] Backend unit tests (pytest):
