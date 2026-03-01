@@ -1,6 +1,22 @@
 # Progress — AI AP Operations Manager
 
 ## [2026-03-01] Repo + Docs Cleanup
+### 2026-03-01 — Loop: goal-payment-runs
+
+**Iterations:** 2
+**Goal file:** goal-payment-runs.md
+**Commits since start:**
+```
+c5a1849 feat: add payment runs API endpoints
+da2828b feat: add PaymentRun model and migration
+b2cec59 Merge branch 'batch/task-4-20260301-143929'
+b09f2ad docs: mark payment runs TODO items complete
+48c9c72 feat: add Payment Runs nav link to sidebar
+42bee15 feat: add payment runs admin page
+```
+
+---
+
 ### 2026-03-01 — Loop: goal-p4-final
 
 **Iterations:** 6
