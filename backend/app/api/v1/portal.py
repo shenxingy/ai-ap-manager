@@ -24,6 +24,7 @@ from app.core.security import create_vendor_access_token
 from app.db.session import get_session
 from app.models.approval import VendorMessage
 from app.models.invoice import Invoice
+from app.models.invoice_template import InvoiceTemplate
 from app.models.vendor import Vendor
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,19 @@ class VendorInvoiceItem(BaseModel):
 class VendorInvoiceListResponse(BaseModel):
     items: list[VendorInvoiceItem]
     total: int
+
+
+class VendorTemplateItem(BaseModel):
+    """Invoice template view safe to expose to vendors."""
+
+    id: uuid.UUID
+    name: str
+    default_po_id: uuid.UUID | None
+    line_items: list | None
+    notes: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # ─── Token utilities ───
@@ -357,3 +371,24 @@ async def submit_vendor_dispute(
         exception_id=exc.id,
         message_id=msg.id,
     )
+
+
+@router.get(
+    "/templates",
+    response_model=list[VendorTemplateItem],
+    summary="List invoice templates for the authenticated vendor",
+)
+async def list_vendor_templates(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    vendor_id: Annotated[uuid.UUID, Depends(get_current_vendor_id)],
+):
+    """Return non-deleted templates where vendor_id matches the token claim."""
+    result = await db.execute(
+        select(InvoiceTemplate)
+        .where(
+            InvoiceTemplate.vendor_id == vendor_id,
+            InvoiceTemplate.deleted_at.is_(None),
+        )
+        .order_by(InvoiceTemplate.created_at.desc())
+    )
+    return [VendorTemplateItem.model_validate(t) for t in result.scalars().all()]
