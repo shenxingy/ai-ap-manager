@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -104,10 +104,22 @@ async def get_match_result(
         gr = gr_row.scalars().first()
         if gr:
             out.gr_number = gr.gr_number
+
+            # Fetch latest inspection report for this GR
+            insp_row = await db.execute(
+                select(InspectionReport)
+                .where(InspectionReport.gr_id == gr.id)
+                .order_by(desc(InspectionReport.inspected_at))
+                .limit(1)
+            )
+            inspection = insp_row.scalars().first()
+            inspection_status = inspection.result if inspection else None
+
             out.grn_data = GRNSummaryOut(
                 id=gr.id,
                 gr_number=gr.gr_number,
                 received_at=gr.received_at,
+                inspection_status=inspection_status,
                 lines=[
                     GRLineOut(
                         id=li.id,

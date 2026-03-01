@@ -18,6 +18,7 @@ class GRNSummaryOut(BaseModel):
     gr_number: str
     received_at: datetime
     lines: list[GRLineOut]
+    inspection_status: str | None = None  # pass, fail, partial, or None if no report
 
 
 class LineItemMatchOut(BaseModel):

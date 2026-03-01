@@ -88,6 +88,7 @@ interface GRNSummaryOut {
   gr_number: string;
   received_at: string;
   lines: GRLineOut[];
+  inspection_status: string | null;
 }
 
 interface LineItemMatchOut {
@@ -231,6 +232,17 @@ function matchTypeBadge(matchType: string): { label: string; cls: string } {
   if (matchType === "3way") return { label: "3-Way Match", cls: "bg-purple-100 text-purple-700 border border-purple-200" };
   if (matchType === "2way") return { label: "2-Way Match", cls: "bg-blue-100 text-blue-700 border border-blue-200" };
   return { label: "Non-PO", cls: "bg-gray-100 text-gray-600 border border-gray-200" };
+}
+
+function InspectionBadge({ status }: { status: string | null | undefined }) {
+  const s = (status ?? "").toUpperCase();
+  if (s === "PASS" || s === "PASSED")
+    return <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">✓ Pass</span>;
+  if (s === "FAIL" || s === "FAILED")
+    return <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">✗ Fail</span>;
+  if (s === "PARTIAL")
+    return <span className="inline-flex items-center gap-1 text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">⚠ Partial</span>;
+  return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">— Pending</span>;
 }
 
 // ─── Record Payment Dialog ───
@@ -1041,6 +1053,13 @@ export default function InvoiceDetailPage() {
                     </button>
                   </div>
 
+                  {/* INSPECTION_FAILED banner */}
+                  {match.match_status.toUpperCase().includes("INSPECTION_FAILED") && (
+                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                      Cannot approve until inspection report passes
+                    </div>
+                  )}
+
                   {/* Summary fields */}
                   <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                     {[
@@ -1083,6 +1102,7 @@ export default function InvoiceDetailPage() {
                             <TableHead className="text-xs">Description</TableHead>
                             <TableHead className="text-right text-xs">Qty Received</TableHead>
                             <TableHead className="text-xs">Unit</TableHead>
+                            <TableHead className="text-xs">Inspection</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1092,6 +1112,7 @@ export default function InvoiceDetailPage() {
                               <TableCell className="text-sm">{line.description}</TableCell>
                               <TableCell className="text-right text-sm font-medium">{line.qty_received}</TableCell>
                               <TableCell className="text-xs text-gray-500">{line.unit || "—"}</TableCell>
+                              <TableCell><InspectionBadge status={match.grn_data!.inspection_status} /></TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
