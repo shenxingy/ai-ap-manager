@@ -294,3 +294,14 @@ async def get_cash_flow_export(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=cash-flow-forecast.csv"},
     )
+
+
+@router.get("/benchmarks")
+async def get_benchmarks(current_user=Depends(get_current_user)):
+    """Return hardcoded industry benchmark data for KPI comparison."""
+    return {
+        "touchless_rate":       {"industry": 75,  "smb": 55,  "unit": "%"},
+        "exception_rate":       {"industry": 8,   "smb": 15,  "unit": "%"},
+        "avg_cycle_time_days":  {"industry": 3,   "smb": 7,   "unit": "days"},
+        "gl_coding_accuracy":   {"industry": 90,  "smb": 75,  "unit": "%"},
+    }
