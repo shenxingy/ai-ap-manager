@@ -403,7 +403,7 @@ def _check_recurring_pattern(db, invoice) -> None:
 
 # ─── Recurring pattern detection ───
 
-@celery_app.task(bind=True, name="tasks.detect_recurring_patterns", max_retries=2)
+@celery_app.task(bind=True, name="app.workers.tasks.detect_recurring_patterns", max_retries=2)
 def detect_recurring_patterns(self) -> dict:
     """Detect recurring invoice patterns per vendor and upsert RecurringInvoicePattern rows.
 
