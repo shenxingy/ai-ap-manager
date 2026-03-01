@@ -1,21 +1,28 @@
-"""Email ingestion worker — polls /app/data/inbox/ for .eml files and creates Invoice records."""
+"""Email ingestion worker — polls an IMAP mailbox for unseen messages and creates Invoice records."""
 import email
+import email.utils
 import logging
-import os
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
-INBOX_PATH = Path("/app/data/inbox")
-ALLOWED_ATTACHMENT_TYPES = {".pdf", ".png", ".jpg", ".jpeg"}
-MIME_MAP = {
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+}
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".tiff"}
+MIME_BY_EXT = {
     ".pdf": "application/pdf",
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
+    ".tiff": "image/tiff",
 }
 
 
@@ -35,82 +42,105 @@ def _get_sync_session():
 
 @celery_app.task(name="app.workers.email_ingestion.poll_ap_mailbox")
 def poll_ap_mailbox() -> dict:
-    """Scan inbox directory for .eml files and ingest each attachment as an Invoice.
+    """Poll IMAP mailbox for unseen messages and ingest invoice attachments.
 
-    Reads EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD from settings to decide whether
-    ingestion is configured. If not configured, skips silently.
+    Reads IMAP_HOST, IMAP_PORT, IMAP_USER, IMAP_PASSWORD, IMAP_MAILBOX from settings.
+    Returns immediately if IMAP_HOST is not configured.
     """
+    import imaplib
     from app.core.config import settings
 
-    # Guard: if email credentials not configured, skip
-    email_host = getattr(settings, "EMAIL_HOST", None)
-    email_user = getattr(settings, "EMAIL_USER", None)
-    email_password = getattr(settings, "EMAIL_PASSWORD", None)
+    if not settings.IMAP_HOST:
+        logger.info("poll_ap_mailbox: IMAP_HOST not configured — skipping")
+        return {"status": "skipped", "reason": "IMAP_HOST not configured"}
 
-    if not (email_host and email_user and email_password):
-        logger.info("Email ingestion not configured — polling skipped")
-        return {"status": "skipped", "reason": "not_configured"}
-
-    # Ensure inbox exists
-    INBOX_PATH.mkdir(parents=True, exist_ok=True)
-
-    eml_files = list(INBOX_PATH.glob("*.eml"))
-    if not eml_files:
-        logger.info("poll_ap_mailbox: inbox empty, nothing to process")
-        return {"status": "ok", "processed": 0}
-
-    ingested = 0
+    processed = 0
     errors = 0
 
-    for eml_path in eml_files:
-        try:
-            _process_eml(eml_path)
-            ingested += 1
-        except Exception as exc:
-            logger.exception("poll_ap_mailbox: failed to process %s: %s", eml_path.name, exc)
-            errors += 1
+    try:
+        mail = imaplib.IMAP4_SSL(settings.IMAP_HOST, settings.IMAP_PORT)
+        mail.login(settings.IMAP_USER, settings.IMAP_PASSWORD)
+        mail.select(settings.IMAP_MAILBOX)
 
-    logger.info("poll_ap_mailbox done: ingested=%d errors=%d", ingested, errors)
-    return {"status": "ok", "processed": ingested, "errors": errors}
+        _, uid_data = mail.search(None, "UNSEEN")
+        uids = uid_data[0].split()
+        logger.info("poll_ap_mailbox: %d unseen message(s) found", len(uids))
+
+        for uid in uids:
+            try:
+                _, msg_data = mail.fetch(uid, "(RFC822)")
+                raw = msg_data[0][1]
+                msg = email.message_from_bytes(raw)
+                count = _ingest_message(msg)
+                processed += count
+                # Mark as Seen regardless of attachment outcome
+                mail.store(uid, "+FLAGS", "\\Seen")
+            except Exception as exc:
+                logger.exception("poll_ap_mailbox: failed processing uid %s: %s", uid, exc)
+                errors += 1
+
+        mail.logout()
+
+    except Exception as exc:
+        logger.exception("poll_ap_mailbox: IMAP connection error: %s", exc)
+        return {"status": "error", "error": str(exc)}
+
+    logger.info("poll_ap_mailbox done: processed=%d errors=%d", processed, errors)
+    return {"status": "ok", "processed": processed, "errors": errors}
 
 
-def _process_eml(eml_path: Path) -> None:
-    """Parse a single .eml file and create Invoice records for each valid attachment."""
+# ─── Helpers ───
+
+def _ingest_message(msg: email.message.Message) -> int:
+    """Parse a single email message and create Invoice records for each valid attachment.
+
+    Returns the count of invoices created.
+    """
     from app.models.invoice import Invoice
     from app.services import storage as storage_svc
     from app.services import audit as audit_svc
     from app.core.config import settings
 
-    with open(eml_path, "rb") as f:
-        msg = email.message_from_bytes(f.read())
+    from_header = msg.get("From", "")
+    from_address = email.utils.parseaddr(from_header)[1] or from_header or "unknown"
+    subject = msg.get("Subject", "") or ""
 
-    from_address = email.utils.parseaddr(msg.get("From", ""))[1] or "unknown"
+    # Parse Date header → email_received_at
+    date_str = msg.get("Date", "")
+    received_at: datetime | None = None
+    if date_str:
+        try:
+            ts = email.utils.parsedate_to_datetime(date_str)
+            received_at = ts.astimezone(timezone.utc)
+        except Exception:
+            received_at = None
 
     db = _get_sync_session()
+    ingested = 0
     try:
         for part in msg.walk():
-            content_disposition = part.get("Content-Disposition", "")
-            if "attachment" not in content_disposition:
-                continue
+            ct = part.get_content_type()
+            fname = part.get_filename() or ""
+            suffix = Path(fname).suffix.lower() if fname else ""
 
-            filename = part.get_filename()
-            if not filename:
-                continue
-
-            suffix = Path(filename).suffix.lower()
-            if suffix not in ALLOWED_ATTACHMENT_TYPES:
-                logger.debug("Skipping non-invoice attachment: %s", filename)
+            is_valid = (ct in ALLOWED_MIME_TYPES) or (suffix in ALLOWED_EXTENSIONS)
+            if not is_valid:
                 continue
 
             payload = part.get_payload(decode=True)
             if not payload:
                 continue
 
-            invoice_id = uuid.uuid4()
-            object_name = f"invoices/{invoice_id}/{filename}"
-            mime_type = MIME_MAP.get(suffix, "application/octet-stream")
+            # Derive safe filename and mime type
+            if not fname:
+                ext = ".pdf" if ct == "application/pdf" else ".jpg"
+                fname = f"attachment{ext}"
+                suffix = ext
 
-            # Upload attachment to MinIO
+            mime_type = MIME_BY_EXT.get(suffix, ct or "application/octet-stream")
+            invoice_id = uuid.uuid4()
+            object_name = f"invoices/{invoice_id}/{fname}"
+
             try:
                 storage_svc.upload_file(
                     bucket=settings.MINIO_BUCKET_NAME,
@@ -119,34 +149,38 @@ def _process_eml(eml_path: Path) -> None:
                     content_type=mime_type,
                 )
             except Exception as exc:
-                logger.warning("MinIO upload failed for %s: %s", filename, exc)
+                logger.warning("MinIO upload failed for %s: %s", fname, exc)
                 continue
 
-            # Create Invoice record
             invoice = Invoice(
                 id=invoice_id,
                 status="ingested",
                 storage_path=object_name,
-                file_name=filename,
+                file_name=fname,
                 mime_type=mime_type,
                 file_size_bytes=len(payload),
                 source="email",
                 source_email=from_address,
+                email_from=from_address,
+                email_subject=subject,
+                email_received_at=received_at,
             )
             db.add(invoice)
             db.flush()
 
-            # Write audit log
             audit_svc.log(
                 db=db,
                 action="invoice_ingested_from_email",
                 entity_type="invoice",
                 entity_id=invoice_id,
-                after={"filename": filename, "from_address": from_address},
+                after={
+                    "filename": fname,
+                    "from_address": from_address,
+                    "subject": subject,
+                },
             )
             db.commit()
 
-            # Enqueue extraction task
             try:
                 from app.workers.tasks import process_invoice  # noqa: PLC0415
                 process_invoice.delay(str(invoice_id))
@@ -155,8 +189,9 @@ def _process_eml(eml_path: Path) -> None:
 
             logger.info(
                 "Ingested email attachment: invoice_id=%s file=%s from=%s",
-                invoice_id, filename, from_address,
+                invoice_id, fname, from_address,
             )
+            ingested += 1
 
         db.commit()
     except Exception:
@@ -164,3 +199,5 @@ def _process_eml(eml_path: Path) -> None:
         raise
     finally:
         db.close()
+
+    return ingested
