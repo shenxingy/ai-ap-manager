@@ -29,3 +29,6 @@ api_router.include_router(rule_recommendations.router, prefix="/admin", tags=["a
 api_router.include_router(ask_ai.router, prefix="/ask-ai", tags=["ask-ai"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(payments_module.router, tags=["payments"])
+
+from app.api.v1 import erp as erp_module
+api_router.include_router(erp_module.router, prefix="/admin", tags=["erp"])
