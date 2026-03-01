@@ -1001,7 +1001,7 @@
 - [ ] In-app notification center (bell icon with unread count)
   - [ ] WebSocket or SSE push for real-time updates
   - [ ] Notification types: approval_request, exception_assigned, sla_alert, vendor_message
-- [ ] User notification preferences: per-channel (email/Slack/in-app) opt-in per notification type
+- [x] User notification preferences: per-channel (email/Slack/in-app) opt-in per notification type
 
 ### Vendor Invoice Templating
 - [x] Template builder: AP team creates pre-approved invoice template per vendor
