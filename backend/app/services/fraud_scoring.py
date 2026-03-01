@@ -157,6 +157,24 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
         _ensure_fraud_exception(db, invoice_id, total_score, triggered)
         created_exception = True
 
+        # Send fraud alert notification
+        try:
+            from app.services.notifications import send_fraud_alert
+            # Determine risk level
+            if total_score >= settings.FRAUD_SCORE_CRITICAL_THRESHOLD:
+                risk_level = "CRITICAL"
+            else:
+                risk_level = "HIGH"
+            send_fraud_alert(
+                invoice_number=invoice.invoice_number or str(invoice.id),
+                vendor_name=invoice.vendor.name if invoice.vendor else "Unknown",
+                fraud_score=total_score,
+                risk_level=risk_level,
+                signals=triggered,
+            )
+        except Exception:
+            pass
+
     # ── Auto-create FraudIncident if score >= threshold ──
     if total_score >= FRAUD_INCIDENT_THRESHOLD:
         _ensure_fraud_incident(db, invoice_id, total_score, triggered)

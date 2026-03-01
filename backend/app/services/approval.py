@@ -157,6 +157,27 @@ def create_approval_task(
             approve_url=approve_url,
             reject_url=reject_url,
         )
+
+        # Send Slack/Teams webhook notification
+        try:
+            from app.services.notifications import send_approval_request
+            approver = db.execute(
+                select(Invoice.vendor).where(Invoice.id == invoice_id)
+            ).scalars().first()
+            approver_user = db.execute(
+                select(User).where(User.id == approver_id)
+            ).scalars().first()
+            send_approval_request(
+                invoice_number=invoice.invoice_number or str(invoice.id),
+                vendor_name=invoice.vendor.name if invoice.vendor else "Unknown",
+                amount=float(invoice.total_amount or 0),
+                currency=invoice.currency or "USD",
+                approver_email=approver_user.email if approver_user else "unknown@example.com",
+                approve_url=approve_url,
+                reject_url=reject_url,
+            )
+        except Exception:
+            pass
     else:
         logger.warning("Invoice %s not found when sending approval email.", invoice_id)
 
