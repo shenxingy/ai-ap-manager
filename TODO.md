@@ -1010,14 +1010,14 @@
 
 ### Payment Operations
 - [x] Batch payment API: `POST /api/v1/payments/batch` — batch record payments for multiple approved invoices (P4-E)
-- [ ] Automated bill batching
-  - [ ] Group approved invoices to same vendor with similar due dates into one payment run
-  - [ ] Payment run schedule: weekly, bi-weekly, monthly
-  - [ ] GET `/api/v1/payment-runs` — list upcoming batched payments
-- [ ] Payment scheduling optimizer
-  - [ ] For each approved invoice: calculate early payment discount if paid before discount_cutoff
-  - [ ] Suggest optimal payment date: balance cash flow vs discount capture
-  - [ ] Report: "Paying 3 days early saves $1,200 on Acme Corp invoices this month"
+- [x] Automated bill batching
+  - [x] Group approved invoices to same vendor with similar due dates into one payment run
+  - [x] Payment run schedule: weekly, bi-weekly, monthly
+  - [x] GET `/api/v1/payment-runs` — list upcoming batched payments
+- [x] Payment scheduling optimizer
+  - [x] For each approved invoice: calculate early payment discount if paid before discount_cutoff
+  - [x] Suggest optimal payment date: balance cash flow vs discount capture
+  - [x] Report: "Paying 3 days early saves $1,200 on Acme Corp invoices this month"
 
 ### Vendor Risk Score
 - [x] `vendor_risk_scores` table: vendor_id, ocr_error_rate, exception_rate, avg_extraction_confidence, score, computed_at
