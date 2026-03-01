@@ -24,7 +24,7 @@ router = APIRouter()
 
 # ─── Constants ───
 
-LARGE_FILE_THRESHOLD = 1000
+LARGE_FILE_THRESHOLD = 5000  # rows — process synchronously; larger files should be split
 
 
 # ─── Helpers ───
@@ -76,7 +76,10 @@ async def import_pos(
     rows = _parse_csv(content)
 
     if len(rows) > LARGE_FILE_THRESHOLD:
-        return {"message": "queued"}  # type: ignore[return-value]
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File contains {len(rows)} rows; maximum is {LARGE_FILE_THRESHOLD}. Please split into smaller files.",
+        )
 
     required = ["po_number", "vendor_name", "total_amount", "currency", "issue_date"]
     if rows:
@@ -173,7 +176,10 @@ async def import_grns(
     rows = _parse_csv(content)
 
     if len(rows) > LARGE_FILE_THRESHOLD:
-        return {"message": "queued"}  # type: ignore[return-value]
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File contains {len(rows)} rows; maximum is {LARGE_FILE_THRESHOLD}. Please split into smaller files.",
+        )
 
     required = ["gr_number", "po_number", "received_date", "total_received_value"]
     if rows:
@@ -261,7 +267,10 @@ async def import_vendors(
     rows = _parse_csv(content)
 
     if len(rows) > LARGE_FILE_THRESHOLD:
-        return {"message": "queued"}  # type: ignore[return-value]
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File contains {len(rows)} rows; maximum is {LARGE_FILE_THRESHOLD}. Please split into smaller files.",
+        )
 
     required = ["vendor_name", "tax_id", "payment_terms", "currency"]
     if rows:

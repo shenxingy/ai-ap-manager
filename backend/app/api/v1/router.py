@@ -5,6 +5,9 @@ from app.api.v1.match import gr_router as match_gr_router
 from app.api.v1 import fraud_incidents, recurring_patterns, analytics, import_routes, portal
 from app.api.v1 import approval_matrix as am_module
 from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai, audit, payments as payments_module
+from app.api.v1 import erp as erp_module
+from app.api.v1 import invoice_templates
+from app.api.v1 import notifications
 
 api_router = APIRouter()
 
@@ -33,12 +36,6 @@ api_router.include_router(ask_ai.router, prefix="/ask-ai", tags=["ask-ai"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(payments_module.router, tags=["payments"])
 api_router.include_router(payments_module.batch_router, tags=["payments"])
-
-from app.api.v1 import erp as erp_module
 api_router.include_router(erp_module.router, prefix="/admin", tags=["erp"])
-
-from app.api.v1 import invoice_templates
 api_router.include_router(invoice_templates.router, prefix="", tags=["invoice-templates"])
-
-from app.api.v1 import notifications
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
