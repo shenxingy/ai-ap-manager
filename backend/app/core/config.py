@@ -54,10 +54,17 @@ class Settings(BaseSettings):
     # SLA Alerting
     SLA_WARNING_DAYS_BEFORE: int = 3
 
-    # Email
+    # Email (outbound SMTP — for approval notifications)
     MAIL_ENABLED: bool = False
     MAIL_FROM: str = "ap-system@yourcompany.com"
     MAIL_FROM_NAME: str = "AP Operations"
+
+    # IMAP (inbound — for email ingestion)
+    IMAP_HOST: str = ""
+    IMAP_PORT: int = 993
+    IMAP_USER: str = ""
+    IMAP_PASSWORD: str = ""
+    IMAP_MAILBOX: str = "INBOX"
 
     # Sentry (Error Monitoring)
     SENTRY_DSN: str = ""
