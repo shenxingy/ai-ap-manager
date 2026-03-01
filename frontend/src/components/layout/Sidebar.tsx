@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -22,8 +23,22 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// ─── Nav Structure ───
+// ─── Types ───
+
+interface Entity {
+  id: string;
+  name: string;
+}
 
 interface NavItem {
   href: string;
@@ -82,6 +97,33 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const [selectedEntityId, setSelectedEntityId] = useState<string>("");
+
+  // Fetch entities
+  const { data: entitiesData } = useQuery({
+    queryKey: ["entities"],
+    queryFn: () =>
+      api
+        .get("/entities")
+        .then((r) => r.data.items as Entity[])
+        .catch(() => [] as Entity[]),
+  });
+
+  const entities = entitiesData || [];
+
+  // Load selectedEntityId from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("selectedEntityId");
+    if (saved) {
+      setSelectedEntityId(saved);
+    }
+  }, []);
+
+  // Save selectedEntityId to localStorage on change
+  const handleEntityChange = (value: string) => {
+    setSelectedEntityId(value);
+    localStorage.setItem("selectedEntityId", value);
+  };
 
   const userRole = user?.role ?? "";
 
@@ -95,6 +137,26 @@ export function Sidebar({ onClose }: SidebarProps) {
         <h1 className="text-lg font-bold tracking-tight">AI AP Manager</h1>
         <p className="text-xs text-gray-400 mt-0.5">Accounts Payable</p>
       </div>
+
+      {/* Entity Selector — only show if 2+ entities */}
+      {entities.length >= 2 && (
+        <div className="px-3 py-3 border-b border-gray-700">
+          <Select value={selectedEntityId} onValueChange={handleEntityChange}>
+            <SelectTrigger className="w-full text-xs bg-gray-800 border-gray-600 text-gray-100">
+              <SelectValue placeholder="All Entities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Entities</SelectItem>
+              {entities.map((entity) => (
+                <SelectItem key={entity.id} value={entity.id}>
+                  {entity.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <nav className="flex-1 px-3 py-4 space-y-1">
         {visibleSections.map((section, idx) => (
           <div key={idx} className={section.sectionLabel ? "pt-4" : ""}>
