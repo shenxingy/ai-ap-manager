@@ -52,5 +52,8 @@ sentry-sdk[fastapi]==2.19.0
 # ─── Logging ─────────────────────────────────────────────
 python-json-logger==2.0.7   # structured JSON logging
 
+# ─── Observability ───────────────────────────────────────────
+prometheus-client==0.21.0   # Prometheus metrics exposition
+
 # ─── Production ──────────────────────────────────────────
 gunicorn==23.0.0            # production WSGI server
