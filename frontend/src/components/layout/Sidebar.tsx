@@ -21,6 +21,7 @@ import {
   Sparkles,
   Database,
   LayoutTemplate,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
@@ -88,6 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/settings", label: "Settings", icon: Settings },
       { href: "/admin/exception-routing", label: "Exception Routing", icon: GitBranch },
       { href: "/admin/ai-insights", label: "AI Insights", icon: Sparkles },
+      { href: "/admin/payment-runs", label: "Payment Runs", icon: CreditCard },
     ],
   },
 ];
