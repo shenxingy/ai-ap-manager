@@ -1,9 +1,11 @@
 """Match result endpoints — GET match result and POST trigger re-match."""
 import uuid
 import logging
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_session
 from app.models.goods_receipt import GoodsReceipt, GRLineItem
+from app.models.inspection_report import InspectionReport
 from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.matching import MatchResult, LineItemMatch
 from app.models.purchase_order import PurchaseOrder, POLineItem
@@ -20,6 +23,28 @@ from app.schemas.match import GRLineOut, GRNSummaryOut, MatchResultOut, MatchTri
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+gr_router = APIRouter()
+
+
+# ─── Schemas for inspection endpoint ───
+
+class InspectionCreateIn(BaseModel):
+    result: str  # pass, fail, partial
+    notes: str | None = None
+
+
+class InspectionReportOut(BaseModel):
+    id: uuid.UUID
+    gr_id: uuid.UUID
+    invoice_id: uuid.UUID | None
+    inspector_id: uuid.UUID | None
+    result: str
+    notes: str | None
+    inspected_at: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # ─── GET /invoices/{invoice_id}/match ───
@@ -256,3 +281,98 @@ async def trigger_match(
         match_status=match_result.match_status,
         invoice_status=invoice.status,
     )
+
+
+# ─── POST /gr/{gr_id}/inspection ───
+
+@gr_router.post(
+    "/{gr_id}/inspection",
+    response_model=InspectionReportOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit a quality inspection report for a Goods Receipt (ADMIN or AP_ANALYST)",
+)
+async def create_inspection_report(
+    gr_id: uuid.UUID,
+    body: InspectionCreateIn,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
+):
+    """Create an InspectionReport for the given GR.
+
+    - If result == 'fail': finds all open invoices linked to this GR via their PO,
+      and creates an INSPECTION_FAILED ExceptionRecord on each (idempotent).
+    - Returns the created InspectionReport.
+    """
+    # Validate result value
+    if body.result not in ("pass", "fail", "partial"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="result must be 'pass', 'fail', or 'partial'.",
+        )
+
+    # Verify GR exists
+    gr_row = await db.execute(
+        select(GoodsReceipt).where(
+            GoodsReceipt.id == gr_id,
+            GoodsReceipt.deleted_at.is_(None),
+        )
+    )
+    gr = gr_row.scalars().first()
+    if gr is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found.")
+
+    now = datetime.now(timezone.utc)
+
+    # Create InspectionReport
+    report = InspectionReport(
+        gr_id=gr_id,
+        inspector_id=current_user.id,
+        result=body.result,
+        notes=body.notes,
+        inspected_at=now,
+    )
+    db.add(report)
+    await db.flush()  # get report.id
+
+    # If fail: create INSPECTION_FAILED exceptions on open invoices linked via PO
+    if body.result == "fail" and gr.po_id is not None:
+        from app.models.exception_record import ExceptionRecord
+
+        # Find all open invoices linked to this PO
+        inv_rows = await db.execute(
+            select(Invoice).where(
+                Invoice.po_id == gr.po_id,
+                Invoice.deleted_at.is_(None),
+                Invoice.status.notin_(["approved", "paid", "rejected"]),
+            )
+        )
+        affected_invoices = inv_rows.scalars().all()
+
+        for inv in affected_invoices:
+            # Idempotent: skip if INSPECTION_FAILED exception already open
+            existing = await db.execute(
+                select(ExceptionRecord).where(
+                    ExceptionRecord.invoice_id == inv.id,
+                    ExceptionRecord.exception_code == "INSPECTION_FAILED",
+                    ExceptionRecord.status == "open",
+                )
+            )
+            if existing.scalars().first() is not None:
+                continue
+
+            exc_rec = ExceptionRecord(
+                invoice_id=inv.id,
+                exception_code="INSPECTION_FAILED",
+                description=(
+                    f"Quality inspection failed for GR {gr.gr_number}. "
+                    f"Inspector notes: {body.notes or 'N/A'}"
+                ),
+                severity="high",
+                status="open",
+            )
+            db.add(exc_rec)
+
+    await db.commit()
+    await db.refresh(report)
+
+    return report

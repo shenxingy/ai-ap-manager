@@ -613,6 +613,62 @@ def run_3way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     return match_result
 
 
+# ─── 4-Way match ───
+
+def run_4way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
+    """4-way match: extends 3-way match with quality inspection report check.
+
+    Calls run_3way_match, then queries InspectionReport for any GRN linked to
+    the invoice's PO. Sets match_4way_status in result notes.
+
+    Returns MatchResult with notes annotated:
+      "pending_inspection"  — no inspection report found
+      "inspection_passed"   — InspectionReport.result == 'pass'
+      "inspection_failed"   — InspectionReport.result in ('fail', 'partial')
+    """
+    from app.models.invoice import Invoice
+    from app.models.goods_receipt import GoodsReceipt
+    from app.models.inspection_report import InspectionReport
+
+    result = run_3way_match(db, invoice_id)
+
+    # If no PO was found, 4-way status is indeterminate — return early
+    if result.po_id is None:
+        return result
+
+    # Load GRNs for the PO
+    grns = db.execute(
+        select(GoodsReceipt).where(
+            GoodsReceipt.po_id == result.po_id,
+            GoodsReceipt.deleted_at.is_(None),
+        )
+    ).scalars().all()
+
+    if not grns:
+        return result
+
+    grn_ids = [grn.id for grn in grns]
+
+    # Check for inspection report on any GRN
+    inspection = db.execute(
+        select(InspectionReport).where(InspectionReport.gr_id.in_(grn_ids))
+    ).scalars().first()
+
+    if inspection is None:
+        match_4way_status = "pending_inspection"
+    elif inspection.result == "pass":
+        match_4way_status = "inspection_passed"
+    else:
+        match_4way_status = "inspection_failed"
+        if "INSPECTION_FAILED" not in result.exception_codes:
+            result.exception_codes.append("INSPECTION_FAILED")
+        if result.match_status == "matched":
+            result.match_status = "exception"
+
+    result.notes = f"{result.notes or ''} [4way:{match_4way_status}]".strip()
+    return result
+
+
 # ─── Persistence helper ───
 
 def _persist_match_result(
@@ -805,6 +861,7 @@ def _create_exception(
         "FRAUD_FLAG": "critical",
         "GRN_NOT_FOUND": "high",
         "QTY_OVER_RECEIPT": "high",
+        "INSPECTION_FAILED": "high",
     }
     severity = severity_map.get(exception_code, "medium")
 

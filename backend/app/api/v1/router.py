@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import admin, auth, invoices, match, exceptions, approvals, kpi, users, vendors, entities
+from app.api.v1.match import gr_router as match_gr_router
 from app.api.v1 import fraud_incidents, recurring_patterns, analytics, import_routes, portal
 from app.api.v1 import approval_matrix as am_module
 from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai, audit, payments as payments_module
@@ -13,6 +14,7 @@ api_router.include_router(am_module.delegation_router, prefix="/users", tags=["a
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"])
 api_router.include_router(match.router, prefix="/invoices", tags=["match"])
+api_router.include_router(match_gr_router, prefix="/gr", tags=["match"])
 api_router.include_router(exceptions.router, prefix="/exceptions", tags=["exceptions"])
 api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(kpi.router, prefix="/kpi", tags=["kpi"])
