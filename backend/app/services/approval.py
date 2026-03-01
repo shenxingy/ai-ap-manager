@@ -151,6 +151,22 @@ def create_approval_task(
     reject_url = f"{base_url}/api/v1/approvals/email?token={raw_tokens['reject']}"
 
     if invoice:
+        # Create in-app notification for the approver
+        try:
+            from app.models.notification import Notification as NotificationModel
+            inv_num = invoice.invoice_number or str(invoice.id)[:8]
+            notif = NotificationModel(
+                user_id=approver_id,
+                type="approval_request",
+                title="Approval Required",
+                message=f"Invoice {inv_num} requires your approval.",
+                invoice_id=invoice_id,
+            )
+            db.add(notif)
+            db.flush()
+        except Exception:
+            pass
+
         email_svc.send_approval_request_email(
             task=task,
             invoice=invoice,
@@ -456,6 +472,24 @@ def process_approval_decision(
                 )
 
     db.commit()
+
+    # Create in-app notification for the actor (if web channel) about decision outcome
+    if actor_id is not None:
+        try:
+            from app.models.notification import Notification as NotificationModel
+            inv_num = invoice.invoice_number or str(invoice.id)[:8]
+            decision_text = "approved" if action == "approve" else "rejected"
+            notif = NotificationModel(
+                user_id=actor_id,
+                type="approval_decision",
+                title=f"Invoice {decision_text.capitalize()}",
+                message=f"Invoice {inv_num} has been {decision_text}.",
+                invoice_id=invoice.id,
+            )
+            db.add(notif)
+            db.commit()
+        except Exception:
+            pass
 
     logger.info(
         "Approval decision: task=%s action=%s channel=%s invoice=%s",
