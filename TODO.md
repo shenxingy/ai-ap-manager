@@ -556,10 +556,10 @@
 #### Frontend
 - [x] Recurring invoice badge: "🔄 Recurring" on invoice list and detail header
 - [x] Fast-track banner: "Recurring invoice detected — 1-click approval available"
-- [ ] Admin → Recurring Patterns page:
-  - [ ] Table: vendor · frequency · avg amount · tolerance · fast-track toggle · last detected
-  - [ ] Enable/disable fast-track per pattern
-  - [ ] Manual detect button (triggers detection job for that vendor)
+- [x] Admin → Recurring Patterns page:
+  - [x] Table: vendor · frequency · avg amount · tolerance · fast-track toggle · last detected
+  - [x] Enable/disable fast-track per pattern
+  - [x] Manual detect button (triggers detection job for that vendor)
 
 ---
 
