@@ -10,11 +10,6 @@ class Base(DeclarativeBase):
     pass
 
 
-# Register all models for Alembic autogenerate
-from app.models import entity as _entity_mod  # noqa: E402, F401
-from app.models.inspection_report import InspectionReport  # noqa: E402, F401
-
-
 class UUIDMixin:
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -35,3 +30,9 @@ class TimestampMixin:
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+# Register all models for Alembic autogenerate (after mixins are defined)
+from app.models import entity as _entity_mod  # noqa: E402, F401
+from app.models.inspection_report import InspectionReport  # noqa: E402, F401
+from app.models.invoice_template import InvoiceTemplate  # noqa: E402, F401
