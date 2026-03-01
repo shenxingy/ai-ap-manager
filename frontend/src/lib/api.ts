@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8002/api/v1",
+  baseURL: process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1`
+    : "http://localhost:8002/api/v1",
 });
 
 // Request interceptor — attach Bearer token
