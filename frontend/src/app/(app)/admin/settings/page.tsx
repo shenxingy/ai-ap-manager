@@ -17,6 +17,14 @@ interface EmailIngestionStatus {
   total_ingested: number;
 }
 
+interface GLClassifierStatus {
+  model_version: string | null;
+  accuracy: number | null;
+  trained_at: string | null;
+  training_samples: number | null;
+  status: "ready" | "not_trained";
+}
+
 // ─── Toast ───
 
 interface ToastState {
@@ -92,6 +100,14 @@ export default function AdminSettingsPage() {
       api.get("/admin/email-ingestion/status").then((r) => r.data),
     retry: false,
   });
+
+  const { data: glStatus, isLoading: glLoading } =
+    useQuery<GLClassifierStatus>({
+      queryKey: ["admin-gl-classifier-status"],
+      queryFn: () =>
+        api.get("/admin/gl-classifier/status").then((r) => r.data),
+      retry: false,
+    });
 
   const triggerPoll = useMutation({
     mutationFn: () =>
@@ -177,6 +193,69 @@ export default function AdminSettingsPage() {
                 </Button>
                 <p className="text-xs text-gray-400">
                   Manually trigger an email inbox scan for new invoices
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">GL Classifier</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {glLoading ? (
+            <div className="text-sm text-gray-400 py-4">Loading status…</div>
+          ) : glStatus?.status === "not_trained" ? (
+            <p className="text-sm text-gray-500">No model trained yet</p>
+          ) : glStatus ? (
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Model Version
+                </p>
+                <p className="text-sm font-medium text-gray-800">
+                  {glStatus.model_version ?? <span className="text-gray-400">—</span>}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Accuracy
+                </p>
+                <p className="text-sm font-medium text-gray-800">
+                  {glStatus.accuracy != null ? (
+                    `${(glStatus.accuracy * 100).toFixed(1)}%`
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Last Retrain
+                </p>
+                <p className="text-sm font-medium text-gray-800">
+                  {glStatus.trained_at ? (
+                    format(new Date(glStatus.trained_at), "MMM d, yyyy HH:mm")
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Training Samples
+                </p>
+                <p className="text-sm font-medium text-gray-800">
+                  {glStatus.training_samples != null ? (
+                    glStatus.training_samples.toLocaleString()
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
                 </p>
               </div>
             </div>

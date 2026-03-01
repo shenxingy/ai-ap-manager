@@ -1,6 +1,9 @@
 """ML Celery tasks — GL classifier retraining."""
+import io
+import json
 import logging
 import time
+from datetime import datetime, timezone
 
 from celery import shared_task
 
@@ -29,7 +32,7 @@ def retrain_gl_classifier() -> dict:
 
     db = _get_sync_session()
     try:
-        model, accuracy = train_model(db)
+        model, accuracy, training_samples = train_model(db)
     except ValueError as e:
         logger.info("GL classifier retrain skipped: %s", e)
         return {"status": "skipped", "reason": str(e)}
@@ -43,6 +46,27 @@ def retrain_gl_classifier() -> dict:
         version = int(time.time())
         key = save_model_to_minio(model, version)
         invalidate_cache()  # force next request to reload from MinIO
+
+        # Write JSON sidecar so the status API can report model metadata without
+        # having to list and parse all model objects.
+        from app.services.storage import get_client
+        from app.core.config import settings
+
+        sidecar = {
+            "version": str(version),
+            "accuracy": accuracy,
+            "trained_at": datetime.now(timezone.utc).isoformat(),
+            "training_samples": training_samples,
+        }
+        sidecar_bytes = json.dumps(sidecar).encode()
+        minio_client = get_client()
+        minio_client.put_object(
+            bucket_name=settings.MINIO_BUCKET_NAME,
+            object_name="models/gl-coding-latest.json",
+            data=io.BytesIO(sidecar_bytes),
+            length=len(sidecar_bytes),
+            content_type="application/json",
+        )
         logger.info("GL classifier retrained: version=%d accuracy=%.3f key=%s", version, accuracy, key)
         return {"status": "ok", "accuracy": accuracy, "model_key": key}
     except Exception as e:

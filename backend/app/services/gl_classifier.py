@@ -27,7 +27,7 @@ _cached_model: Optional[Tuple[Pipeline, int]] = None
 
 # ─── Train ───
 
-def train_model(db) -> Tuple[Pipeline, float]:
+def train_model(db) -> Tuple[Pipeline, float, int]:
     """Train TF-IDF + LogisticRegression on confirmed GL assignments.
 
     Queries invoice_line_items joined to invoices + vendors where
@@ -35,7 +35,7 @@ def train_model(db) -> Tuple[Pipeline, float]:
     Label: gl_account.
 
     Raises ValueError if < MIN_TRAINING_SAMPLES training samples.
-    Returns (pipeline, accuracy).
+    Returns (pipeline, accuracy, sample_count).
     """
     from sqlalchemy import select, text
     from app.models.invoice import Invoice, InvoiceLineItem
@@ -99,7 +99,7 @@ def train_model(db) -> Tuple[Pipeline, float]:
 
     pipeline.fit(features, labels)
     logger.info("GL classifier trained on %d samples, cv_accuracy=%.3f", len(rows), accuracy)
-    return pipeline, accuracy
+    return pipeline, accuracy, len(rows)
 
 
 # ─── Save to MinIO ───
