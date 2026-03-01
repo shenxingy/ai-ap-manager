@@ -1,6 +1,37 @@
 # Progress — AI AP Operations Manager
 
+## [2026-03-01] Repo + Docs Cleanup
+**What**: Organized repo root and updated all project documentation to reflect current state.
+- Moved 13 loop goal/proposed-tasks files from repo root → `docs/loop-history/`
+- Added `goal-*.md`, `proposed-tasks*.md` to `.gitignore` (loop artifacts, not source)
+- Rewrote `docs/GAP_ANALYSIS.md` — all 17+ gaps closed, P3 roadmap clearly separated
+- Updated `GOALS.md` — all MVP/V1/V2 milestone criteria marked `[x]`, added Current metrics column
+- Rewrote `README.md` — fixed ports (8002 not 8000), added Feature Highlights table, V2 status
+- Fixed `TODO.md` — corrected GDPR, FX, service worker, cross-entity KPI status
+
+**Key lesson**: Loop artifacts (goal files) should go in `.gitignore` upfront, not accumulate in repo root.
+
+---
+
 ## [2026-03-01] Complete All Remaining Gaps — 15/15 Done
+### 2026-03-01 — Loop: goal-remaining-gaps
+
+**Iterations:** 3
+**Goal file:** goal-remaining-gaps.md
+**Commits since start:**
+```
+a9904b9 feat: add FX normalized amount to invoice detail (GAP-D)
+32d43d3 chore: mark GAP-B status line as DONE in goal
+31476fe chore: mark GAP-B complete in goal
+b2bd2f2 feat: GL classifier status API and settings card
+7d56f25 chore: mark GAP-C and GAP-E complete in goal
+da9e6d5 docs: mark completed features in TODO.md
+24ec120 feat: entity selector in sidebar header
+3677ad3 chore: mark GAP-A complete in goal
+```
+
+---
+
 
 ### 2026-03-01 — Loop: goal-complete-all-gaps.md
 

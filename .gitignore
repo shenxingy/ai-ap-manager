@@ -40,3 +40,8 @@ Thumbs.db
 .claude/
 logs/
 tasks.txt
+
+# Loop goal files at repo root (use docs/loop-history/ for archives)
+/goal-*.md
+/proposed-tasks*.md
+/review-goal.md
