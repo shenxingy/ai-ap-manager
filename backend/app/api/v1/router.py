@@ -39,3 +39,6 @@ api_router.include_router(erp_module.router, prefix="/admin", tags=["erp"])
 
 from app.api.v1 import invoice_templates
 api_router.include_router(invoice_templates.router, prefix="", tags=["invoice-templates"])
+
+from app.api.v1 import notifications
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
