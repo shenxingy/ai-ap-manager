@@ -60,6 +60,7 @@ class InvoiceSummaryItem(BaseModel):
     id: uuid.UUID
     invoice_number: Optional[str]
     vendor_id: Optional[uuid.UUID]
+    vendor_name: Optional[str] = None
     total_amount: Optional[float]
     currency: Optional[str]
     status: str
@@ -261,7 +262,19 @@ async def get_payment_run(
         executed_by=run.executed_by,
         notes=run.notes,
         created_at=run.created_at,
-        invoices=[InvoiceSummaryItem.model_validate(inv) for inv in run.invoices],
+        invoices=[
+            InvoiceSummaryItem(
+                id=inv.id,
+                invoice_number=inv.invoice_number,
+                vendor_id=inv.vendor_id,
+                vendor_name=inv.vendor_name_raw,
+                total_amount=float(inv.total_amount) if inv.total_amount is not None else None,
+                currency=inv.currency,
+                status=inv.status,
+                payment_status=inv.payment_status,
+            )
+            for inv in run.invoices
+        ],
     )
 
 
