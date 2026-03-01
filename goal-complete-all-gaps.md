@@ -275,8 +275,8 @@ cd frontend && npm run build
 - [ ] GAP-6: 4-way match (inspection reports)
 - [x] GAP-7: GL coding ML classifier
 - [x] GAP-8: Slack/Teams webhook notifications
-- [ ] GAP-9: Multi-entity support
-- [ ] GAP-12: Invoice template system
+- [x] GAP-9: Multi-entity support
+- [x] GAP-12: Invoice template system
 - [ ] GAP-4: Mobile PWA + responsive approvals
 - [x] NEAR-2: Permission audit
 - [ ] NEAR-4: Test coverage expansion
