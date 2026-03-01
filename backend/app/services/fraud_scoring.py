@@ -157,21 +157,40 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
         _ensure_fraud_exception(db, invoice_id, total_score, triggered)
         created_exception = True
 
-        # Send fraud alert notification
+        # Send fraud alert notification (Slack/Teams webhook + in-app)
         try:
             from app.services.notifications import send_fraud_alert
-            # Determine risk level
+            from app.models.user import User
+            from sqlalchemy import select as sa_select
             if total_score >= settings.FRAUD_SCORE_CRITICAL_THRESHOLD:
                 risk_level = "CRITICAL"
             else:
                 risk_level = "HIGH"
+            inv_num = invoice.invoice_number or str(invoice.id)[:8]
             send_fraud_alert(
-                invoice_number=invoice.invoice_number or str(invoice.id),
+                invoice_number=inv_num,
                 vendor_name=invoice.vendor.name if invoice.vendor else "Unknown",
                 fraud_score=total_score,
                 risk_level=risk_level,
                 signals=triggered,
             )
+            # Create in-app notification for all ADMIN and AP_ANALYST users
+            from app.models.notification import Notification as NotificationModel
+            analysts = db.execute(
+                sa_select(User.id).where(
+                    User.role.in_(("ADMIN", "AP_ANALYST")),
+                    User.is_active.is_(True),
+                )
+            ).scalars().all()
+            for uid in analysts:
+                db.add(NotificationModel(
+                    user_id=uid,
+                    type="fraud_alert",
+                    title=f"Fraud Alert: {risk_level}",
+                    message=f"Invoice {inv_num} flagged with {risk_level} fraud risk (score {total_score}).",
+                    invoice_id=invoice_id,
+                ))
+            db.flush()
         except Exception:
             pass
 
