@@ -81,7 +81,7 @@ saving the model pkl.
 
 ---
 
-### GAP-C: Entity Selector in Frontend Header
+### [x] GAP-C: Entity Selector in Frontend Header
 
 **Priority**: P2
 
@@ -99,6 +99,8 @@ Users managing multiple business entities have no way to scope the view.
 
 **Success criteria**:
 - `grep -r "EntitySelector\|selectedEntityId\|/entities" frontend/src/components/layout/` → found
+
+**COMPLETED**: Added entity selector to Sidebar.tsx with localStorage persistence (24ec120)
 
 ---
 
@@ -133,29 +135,31 @@ if `invoice.currency != "USD"` and `invoice.total_amount`:
 
 ---
 
-### GAP-E: TODO.md Drift Cleanup
+### [x] GAP-E: TODO.md Drift Cleanup
 
 **Priority**: P3 (documentation)
 
 Many items in TODO.md are marked `[ ]` but are actually implemented. Update them to `[x]`.
 
 Key items to mark done (verify each against codebase first):
-- Email IMAP ingestion (line ~453)
-- RecurringInvoicePattern model + detection (lines ~537-560)
-- GL ML classifier training pipeline (lines ~683-697)
-- ERP integration (SAP + Oracle CSV, lines ~797-816)
-- FX rates infrastructure (lines ~828-843)
-- Mobile PWA manifest + responsive approvals (lines ~888-891, leave service worker [ ])
-- Benchmark endpoint + dashboard card (lines ~969-972)
-- Inspection reports + 4-way match (lines ~980-990)
-- Slack/Teams notifications (lines ~997-1001, leave in-app notifications [ ])
-- Invoice templates (lines ~1007-1009)
-- Vendor risk scoring (lines ~1022-1025)
-- GDPR retention (lines ~1028-1033)
-- Multi-entity tables + API (lines ~1039-1042, leave "entity selector in frontend header" as [ ] — being done in GAP-C above)
+- Email IMAP ingestion (line ~453) ✓
+- RecurringInvoicePattern model + detection (lines ~537-560) ✓
+- GL ML classifier training pipeline (lines ~683-697) ✓
+- ERP integration (SAP + Oracle CSV, lines ~797-816) ✗ (not implemented)
+- FX rates infrastructure (lines ~828-843) ✓
+- Mobile PWA manifest + responsive approvals (lines ~888-891, leave service worker [ ]) ✓
+- Benchmark endpoint + dashboard card (lines ~969-972) ✓
+- Inspection reports + 4-way match (lines ~980-990) ✓
+- Slack/Teams notifications (lines ~997-1001, leave in-app notifications [ ]) ✓
+- Invoice templates (lines ~1007-1009) ✓
+- Vendor risk scoring (lines ~1022-1025) ✓
+- GDPR retention (lines ~1028-1033) ✗ (not implemented)
+- Multi-entity tables + API (lines ~1039-1042, leave "entity selector in frontend header" as [ ] — being done in GAP-C above) ✓
 
 **Success criteria**:
 - `grep -c "^\- \[ \]" TODO.md` → count reduced significantly (from ~211 to ~80 or fewer)
+
+**COMPLETED**: Marked 11/13 items as complete in TODO.md (da9e6d5). ERP integration and GDPR retention remain unimplemented.
 
 ---
 
@@ -170,4 +174,4 @@ All of the following must be true:
 6. `grep "normalized_amount_usd" backend/app/api/v1/invoices.py` → found
 7. `grep -c "^\- \[ \]" TODO.md` → less than 120
 
-STATUS: WORKING
+STATUS: GAP-A (pending), GAP-B (pending), GAP-C (✓ DONE), GAP-D (pending), GAP-E (✓ DONE)
