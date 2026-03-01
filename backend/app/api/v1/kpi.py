@@ -2,6 +2,7 @@
 import csv
 import io
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
@@ -28,14 +29,15 @@ FORECAST_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched
 @router.get("/summary", response_model=KPISummary, summary="KPI summary for the last N days")
 async def get_kpi_summary(
     days: int = Query(default=30, ge=1, le=365, description="Lookback window in days"),
+    entity_id: uuid.UUID | None = Query(default=None, description="Filter by entity ID"),
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
     current_user=Depends(require_role("AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    base = select(Invoice).where(
-        Invoice.deleted_at.is_(None),
-        Invoice.created_at >= since,
-    )
+    base_filters = [Invoice.deleted_at.is_(None), Invoice.created_at >= since]
+    if entity_id is not None:
+        base_filters.append(Invoice.entity_id == entity_id)
+    base = select(Invoice).where(*base_filters)
 
     # Total received
     total_received = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
@@ -49,28 +51,34 @@ async def get_kpi_summary(
     total_pending = (await db.execute(select(func.count()).select_from(pending_q.subquery()))).scalar_one()
 
     # Invoices with at least one open exception
+    exc_filters = [
+        Invoice.deleted_at.is_(None),
+        Invoice.created_at >= since,
+        ExceptionRecord.status == "open",
+    ]
+    if entity_id is not None:
+        exc_filters.append(Invoice.entity_id == entity_id)
     inv_with_exc = (
         select(func.count(Invoice.id.distinct()))
         .select_from(Invoice)
         .join(ExceptionRecord, ExceptionRecord.invoice_id == Invoice.id)
-        .where(
-            Invoice.deleted_at.is_(None),
-            Invoice.created_at >= since,
-            ExceptionRecord.status == "open",
-        )
+        .where(*exc_filters)
     )
     total_exceptions = (await db.execute(inv_with_exc)).scalar_one()
 
     # Auto-approved = approved invoices with NO approval task
+    auto_filters = [
+        Invoice.deleted_at.is_(None),
+        Invoice.created_at >= since,
+        Invoice.status == "approved",
+        not_(exists(select(ApprovalTask.id).where(ApprovalTask.invoice_id == Invoice.id))),
+    ]
+    if entity_id is not None:
+        auto_filters.append(Invoice.entity_id == entity_id)
     auto_approved_q = (
         select(func.count(Invoice.id))
         .select_from(Invoice)
-        .where(
-            Invoice.deleted_at.is_(None),
-            Invoice.created_at >= since,
-            Invoice.status == "approved",
-            not_(exists(select(ApprovalTask.id).where(ApprovalTask.invoice_id == Invoice.id))),
-        )
+        .where(*auto_filters)
     )
     auto_approved = (await db.execute(auto_approved_q)).scalar_one()
 
@@ -78,15 +86,18 @@ async def get_kpi_summary(
     exception_rate = (total_exceptions / total_received) if total_received > 0 else 0.0
 
     # Avg cycle time: (updated_at - created_at) in hours for approved invoices
+    cycle_filters = [
+        Invoice.deleted_at.is_(None),
+        Invoice.created_at >= since,
+        Invoice.status == "approved",
+    ]
+    if entity_id is not None:
+        cycle_filters.append(Invoice.entity_id == entity_id)
     cycle_time_q = (
         select(func.avg(
             func.extract("epoch", Invoice.updated_at - Invoice.created_at) / 3600
         ))
-        .where(
-            Invoice.deleted_at.is_(None),
-            Invoice.created_at >= since,
-            Invoice.status == "approved",
-        )
+        .where(*cycle_filters)
     )
     avg_cycle = (await db.execute(cycle_time_q)).scalar_one()
 
@@ -135,6 +146,7 @@ async def get_sla_summary(
 async def get_kpi_trends(
     period: str = Query(default="daily", pattern="^(daily|weekly)$"),
     days: int = Query(default=30, ge=7, le=365),
+    entity_id: uuid.UUID | None = Query(default=None, description="Filter by entity ID"),
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
     current_user=Depends(require_role("AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
@@ -146,6 +158,9 @@ async def get_kpi_trends(
         trunc_fn = func.date_trunc("day", Invoice.created_at)
 
     # Count by period bucket
+    trend_filters = [Invoice.deleted_at.is_(None), Invoice.created_at >= since]
+    if entity_id is not None:
+        trend_filters.append(Invoice.entity_id == entity_id)
     trend_q = (
         select(
             trunc_fn.label("period_start"),
@@ -153,13 +168,20 @@ async def get_kpi_trends(
             func.sum(func.cast(Invoice.status == "approved", type_=None)).label("approved"),
             func.avg(Invoice.total_amount).label("avg_amount"),
         )
-        .where(Invoice.deleted_at.is_(None), Invoice.created_at >= since)
+        .where(*trend_filters)
         .group_by("period_start")
         .order_by("period_start")
     )
     rows = (await db.execute(trend_q)).all()
 
     # Exception count per period (separate query, then merge)
+    exc_trend_filters = [
+        Invoice.deleted_at.is_(None),
+        Invoice.created_at >= since,
+        ExceptionRecord.status == "open",
+    ]
+    if entity_id is not None:
+        exc_trend_filters.append(Invoice.entity_id == entity_id)
     exc_q = (
         select(
             trunc_fn.label("period_start"),
@@ -167,11 +189,7 @@ async def get_kpi_trends(
         )
         .select_from(Invoice)
         .join(ExceptionRecord, ExceptionRecord.invoice_id == Invoice.id)
-        .where(
-            Invoice.deleted_at.is_(None),
-            Invoice.created_at >= since,
-            ExceptionRecord.status == "open",
-        )
+        .where(*exc_trend_filters)
         .group_by("period_start")
     )
     exc_rows = {row.period_start: row.exc_count for row in (await db.execute(exc_q)).all()}
