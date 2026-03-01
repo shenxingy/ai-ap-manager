@@ -27,6 +27,9 @@ class ComplianceDocStatus(str, enum.Enum):
 class Vendor(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "vendors"
 
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     tax_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     bank_account: Mapped[str | None] = mapped_column(String(100), nullable=True)
