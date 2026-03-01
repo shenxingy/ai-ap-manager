@@ -324,3 +324,49 @@ async def trigger_email_ingestion():
 
     poll_ap_mailbox.delay()
     return {"status": "triggered"}
+
+
+# ─── GL Classifier Status ───
+
+
+@router.get(
+    "/gl-classifier/status",
+    summary="Get GL classifier model status (ADMIN only)",
+    dependencies=[Depends(require_role("ADMIN"))],
+)
+async def gl_classifier_status() -> dict:
+    """Return metadata from the latest trained GL classifier model.
+
+    Reads the JSON sidecar written by the retrain_gl_classifier Celery task.
+    Returns status='not_trained' if no model has been trained yet.
+    """
+    import json
+    from app.services.storage import get_client
+    from app.core.config import settings
+
+    client = get_client()
+    try:
+        response = client.get_object(
+            bucket_name=settings.MINIO_BUCKET_NAME,
+            object_name="models/gl-coding-latest.json",
+        )
+        try:
+            data = json.loads(response.read())
+        finally:
+            response.close()
+            response.release_conn()
+        return {
+            "model_version": data.get("version"),
+            "accuracy": data.get("accuracy"),
+            "trained_at": data.get("trained_at"),
+            "training_samples": data.get("training_samples"),
+            "status": "ready",
+        }
+    except Exception:
+        return {
+            "model_version": None,
+            "accuracy": None,
+            "trained_at": None,
+            "training_samples": None,
+            "status": "not_trained",
+        }
