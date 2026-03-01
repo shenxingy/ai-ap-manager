@@ -265,7 +265,7 @@ cd frontend && npm run build
 
 ## STATUS
 
-- [ ] Gap 0: Fix TODO.md drift (5 items)
+- [x] Gap 0: Fix TODO.md drift (5 items) — all items already marked done
 - [x] GAP-1: Email IMAP ingestion
 - [x] GAP-3: Multi-currency FX support
 - [x] GAP-11: Vendor risk scoring
@@ -277,7 +277,7 @@ cd frontend && npm run build
 - [x] GAP-8: Slack/Teams webhook notifications
 - [x] GAP-9: Multi-entity support
 - [x] GAP-12: Invoice template system
-- [ ] GAP-4: Mobile PWA + responsive approvals
+- [x] GAP-4: Mobile PWA + responsive approvals
 - [x] NEAR-2: Permission audit
 - [ ] NEAR-4: Test coverage expansion
 
