@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     SENTRY_DSN: str = ""
     SENTRY_TRACES_SAMPLE_RATE: float = 0.1
 
+    # Webhooks (Slack/Teams notifications)
+    SLACK_WEBHOOK_URL: str = ""
+    TEAMS_WEBHOOK_URL: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]
