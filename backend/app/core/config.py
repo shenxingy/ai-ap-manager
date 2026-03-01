@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     SLACK_WEBHOOK_URL: str = ""
     TEAMS_WEBHOOK_URL: str = ""
 
+    # FX Rates
+    BASE_CURRENCY: str = "USD"
+    FX_RATES_SOURCE: str = "ecb"
+
     # Data Retention (GDPR)
     RETENTION_ENABLED: bool = False
     RETENTION_DAYS_INVOICES: int = 2555  # ~7 years
