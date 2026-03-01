@@ -196,6 +196,111 @@ def test_3way_grn_not_found(mock_rules, mock_find_po, mock_persist):
 @patch("app.rules.match_engine._persist_match_result")
 @patch("app.rules.match_engine._find_po_for_invoice")
 @patch("app.rules.match_engine.get_active_match_rules")
+def test_missing_po_exception(mock_rules, mock_find_po, mock_persist):
+    """Invoice with no matching PO → MISSING_PO exception."""
+    mock_rules.return_value = (TIGHT_TOLERANCE.copy(), None)
+    mock_find_po.return_value = None  # No PO found
+
+    invoice = _make_invoice(100.0)
+    db = _db_for_2way(invoice, [])
+
+    result = run_2way_match(db, invoice.id)
+
+    assert result.match_status == "exception"
+    assert "MISSING_PO" in result.exception_codes
+    mock_persist.assert_called_once()
+
+
+@patch("app.rules.match_engine._persist_match_result")
+@patch("app.rules.match_engine._find_po_for_invoice")
+@patch("app.rules.match_engine.get_active_match_rules")
+def test_price_variance_within_tolerance(mock_rules, mock_find_po, mock_persist):
+    """Invoice $103 vs PO $100 — 3% variance within 5% tolerance → MATCHED."""
+    mock_rules.return_value = (TIGHT_TOLERANCE.copy(), None)
+
+    invoice = _make_invoice(103.0)
+    po = _make_po(100.0)
+    mock_find_po.return_value = po
+
+    db = _db_for_2way(invoice, [])  # no line items → header-only check
+
+    result = run_2way_match(db, invoice.id)
+
+    assert result.match_status == "matched"
+    assert "PRICE_VARIANCE" not in result.exception_codes
+
+
+@patch("app.rules.match_engine._persist_match_result")
+@patch("app.rules.match_engine._find_po_for_invoice")
+@patch("app.rules.match_engine.get_active_match_rules")
+def test_price_variance_exceeds_tolerance(mock_rules, mock_find_po, mock_persist):
+    """Invoice $120 vs PO $100 — 20% variance exceeds 5% tolerance → PRICE_VARIANCE exception."""
+    mock_rules.return_value = (TIGHT_TOLERANCE.copy(), None)
+
+    invoice = _make_invoice(120.0)
+    po = _make_po(100.0)
+    mock_find_po.return_value = po
+
+    db = _db_for_2way(invoice, [])
+
+    result = run_2way_match(db, invoice.id)
+
+    assert result.match_status == "exception"
+    assert "PRICE_VARIANCE" in result.exception_codes
+
+
+@patch("app.rules.match_engine._persist_match_result")
+@patch("app.rules.match_engine._find_po_for_invoice")
+@patch("app.rules.match_engine.get_active_match_rules")
+def test_qty_variance(mock_rules, mock_find_po, mock_persist):
+    """Invoice line qty=15 > PO line qty=10 — 50% over zero tolerance → QTY_VARIANCE exception."""
+    mock_rules.return_value = (TIGHT_TOLERANCE.copy(), None)
+
+    po_line = _make_po_line(line_number=1, qty=10.0, unit_price=10.0)
+    po = _make_po(100.0, po_lines=[po_line])
+    mock_find_po.return_value = po
+
+    invoice = _make_invoice(100.0)
+    inv_line = _make_inv_line(line_number=1, qty=15.0, unit_price=10.0,
+                               invoice_id=invoice.id)
+    db = _db_for_2way(invoice, [inv_line])
+
+    result = run_2way_match(db, invoice.id)
+
+    assert "QTY_VARIANCE" in result.exception_codes
+    assert result.match_status == "exception"
+
+
+@patch("app.services.audit.log")
+@patch("app.rules.match_engine._find_po_for_invoice")
+@patch("app.rules.match_engine.get_active_match_rules")
+def test_auto_approve_threshold(mock_rules, mock_find_po, mock_audit_log):
+    """Invoice $40 < $50 auto-approve threshold, header matched → invoice.status = 'approved'."""
+    mock_rules.return_value = (TIGHT_TOLERANCE.copy(), None)
+
+    invoice = _make_invoice(40.0)
+    po = _make_po(40.0)
+    mock_find_po.return_value = po
+
+    db = MagicMock()
+    inv_result = MagicMock()
+    inv_result.scalars.return_value.first.return_value = invoice
+    lines_result = MagicMock()
+    lines_result.scalars.return_value.all.return_value = []
+    no_existing = MagicMock()
+    no_existing.scalars.return_value.first.return_value = None  # no prior MatchResult
+
+    db.execute.side_effect = [inv_result, lines_result, no_existing]
+
+    result = run_2way_match(db, invoice.id)
+
+    assert result.match_status == "matched"
+    assert invoice.status == "approved"
+
+
+@patch("app.rules.match_engine._persist_match_result")
+@patch("app.rules.match_engine._find_po_for_invoice")
+@patch("app.rules.match_engine.get_active_match_rules")
 def test_3way_qty_over_receipt(mock_rules, mock_find_po, mock_persist):
     """Invoice qty=10 > GRN received qty=8 → QTY_OVER_RECEIPT exception."""
     mock_rules.return_value = (TIGHT_TOLERANCE.copy(), None)

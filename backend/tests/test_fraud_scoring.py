@@ -125,6 +125,108 @@ def test_potential_duplicate_signal(mock_audit_log):
     assert result["fraud_score"] == SIGNAL_WEIGHTS["potential_duplicate"] + SIGNAL_WEIGHTS["new_vendor"]
 
 
+@patch("app.services.audit.log")
+def test_new_vendor_signal(mock_audit_log):
+    """Vendor with 0 approved invoices → new_vendor signal triggered (+5 points)."""
+    vendor_id = uuid.uuid4()
+    # Non-round, non-stale invoice to isolate the new_vendor signal
+    invoice = _make_invoice(total_amount=500.00, vendor_id=vendor_id, invoice_date=None)
+
+    vendor_row = MagicMock()
+    vendor_row.bank_account = None  # prevents ghost_vendor query
+
+    db = _db_for_score(
+        invoice,
+        hist_invoices=[],   # < 3 → amount_spike not triggered
+        dup_invoice=None,   # potential_duplicate not triggered
+        approved_invoices=[],  # 0 approved → new_vendor triggered
+        bank_change=None,   # bank_account_changed not triggered
+        vendor_row=vendor_row,
+    )
+
+    result = score_invoice(db, invoice.id)
+
+    assert "new_vendor" in result["triggered_signals"]
+    assert result["fraud_score"] == SIGNAL_WEIGHTS["new_vendor"]
+
+
+@patch("app.services.audit.log")
+def test_score_threshold_low(mock_audit_log):
+    """Only new_vendor signal (5 pts) < 25 → LOW risk, no FRAUD_FLAG exception created."""
+    vendor_id = uuid.uuid4()
+    invoice = _make_invoice(total_amount=500.00, vendor_id=vendor_id, invoice_date=None)
+
+    vendor_row = MagicMock()
+    vendor_row.bank_account = None
+
+    db = _db_for_score(
+        invoice,
+        hist_invoices=[],
+        dup_invoice=None,
+        approved_invoices=[],
+        bank_change=None,
+        vendor_row=vendor_row,
+    )
+
+    result = score_invoice(db, invoice.id)
+
+    assert result["fraud_score"] < 25
+    assert result["created_exception"] is False
+
+
+@patch("app.services.audit.log")
+def test_score_threshold_high(mock_audit_log):
+    """potential_duplicate (+30) + bank_account_changed (+25) = 55 >= 50 → HIGH risk, exception created."""
+    vendor_id = uuid.uuid4()
+    # Non-round amount so round_amount signal is not triggered
+    invoice = _make_invoice(total_amount=999.99, vendor_id=vendor_id, invoice_date=None)
+
+    mock_dup = MagicMock()
+    mock_bank_change = MagicMock()
+
+    # Build DB mock manually to handle extra queries from _ensure_fraud_exception
+    # and _ensure_fraud_incident (both triggered when score >= HIGH_THRESHOLD=40)
+    db = MagicMock()
+
+    r_inv = MagicMock()
+    r_inv.scalars.return_value.first.return_value = invoice
+
+    r_hist = MagicMock()
+    r_hist.scalars.return_value.all.return_value = []  # < 3 → amount_spike not triggered
+
+    r_dup = MagicMock()
+    r_dup.scalars.return_value.first.return_value = mock_dup  # potential_duplicate: +30
+
+    r_approved = MagicMock()
+    r_approved.scalars.return_value.all.return_value = [MagicMock(), MagicMock(), MagicMock()]  # >= 3 → new_vendor not triggered
+
+    r_bank = MagicMock()
+    r_bank.scalars.return_value.first.return_value = mock_bank_change  # bank_account_changed: +25
+
+    mock_vendor = MagicMock()
+    mock_vendor.bank_account = None  # prevents ghost_vendor query
+    r_vendor = MagicMock()
+    r_vendor.scalars.return_value.first.return_value = mock_vendor
+
+    r_no_existing_exc = MagicMock()
+    r_no_existing_exc.scalars.return_value.first.return_value = None  # no prior FRAUD_FLAG
+
+    r_no_existing_incident = MagicMock()
+    r_no_existing_incident.scalars.return_value.first.return_value = None  # no prior FraudIncident
+
+    db.execute.side_effect = [
+        r_inv, r_hist, r_dup, r_approved, r_bank, r_vendor,
+        r_no_existing_exc, r_no_existing_incident,
+    ]
+
+    result = score_invoice(db, invoice.id)
+
+    assert result["fraud_score"] >= 50
+    assert result["created_exception"] is True
+    assert "potential_duplicate" in result["triggered_signals"]
+    assert "bank_account_changed" in result["triggered_signals"]
+
+
 def test_score_thresholds():
     """Verify score → risk_level mapping matches configured thresholds.
 
