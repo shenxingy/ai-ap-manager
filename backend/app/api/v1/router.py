@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import admin, auth, invoices, match, exceptions, approvals, kpi, users, vendors
+from app.api.v1 import admin, auth, invoices, match, exceptions, approvals, kpi, users, vendors, entities
 from app.api.v1 import fraud_incidents, recurring_patterns, analytics, import_routes, portal
 from app.api.v1 import approval_matrix as am_module
 from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai, audit, payments as payments_module
@@ -17,6 +17,7 @@ api_router.include_router(exceptions.router, prefix="/exceptions", tags=["except
 api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(kpi.router, prefix="/kpi", tags=["kpi"])
 api_router.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
+api_router.include_router(entities.router, prefix="/entities", tags=["entities"])
 api_router.include_router(fraud_incidents.router, prefix="/fraud-incidents", tags=["fraud"])
 api_router.include_router(recurring_patterns.router, prefix="/admin", tags=["admin"])
 api_router.include_router(am_module.router, prefix="/approval-matrix", tags=["approval-matrix"])
@@ -32,3 +33,6 @@ api_router.include_router(payments_module.router, tags=["payments"])
 
 from app.api.v1 import erp as erp_module
 api_router.include_router(erp_module.router, prefix="/admin", tags=["erp"])
+
+from app.api.v1 import invoice_templates
+api_router.include_router(invoice_templates.router, prefix="", tags=["invoice-templates"])
