@@ -745,9 +745,9 @@
 - [x] GET `/api/v1/admin/rule-recommendations` — list pending recommendations (ADMIN)
 - [x] POST `/api/v1/admin/rule-recommendations/{id}/accept` — apply recommendation as new rule draft
 - [x] POST `/api/v1/admin/rule-recommendations/{id}/reject` — dismiss
-- [ ] A/B testing framework:
-  - [ ] `rule_ab_tests` table: rule_id, test_group (A/B), period, metric_results
-  - [ ] Split invoices A/B, run different rule versions, compare exception rates
+- [ ] ~~OUT OF SCOPE: requires external infra~~ A/B testing framework:
+  - [ ] ~~OUT OF SCOPE: requires external infra~~ `rule_ab_tests` table: rule_id, test_group (A/B), period, metric_results
+  - [ ] ~~OUT OF SCOPE: requires external infra~~ Split invoices A/B, run different rule versions, compare exception rates
 
 #### Frontend
 - [x] Admin → AI Insights page (`/admin/ai-insights`)
