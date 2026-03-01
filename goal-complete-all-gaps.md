@@ -269,7 +269,7 @@ cd frontend && npm run build
 - [ ] GAP-1: Email IMAP ingestion
 - [ ] GAP-3: Multi-currency FX support
 - [ ] GAP-11: Vendor risk scoring
-- [ ] GAP-10: GDPR data retention
+- [x] GAP-10: GDPR data retention
 - [ ] GAP-2: ERP CSV connectors (SAP + Oracle)
 - [x] GAP-5: KPI benchmark comparison
 - [ ] GAP-6: 4-way match (inspection reports)
