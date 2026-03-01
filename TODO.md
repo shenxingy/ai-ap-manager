@@ -1069,26 +1069,26 @@
   - [ ] Multi-stage build (builder + runtime)
   - [ ] Non-root user (UID 1001)
   - [ ] Minimal image (python:3.11-slim)
-- [ ] Structured logging:
-  - [ ] JSON log format for all backend services
-  - [ ] Log fields: timestamp, level, service, trace_id, invoice_id (when applicable)
-  - [ ] Correlation ID: inject X-Trace-ID header, propagate to Celery tasks
-- [ ] Prometheus metrics:
-  - [ ] GET `/metrics` endpoint (Starlette Prometheus middleware)
-  - [ ] Custom metrics: invoice_processing_duration_seconds, extraction_accuracy_gauge, exception_rate_gauge
-  - [ ] Celery task metrics: task_duration, task_failure_rate
-- [ ] Health checks:
-  - [ ] GET `/health` → DB connection + Redis + MinIO reachability
-  - [ ] GET `/health/ready` vs `/health/live` (Kubernetes probes)
-- [ ] API documentation:
-  - [ ] Swagger already auto-generated at `/api/docs`
-  - [ ] Add detailed descriptions + examples to all schemas
-  - [ ] OpenAPI spec export for client SDK generation
-- [ ] README.md:
-  - [ ] Quick-start: `docker-compose up -d && python scripts/seed.py`
-  - [ ] Architecture diagram (text or Mermaid)
-  - [ ] API overview table
-  - [ ] Development workflow: migrations, adding models, writing tests
+- [x] Structured logging:
+  - [x] JSON log format for all backend services
+  - [x] Log fields: timestamp, level, service, trace_id, invoice_id (when applicable)
+  - [x] Correlation ID: inject X-Trace-ID header, propagate to Celery tasks
+- [x] Prometheus metrics:
+  - [x] GET `/metrics` endpoint (Starlette Prometheus middleware)
+  - [x] Custom metrics: invoice_processing_duration_seconds, extraction_accuracy_gauge, exception_rate_gauge
+  - [x] Celery task metrics: task_duration, task_failure_rate
+- [x] Health checks:
+  - [x] GET `/health` → DB connection + Redis + MinIO reachability
+  - [x] GET `/health/ready` vs `/health/live` (Kubernetes probes)
+- [x] API documentation:
+  - [x] Swagger already auto-generated at `/api/docs`
+  - [x] Add detailed descriptions + examples to all schemas
+  - [x] OpenAPI spec export for client SDK generation
+- [x] README.md:
+  - [x] Quick-start: `docker-compose up -d && python scripts/seed.py`
+  - [x] Architecture diagram (text or Mermaid)
+  - [x] API overview table
+  - [x] Development workflow: migrations, adding models, writing tests
 
 ---
 
