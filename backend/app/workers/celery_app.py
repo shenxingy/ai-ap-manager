@@ -14,6 +14,7 @@ celery_app = Celery(
         "app.workers.email_ingestion",
         "app.workers.feedback_tasks",
         "app.workers.analytics_tasks",
+        "app.workers.ml_tasks",
     ],
 )
 
@@ -53,5 +54,9 @@ celery_app.conf.beat_schedule = {
     "expire-compliance-docs-weekly": {
         "task": "app.workers.sla_tasks.expire_compliance_docs",
         "schedule": crontab(hour=1, minute=0, day_of_week="mon"),
+    },
+    "gl-classifier-retrain-weekly": {
+        "task": "retrain_gl_classifier",
+        "schedule": crontab(hour=4, minute=0, day_of_week=6),  # Saturday 4 AM UTC
     },
 }
