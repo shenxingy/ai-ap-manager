@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -54,3 +54,17 @@ class RuleVersion(Base, UUIDMixin, TimestampMixin):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     rule: Mapped["Rule"] = relationship("Rule", back_populates="versions")
+
+
+class RuleSuggestion(Base, UUIDMixin, TimestampMixin):
+    """AI-generated rule suggestions pending human review."""
+
+    __tablename__ = "rule_suggestions"
+
+    rule_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    suggested_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="pending"
+    )  # pending, accepted, rejected

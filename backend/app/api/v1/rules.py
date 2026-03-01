@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_session
-from app.models.rule import Rule, RuleVersion
+from app.models.rule import Rule, RuleSuggestion, RuleVersion
 from app.services import storage as storage_svc
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,18 @@ class RuleVersionUpdate(BaseModel):
     config_json: str | None = None
     change_summary: str | None = None
     is_shadow_mode: bool | None = None
+
+
+class RuleSuggestionItem(BaseModel):
+    id: uuid.UUID
+    rule_type: str
+    description: str
+    suggested_config: dict
+    confidence: float
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # ─── POST /upload-policy ───
@@ -193,6 +205,65 @@ async def list_rules(
     ).scalars().all()
     items = [RuleVersionListItem.model_validate(v) for v in versions]
     return RuleVersionListResponse(items=items, total=total)
+
+
+# ─── GET /rules/suggestions ───
+
+@router.get(
+    "/suggestions",
+    response_model=list[RuleSuggestionItem],
+    summary="List pending rule suggestions",
+)
+async def list_suggestions(
+    db: AsyncSession = Depends(get_session),
+    current_user=Depends(require_role("ADMIN", "AP_ANALYST")),
+):
+    rows = (
+        await db.execute(
+            select(RuleSuggestion)
+            .where(RuleSuggestion.status == "pending")
+            .order_by(RuleSuggestion.created_at.desc())
+        )
+    ).scalars().all()
+    return [RuleSuggestionItem.model_validate(r) for r in rows]
+
+
+# ─── POST /rules/suggestions/{id}/accept ───
+
+@router.post(
+    "/suggestions/{suggestion_id}/accept",
+    response_model=RuleSuggestionItem,
+    summary="Accept a rule suggestion",
+)
+async def accept_suggestion(
+    suggestion_id: uuid.UUID,
+    db: AsyncSession = Depends(get_session),
+    current_user=Depends(require_role("ADMIN")),
+):
+    suggestion = await _get_suggestion_or_404(db, suggestion_id)
+    suggestion.status = "accepted"
+    await db.commit()
+    await db.refresh(suggestion)
+    return RuleSuggestionItem.model_validate(suggestion)
+
+
+# ─── POST /rules/suggestions/{id}/reject ───
+
+@router.post(
+    "/suggestions/{suggestion_id}/reject",
+    response_model=RuleSuggestionItem,
+    summary="Reject a rule suggestion",
+)
+async def reject_suggestion(
+    suggestion_id: uuid.UUID,
+    db: AsyncSession = Depends(get_session),
+    current_user=Depends(require_role("ADMIN")),
+):
+    suggestion = await _get_suggestion_or_404(db, suggestion_id)
+    suggestion.status = "rejected"
+    await db.commit()
+    await db.refresh(suggestion)
+    return RuleSuggestionItem.model_validate(suggestion)
 
 
 # ─── GET /rules/{id} ───
@@ -330,3 +401,10 @@ async def _get_version_or_404(db: AsyncSession, version_id: uuid.UUID) -> RuleVe
     if version is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule version not found.")
     return version
+
+
+async def _get_suggestion_or_404(db: AsyncSession, suggestion_id: uuid.UUID) -> RuleSuggestion:
+    suggestion = await db.get(RuleSuggestion, suggestion_id)
+    if suggestion is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule suggestion not found.")
+    return suggestion
