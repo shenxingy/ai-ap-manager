@@ -626,7 +626,7 @@
 
 #### Backend
 - [x] `require_role()` dependency exists
-- [ ] Full permission audit: verify all endpoints call `require_role()`
+- [x] Full permission audit: verify all endpoints call `require_role()`
 - [x] GET `/api/v1/admin/users` — list all users (ADMIN)
 - [x] POST `/api/v1/admin/users` — create user (ADMIN)
   - [x] Body: email, name, role, password
