@@ -174,4 +174,4 @@ All of the following must be true:
 6. `grep "normalized_amount_usd" backend/app/api/v1/invoices.py` → found
 7. `grep -c "^\- \[ \]" TODO.md` → less than 120
 
-STATUS: GAP-A (✓ DONE), GAP-B (pending), GAP-C (✓ DONE), GAP-D (✓ DONE), GAP-E (✓ DONE)
+STATUS: GAP-A (✓ DONE), GAP-B (✓ DONE), GAP-C (✓ DONE), GAP-D (✓ DONE), GAP-E (✓ DONE)
