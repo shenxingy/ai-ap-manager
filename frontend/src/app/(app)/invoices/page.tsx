@@ -20,6 +20,7 @@ interface Invoice {
   invoice_number: string;
   vendor_name_raw: string;
   total_amount: number;
+  currency?: string;
   status: string;
   fraud_score: number | null;
   created_at: string;
@@ -241,7 +242,7 @@ export default function InvoicesPage() {
                   <TableCell>{inv.vendor_name_raw || "—"}</TableCell>
                   <TableCell className="text-right">
                     {inv.total_amount != null
-                      ? `$${inv.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      ? `${inv.currency || "USD"} ${inv.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       : "—"}
                   </TableCell>
                   <TableCell>

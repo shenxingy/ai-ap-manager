@@ -207,6 +207,8 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <p className="text-xs text-muted-foreground mt-1">All amounts shown in USD (base currency)</p>
+
       {/* Mini KPI Cards — Total Approved / Pending / Exceptions / Fraud / SLA */}
       {!isLoading && summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
