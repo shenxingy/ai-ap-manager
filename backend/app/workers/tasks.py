@@ -196,6 +196,11 @@ def process_invoice(self, invoice_id: str) -> dict:
         invoice.payment_terms = merged.get("payment_terms")
         invoice.ocr_confidence = ocr_confidence
         invoice.extraction_model = settings.ANTHROPIC_MODEL
+        if ocr_confidence < settings.OCR_MIN_CONFIDENCE:
+            logger.warning(
+                "Low OCR confidence for invoice %s: %.2f < %.2f threshold",
+                invoice_id, ocr_confidence, settings.OCR_MIN_CONFIDENCE,
+            )
 
         # Parse dates loosely
         from datetime import datetime as dt
