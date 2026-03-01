@@ -267,7 +267,29 @@ async def get_invoice(
     invoice = result.scalar_one_or_none()
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
-    return InvoiceDetail.model_validate(invoice)
+
+    detail = InvoiceDetail.model_validate(invoice)
+
+    # FX enrichment: compute USD-normalized amount for non-USD invoices
+    if invoice.currency and invoice.currency != "USD" and invoice.total_amount is not None:
+        try:
+            from app.models.fx_rate import FxRate  # noqa: PLC0415
+            fx_stmt = (
+                select(FxRate)
+                .where(FxRate.base_currency == "USD", FxRate.quote_currency == invoice.currency)
+                .order_by(FxRate.valid_date.desc())
+                .limit(1)
+            )
+            fx_result = await db.execute(fx_stmt)
+            fx_row = fx_result.scalar_one_or_none()
+            if fx_row is not None and fx_row.rate:
+                detail.normalized_amount_usd = float(invoice.total_amount) / float(fx_row.rate)
+                detail.fx_rate_used = float(fx_row.rate)
+                detail.fx_rate_date = fx_row.valid_date.isoformat()
+        except Exception as exc:
+            logger.warning("FX enrichment failed for invoice %s: %s", invoice_id, exc)
+
+    return detail
 
 
 # ─── GL suggestions endpoint ───

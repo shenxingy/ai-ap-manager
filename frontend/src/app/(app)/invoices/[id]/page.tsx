@@ -58,6 +58,9 @@ interface Invoice {
   payment_date?: string | null;
   payment_method?: string | null;
   payment_reference?: string | null;
+  normalized_amount_usd?: number | null;
+  fx_rate_used?: number | null;
+  fx_rate_date?: string | null;
 }
 
 interface LineItem {
@@ -803,6 +806,16 @@ export default function InvoiceDetailPage() {
                   </div>
                 ))}
               </dl>
+
+              {/* ─── FX Normalized Amount ─── */}
+              {invoice.normalized_amount_usd != null && invoice.currency !== "USD" && (
+                <p className="text-sm text-muted-foreground mt-3">
+                  ≈ ${invoice.normalized_amount_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  {invoice.fx_rate_used != null && invoice.fx_rate_date != null && (
+                    <span> (rate: {invoice.fx_rate_used} on {invoice.fx_rate_date})</span>
+                  )}
+                </p>
+              )}
 
               {/* ─── Extraction Pass Comparison ─── */}
               {(() => {

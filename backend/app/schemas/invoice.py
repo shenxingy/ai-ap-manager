@@ -134,6 +134,11 @@ class InvoiceDetail(BaseModel):
     line_items: list[InvoiceLineItemOut] = []
     extraction_results: list[ExtractionResultOut] = []
 
+    # FX enrichment (populated at API layer, not stored on model)
+    normalized_amount_usd: float | None = None
+    fx_rate_used: float | None = None
+    fx_rate_date: str | None = None
+
 
 # ─── Paginated list response ───
 
