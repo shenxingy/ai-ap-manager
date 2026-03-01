@@ -888,7 +888,7 @@
 - [x] Approvals page: fully responsive (stacked cards on mobile < 768px)
 - [x] Invoice detail: horizontal scroll for tables on mobile
 - [x] PWA manifest (`manifest.json`) for "Add to Home Screen" on iOS/Android
-- [ ] Service worker: cache API responses for offline viewing
+- [x] Service worker: cache API responses for offline viewing
 
 ---
 
@@ -998,9 +998,9 @@
   - [x] Config: `SLACK_WEBHOOK_URL` in settings
   - [x] Message format: invoice# · vendor · amount · Approve/Reject links
 - [x] Microsoft Teams notifications (Teams webhook)
-- [ ] In-app notification center (bell icon with unread count)
-  - [ ] WebSocket or SSE push for real-time updates
-  - [ ] Notification types: approval_request, exception_assigned, sla_alert, vendor_message
+- [x] In-app notification center (bell icon with unread count)
+  - [ ] WebSocket or SSE push for real-time updates (currently polling every 30s)
+  - [x] Notification types: approval_request, fraud_alert, approval_decision
 - [x] User notification preferences: per-channel (email/Slack/in-app) opt-in per notification type
 
 ### Vendor Invoice Templating
