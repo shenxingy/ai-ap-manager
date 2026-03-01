@@ -1,6 +1,37 @@
 # Progress — AI AP Operations Manager
 
 ## [2026-03-01] Repo + Docs Cleanup
+### 2026-03-01 — Loop: goal-p4-final
+
+**Iterations:** 6
+**Goal file:** goal-p4-final.md
+**Commits since start:**
+```
+60178d2 feat: add batch payment API endpoint (P4-E)
+9965a2d docs: mark completed and out-of-scope TODO items (P4-A, P4-I)
+8c62d5e feat: add production Dockerfiles for backend and frontend (P4-C)
+01e46f1 feat: add notification center bell icon to AppShell (P4-F)
+fa27060 feat: add notifications model, migration, and API endpoints (P4-F)
+8ed002e Merge branch 'batch/task-4-20260301-124126'
+b435662 Merge branch 'batch/task-3-20260301-124126'
+3f2f678 Merge branch 'batch/task-1-20260301-124126'
+e00300d docs: mark notification preferences complete in TODO (P4-G)
+f4a7696 feat: add migration for notification_prefs column (P4-G)
+0bbc3a3 feat: add notification preferences UI to admin settings (P4-G)
+21a6343 feat: add notification_prefs column to users and preferences endpoints (P4-G)
+3d9866a batch: Implement P4-H: Frontend Jest Unit Tests.
+6a02db1 test: add Jest unit tests for utils and auth store (P4-H)
+190fe05 chore: add Jest configuration and setup for frontend testing
+e22ec44 feat: add PWA service worker and app icons (P4-D)
+3f53c07 Merge branch 'batch/task-4-20260301-123644'
+95f91e5 Merge branch 'batch/task-3-20260301-123644'
+b89dd99 Merge branch 'batch/task-2-20260301-123644'
+dd179b8 docs: mark permission audit complete in TODO
+no commits found
+```
+
+---
+
 ### 2026-03-01 — Loop: goal-p3-completion
 
 **Iterations:** 4
