@@ -273,7 +273,7 @@ cd frontend && npm run build
 - [ ] GAP-2: ERP CSV connectors (SAP + Oracle)
 - [x] GAP-5: KPI benchmark comparison
 - [ ] GAP-6: 4-way match (inspection reports)
-- [ ] GAP-7: GL coding ML classifier
+- [x] GAP-7: GL coding ML classifier
 - [x] GAP-8: Slack/Teams webhook notifications
 - [ ] GAP-9: Multi-entity support
 - [ ] GAP-12: Invoice template system
