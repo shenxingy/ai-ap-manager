@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     # App
     APP_ENV: str = "development"
-    APP_BASE_URL: str = "http://localhost:8000"
+    APP_BASE_URL: str = "http://localhost:8002"
     FRONTEND_URL: str = "http://localhost:3000"
     CORS_ORIGINS: str = "http://localhost:3000"
 
