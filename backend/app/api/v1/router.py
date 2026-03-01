@@ -8,6 +8,7 @@ from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai, audit
 from app.api.v1 import erp as erp_module
 from app.api.v1 import invoice_templates
 from app.api.v1 import notifications
+from app.api.v1 import payment_runs as payment_runs_module
 
 api_router = APIRouter()
 
@@ -39,3 +40,4 @@ api_router.include_router(payments_module.batch_router, tags=["payments"])
 api_router.include_router(erp_module.router, prefix="/admin", tags=["erp"])
 api_router.include_router(invoice_templates.router, prefix="", tags=["invoice-templates"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(payment_runs_module.router, prefix="/payment-runs", tags=["payment-runs"])
