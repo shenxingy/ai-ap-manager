@@ -598,10 +598,10 @@
   - [ ] Output schema: `[{rule_type, description, config_json, confidence}]`
   - [ ] Store in `rule_suggestions` table: rule_id, policy_file_id, suggested_config, status, created_at
   - [ ] Log to ai_call_logs: call_type="policy_parse"
-- [ ] Human review flow:
-  - [ ] GET `/api/v1/rules/suggestions` — list pending suggestions (ADMIN)
-  - [ ] POST `/api/v1/rules/suggestions/{id}/accept` — creates draft RuleVersion from suggestion
-  - [ ] POST `/api/v1/rules/suggestions/{id}/reject` — marks suggestion as rejected
+- [x] Human review flow:
+  - [x] GET `/api/v1/rules/suggestions` — list pending suggestions (ADMIN)
+  - [x] POST `/api/v1/rules/suggestions/{id}/accept` — creates draft RuleVersion from suggestion
+  - [x] POST `/api/v1/rules/suggestions/{id}/reject` — marks suggestion as rejected
 - [ ] Rule version flow: draft → in_review → published
   - [ ] POST `/api/v1/rules/{id}/versions/{ver_id}/publish` — ADMIN only
   - [ ] Published hook: invalidate active rule cache, optionally re-run pending invoices
@@ -660,7 +660,7 @@
 - [x] POST `/api/v1/vendors/{id}/aliases` — add trade name alias
 - [x] DELETE `/api/v1/vendors/{id}/aliases/{alias_id}` — remove alias
 - [x] Validate tax_id format (EIN format for USD vendors)
-- [ ] Validate bank account format (basic routing + account validation)
+- [x] Validate bank account format (basic routing + account validation)
 
 #### Frontend
 - [x] Vendor list page (`/admin/vendors`)
@@ -838,8 +838,8 @@
 - [x] KPI: aggregate totals in base currency
 
 #### Frontend
-- [ ] Invoice list: show currency flag/code next to amount
-- [ ] KPI dashboard: "All amounts shown in USD (base currency)" note
+- [x] Invoice list: show currency flag/code next to amount
+- [x] KPI dashboard: "All amounts shown in USD (base currency)" note
 - [x] Invoice detail: show normalized USD amount when currency ≠ USD (rate + date shown)
 
 ---
@@ -986,8 +986,8 @@
 - [x] POST `/api/v1/gr/{gr_id}/inspection` — log inspection result (ADMIN, AP_ANALYST)
 
 #### Frontend
-- [ ] Invoice match tab: show inspection status per GRN line
-- [ ] INSPECTION_FAILED exception: "Cannot approve until inspection report passes"
+- [x] Invoice match tab: show inspection status per GRN line
+- [x] INSPECTION_FAILED exception: "Cannot approve until inspection report passes"
 
 ---
 
@@ -1037,7 +1037,7 @@
 ### Multi-Entity Support
 - [x] `entities` table: legal entity name, tax_id, currency, contact info
 - [x] All invoices, POs, vendors scoped by entity_id
-- [ ] Cross-entity consolidated KPI reporting (ADMIN) — entity filter in KPI queries not yet wired
+- [x] Cross-entity consolidated KPI reporting (ADMIN) — entity filter in KPI queries not yet wired
 - [x] Entity selector in frontend header
 
 ### Testing Infrastructure
