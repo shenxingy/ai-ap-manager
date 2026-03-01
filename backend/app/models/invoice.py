@@ -27,6 +27,9 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="upload")  # upload, email, api
     source_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email_from: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email_subject: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    email_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     subtotal: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
     tax_amount: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
