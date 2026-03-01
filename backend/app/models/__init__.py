@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.entity import Entity
 from app.models.vendor import Vendor, VendorAlias, VendorComplianceDoc, ComplianceDocType, ComplianceDocStatus
 from app.models.purchase_order import PurchaseOrder, POLineItem
 from app.models.goods_receipt import GoodsReceipt, GRLineItem
@@ -21,6 +22,7 @@ from app.models.fx_rate import FxRate
 
 __all__ = [
     "User",
+    "Entity",
     "Vendor", "VendorAlias", "VendorComplianceDoc", "ComplianceDocType", "ComplianceDocStatus",
     "PurchaseOrder", "POLineItem",
     "GoodsReceipt", "GRLineItem",
