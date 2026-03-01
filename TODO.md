@@ -1009,6 +1009,7 @@
 - [x] Template invoice submitted → enters pipeline as "template-sourced" (higher trust, faster processing)
 
 ### Payment Operations
+- [x] Batch payment API: `POST /api/v1/payments/batch` — batch record payments for multiple approved invoices (P4-E)
 - [ ] Automated bill batching
   - [ ] Group approved invoices to same vendor with similar due dates into one payment run
   - [ ] Payment run schedule: weekly, bi-weekly, monthly
