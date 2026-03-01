@@ -268,7 +268,7 @@ cd frontend && npm run build
 - [ ] Gap 0: Fix TODO.md drift (5 items)
 - [x] GAP-1: Email IMAP ingestion
 - [ ] GAP-3: Multi-currency FX support
-- [ ] GAP-11: Vendor risk scoring
+- [x] GAP-11: Vendor risk scoring
 - [x] GAP-10: GDPR data retention
 - [ ] GAP-2: ERP CSV connectors (SAP + Oracle)
 - [x] GAP-5: KPI benchmark comparison
