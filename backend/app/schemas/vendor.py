@@ -1,9 +1,10 @@
 """Pydantic schemas for vendor API endpoints."""
+import re
 import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 # ─── Alias schemas ───
@@ -104,3 +105,13 @@ class VendorUpdate(BaseModel):
     email: str | None = None
     address: str | None = None
     is_active: bool | None = None
+
+    @field_validator('bank_account')
+    @classmethod
+    def validate_bank_account(cls, v):
+        if v is None:
+            return v
+        pattern = r'^\d{9}:\d{4,17}$'
+        if not re.match(pattern, v):
+            raise ValueError("Invalid bank account format. Expected 'routing_number:account_number'")
+        return v
