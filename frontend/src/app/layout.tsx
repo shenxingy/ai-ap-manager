@@ -18,6 +18,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "AI AP Manager",
   description: "Enterprise AI-driven Accounts Payable automation platform",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
