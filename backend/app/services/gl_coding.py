@@ -44,6 +44,7 @@ async def suggest_gl_codes(
     """Return GL code suggestions for each line item of the given invoice.
 
     Suggestion priority:
+      0. ml_classifier — TF-IDF + LR model if confidence >= 0.7
       1. vendor_history — most frequent gl_account from approved invoices of same
          vendor with similar line descriptions (word overlap >= MIN_SIMILARITY_SCORE)
       2. po_line — GL account from the matched PO line item
@@ -87,27 +88,52 @@ async def suggest_gl_codes(
 
     suggestions = []
 
+    # ── Pre-load invoice vendor name for ML feature ──
+    vendor_name_for_ml = ""
+    if invoice.vendor_id:
+        from app.models.vendor import Vendor
+        vendor_row = (await db.execute(
+            select(Vendor).where(Vendor.id == invoice.vendor_id)
+        )).scalars().first()
+        vendor_name_for_ml = vendor_row.name if vendor_row else ""
+
     for line in lines:
         gl_account = None
         cost_center = None
         confidence = 0.0
         source = "none"
 
-        # ── 1. Vendor history ──
-        similar_lines = [
-            hl for hl in history_lines
-            if _word_similarity(line.description, hl.description) >= MIN_SIMILARITY_SCORE
-        ]
+        # ── 0. ML classifier (highest priority) ──
+        try:
+            from app.services.gl_classifier import predict_gl_account
+            ml_account, ml_confidence = predict_gl_account(
+                vendor_name=vendor_name_for_ml,
+                description=line.description or "",
+                amount=float(line.unit_price or 0),
+            )
+            if ml_account and ml_confidence >= 0.7:
+                gl_account = ml_account
+                confidence = ml_confidence
+                source = "ml_classifier"
+        except Exception as exc:
+            logger.debug("GL ML classifier error (falling through): %s", exc)
 
-        if similar_lines:
-            gl_counter: Counter = Counter(hl.gl_account for hl in similar_lines if hl.gl_account)
-            cc_counter: Counter = Counter(hl.cost_center for hl in similar_lines if hl.cost_center)
-            if gl_counter:
-                top_gl, top_count = gl_counter.most_common(1)[0]
-                gl_account = top_gl
-                cost_center = cc_counter.most_common(1)[0][0] if cc_counter else None
-                confidence = top_count / len(similar_lines)
-                source = "vendor_history"
+        # ── 1. Vendor history ──
+        if not gl_account:
+            similar_lines = [
+                hl for hl in history_lines
+                if _word_similarity(line.description, hl.description) >= MIN_SIMILARITY_SCORE
+            ]
+
+            if similar_lines:
+                gl_counter: Counter = Counter(hl.gl_account for hl in similar_lines if hl.gl_account)
+                cc_counter: Counter = Counter(hl.cost_center for hl in similar_lines if hl.cost_center)
+                if gl_counter:
+                    top_gl, top_count = gl_counter.most_common(1)[0]
+                    gl_account = top_gl
+                    cost_center = cc_counter.most_common(1)[0][0] if cc_counter else None
+                    confidence = top_count / len(similar_lines)
+                    source = "vendor_history"
 
         # ── 2. PO line fallback ──
         if not gl_account and line.po_line_item_id:
