@@ -17,6 +17,7 @@ from app.models.analytics_report import AnalyticsReport
 from app.models.sla_alert import SLAAlert
 from app.models.override_log import OverrideLog
 from app.models.vendor_risk import VendorRiskScore
+from app.models.fx_rate import FxRate
 
 __all__ = [
     "User",
@@ -38,4 +39,5 @@ __all__ = [
     "SLAAlert",
     "OverrideLog",
     "VendorRiskScore",
+    "FxRate",
 ]
