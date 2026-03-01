@@ -20,6 +20,7 @@ from app.models.override_log import OverrideLog
 from app.models.vendor_risk import VendorRiskScore
 from app.models.fx_rate import FxRate
 from app.models.notification import Notification
+from app.models.payment_run import PaymentRun
 
 __all__ = [
     "User",
@@ -44,4 +45,5 @@ __all__ = [
     "VendorRiskScore",
     "FxRate",
     "Notification",
+    "PaymentRun",
 ]

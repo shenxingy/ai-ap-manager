@@ -59,11 +59,15 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     extraction_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     normalized_amount_usd: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payment_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("payment_runs.id"), nullable=True, index=True
+    )
 
     line_items: Mapped[list["InvoiceLineItem"]] = relationship("InvoiceLineItem", back_populates="invoice")
     extraction_results: Mapped[list["ExtractionResult"]] = relationship(
         "ExtractionResult", back_populates="invoice"
     )
+    payment_run: Mapped["PaymentRun | None"] = relationship("PaymentRun", back_populates="invoices")  # noqa: F821
 
 
 class InvoiceLineItem(Base, UUIDMixin, TimestampMixin):
