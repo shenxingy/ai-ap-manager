@@ -28,6 +28,22 @@ from app.models.vendor import Vendor
 
 logger = logging.getLogger(__name__)
 
+# ─── Public Endpoint Documentation ───
+# The following portal endpoints use vendor JWT tokens (not internal user JWT):
+#   GET  /portal/invoices                        — vendor views their own invoices
+#   GET  /portal/invoices/{invoice_id}           — vendor views a single invoice (ownership-checked)
+#   POST /portal/invoices/{invoice_id}/dispute   — vendor submits a formal dispute
+# These endpoints call get_current_vendor_id() instead of get_current_user().
+# They are intentionally excluded from internal auth guards.
+#
+# The following portal endpoint uses HMAC token auth (not JWT):
+#   POST /portal/invoices/{invoice_id}/reply     — vendor replies to an invoice inquiry
+# This endpoint validates the `token` query parameter via verify_vendor_reply_token().
+# It is intentionally excluded from both internal and vendor JWT auth guards.
+#
+# The following portal endpoint requires internal ADMIN JWT auth:
+#   POST /portal/auth/invite                     — ADMIN issues a 30-day vendor portal JWT
+
 router = APIRouter(prefix="/portal", tags=["portal"])
 
 
