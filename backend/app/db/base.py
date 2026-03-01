@@ -10,6 +10,10 @@ class Base(DeclarativeBase):
     pass
 
 
+# Register all models for Alembic autogenerate
+from app.models import entity as _entity_mod  # noqa: E402, F401
+
+
 class UUIDMixin:
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
