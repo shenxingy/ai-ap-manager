@@ -36,3 +36,4 @@ class TimestampMixin:
 from app.models import entity as _entity_mod  # noqa: E402, F401
 from app.models.inspection_report import InspectionReport  # noqa: E402, F401
 from app.models.invoice_template import InvoiceTemplate  # noqa: E402, F401
+from app.models.rule import Rule, RuleSuggestion, RuleVersion  # noqa: E402, F401
