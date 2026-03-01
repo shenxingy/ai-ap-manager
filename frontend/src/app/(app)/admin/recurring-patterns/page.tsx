@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -20,6 +20,7 @@ import api from "@/lib/api";
 interface RecurringPattern {
   id: string;
   vendor_id: string;
+  vendor_name: string | null;
   frequency_days: number;
   avg_amount: number;
   tolerance_pct: number;
@@ -27,6 +28,11 @@ interface RecurringPattern {
   last_detected_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface RecurringPatternListResponse {
+  items: RecurringPattern[];
+  total: number;
 }
 
 // ─── Helpers ───
@@ -131,29 +137,51 @@ function Toggle({
 export default function AdminRecurringPatternsPage() {
   const queryClient = useQueryClient();
   const { toast, showToast } = useToast();
+  // Track which vendor_id is currently being detected (for per-row spinner)
+  const [detectingVendorId, setDetectingVendorId] = useState<string | null>(
+    null
+  );
 
-  const { data: patterns, isLoading } = useQuery<RecurringPattern[]>({
+  const { data, isLoading } = useQuery<RecurringPatternListResponse>({
     queryKey: ["recurring-patterns"],
     queryFn: () =>
       api
-        .get<RecurringPattern[]>("/admin/recurring-patterns")
+        .get<RecurringPatternListResponse>("/admin/recurring-patterns")
         .then((r) => r.data),
   });
 
-  const detectMutation = useMutation({
+  const patterns = data?.items ?? [];
+
+  // Global detect-all mutation
+  const detectAllMutation = useMutation({
     mutationFn: async () => {
       const res = await api.post<{ status: string; task_id?: string }>(
         "/admin/recurring-patterns/detect"
       );
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (d) => {
       showToast(
-        data.status === "queued"
-          ? "Detection task queued"
-          : "Detection completed",
+        d.status === "queued" ? "Detection task queued" : "Detection completed",
         "success"
       );
+      queryClient.invalidateQueries({ queryKey: ["recurring-patterns"] });
+    },
+    onError: (err) => showToast(extractApiError(err), "error"),
+  });
+
+  // Per-vendor detect mutation
+  const detectVendorMutation = useMutation({
+    mutationFn: async (vendor_id: string) => {
+      const res = await api.post<{ status: string; task_id?: string }>(
+        `/admin/recurring-patterns/detect?vendor_id=${vendor_id}`
+      );
+      return res.data;
+    },
+    onMutate: (vendor_id) => setDetectingVendorId(vendor_id),
+    onSettled: () => setDetectingVendorId(null),
+    onSuccess: () => {
+      showToast("Vendor detection queued", "success");
       queryClient.invalidateQueries({ queryKey: ["recurring-patterns"] });
     },
     onError: (err) => showToast(extractApiError(err), "error"),
@@ -193,13 +221,13 @@ export default function AdminRecurringPatternsPage() {
           </p>
         </div>
         <Button
-          onClick={() => detectMutation.mutate()}
-          disabled={detectMutation.isPending}
+          onClick={() => detectAllMutation.mutate()}
+          disabled={detectAllMutation.isPending}
         >
           <RefreshCw
-            className={`h-4 w-4 mr-2 ${detectMutation.isPending ? "animate-spin" : ""}`}
+            className={`h-4 w-4 mr-2 ${detectAllMutation.isPending ? "animate-spin" : ""}`}
           />
-          {detectMutation.isPending ? "Detecting…" : "Run Detection"}
+          {detectAllMutation.isPending ? "Detecting…" : "Run Detection"}
         </Button>
       </div>
 
@@ -208,29 +236,30 @@ export default function AdminRecurringPatternsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Vendor ID</TableHead>
+                <TableHead>Vendor</TableHead>
                 <TableHead>Frequency</TableHead>
                 <TableHead>Avg Amount</TableHead>
                 <TableHead>Tolerance</TableHead>
                 <TableHead>Auto Fast-Track</TableHead>
                 <TableHead>Last Detected</TableHead>
+                <TableHead className="w-28" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center text-gray-400 py-8"
                   >
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
-              {!isLoading && (!patterns || patterns.length === 0) && (
+              {!isLoading && patterns.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center text-gray-400 py-12"
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -244,37 +273,60 @@ export default function AdminRecurringPatternsPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {patterns?.map((pattern) => (
-                <TableRow key={pattern.id}>
-                  <TableCell className="font-mono text-xs text-gray-500">
-                    {pattern.vendor_id.slice(0, 8)}…
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {fmtFrequency(pattern.frequency_days)}
-                  </TableCell>
-                  <TableCell className="text-sm font-medium">
-                    {fmtCurrency(pattern.avg_amount)}
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    ±{(pattern.tolerance_pct * 100).toFixed(1)}%
-                  </TableCell>
-                  <TableCell>
-                    <Toggle
-                      checked={pattern.auto_fast_track}
-                      disabled={toggleMutation.isPending}
-                      onChange={(v) =>
-                        toggleMutation.mutate({
-                          id: pattern.id,
-                          auto_fast_track: v,
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {fmtDate(pattern.last_detected_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {patterns.map((pattern) => {
+                const isDetecting = detectingVendorId === pattern.vendor_id;
+                return (
+                  <TableRow key={pattern.id}>
+                    <TableCell className="font-medium text-sm">
+                      {pattern.vendor_name ?? (
+                        <span className="font-mono text-xs text-gray-400">
+                          {pattern.vendor_id.slice(0, 8)}…
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {fmtFrequency(pattern.frequency_days)}
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {fmtCurrency(pattern.avg_amount)}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      ±{(pattern.tolerance_pct * 100).toFixed(1)}%
+                    </TableCell>
+                    <TableCell>
+                      <Toggle
+                        checked={pattern.auto_fast_track}
+                        disabled={toggleMutation.isPending}
+                        onChange={(v) =>
+                          toggleMutation.mutate({
+                            id: pattern.id,
+                            auto_fast_track: v,
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-500">
+                      {fmtDate(pattern.last_detected_at)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isDetecting || detectVendorMutation.isPending}
+                        onClick={() =>
+                          detectVendorMutation.mutate(pattern.vendor_id)
+                        }
+                        className="text-xs"
+                      >
+                        <Zap
+                          className={`h-3 w-3 mr-1 ${isDetecting ? "animate-pulse" : ""}`}
+                        />
+                        {isDetecting ? "…" : "Detect Now"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
