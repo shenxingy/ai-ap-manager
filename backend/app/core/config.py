@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     SLACK_WEBHOOK_URL: str = ""
     TEAMS_WEBHOOK_URL: str = ""
 
+    # Data Retention (GDPR)
+    RETENTION_ENABLED: bool = False
+    RETENTION_DAYS_INVOICES: int = 2555  # ~7 years
+    RETENTION_DAYS_AUDIT_LOGS: int = 365  # 1 year
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]

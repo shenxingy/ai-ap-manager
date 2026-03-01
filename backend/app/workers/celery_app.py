@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.workers.feedback_tasks",
         "app.workers.analytics_tasks",
         "app.workers.ml_tasks",
+        "app.workers.retention_tasks",
     ],
 )
 
@@ -58,5 +59,9 @@ celery_app.conf.beat_schedule = {
     "gl-classifier-retrain-weekly": {
         "task": "retrain_gl_classifier",
         "schedule": crontab(hour=4, minute=0, day_of_week=6),  # Saturday 4 AM UTC
+    },
+    "data-retention-monthly": {
+        "task": "run_data_retention",
+        "schedule": crontab(day_of_month=1, hour=3, minute=0),
     },
 }
