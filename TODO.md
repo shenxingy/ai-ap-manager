@@ -466,14 +466,14 @@
   - [x] Run in Celery pipeline after extraction (before match)
 
 #### Frontend
-- [ ] Import page (`/admin/import`)
-  - [ ] Three import tabs: POs · GRNs · Vendors
-  - [ ] Drag-and-drop CSV upload per type
-  - [ ] Preview table: first 10 rows + column mapping dropdowns
-  - [ ] Submit → show progress + results (created/updated/skipped/errors)
-  - [ ] Download error report CSV
+- [x] Import page (`/admin/import`)
+  - [x] Three import tabs: POs · GRNs · Vendors
+  - [x] Drag-and-drop CSV upload per type
+  - [x] Preview table: first 10 rows + column mapping dropdowns
+  - [x] Submit → show progress + results (created/updated/skipped/errors)
+  - [x] Download error report CSV
 - [x] Invoice list: `source` badge ("email" vs "upload")
-- [ ] Email ingestion status in settings: last poll time, total auto-ingested count
+- [x] Email ingestion status in settings: last poll time, total auto-ingested count
 
 ---
 
@@ -537,13 +537,13 @@
 - [ ] `RecurringInvoicePattern` model (already in `app/models/invoice.py`)
   - [x] Verify migration exists for recurring_invoice_patterns table
   - [x] Fields: vendor_id, frequency_days, avg_amount, tolerance_pct, auto_fast_track, last_detected_at
-- [ ] Detection Celery beat task (weekly):
-  - [ ] For each vendor with ≥ 3 approved invoices
-  - [ ] Group by vendor, compute inter-invoice intervals (days between consecutive invoices)
-  - [ ] Detect periodicity: dominant interval (7, 14, 30, 60, 90 days) with ±20% tolerance
-  - [ ] Compute amount cluster: mean ± std dev
-  - [ ] Create/update RecurringInvoicePattern records
-  - [ ] Log to audit
+- [x] Detection Celery beat task (weekly):
+  - [x] For each vendor with ≥ 3 approved invoices
+  - [x] Group by vendor, compute inter-invoice intervals (days between consecutive invoices)
+  - [x] Detect periodicity: dominant interval (7, 14, 30, 60, 90 days) with ±20% tolerance
+  - [x] Compute amount cluster: mean ± std dev
+  - [x] Create/update RecurringInvoicePattern records
+  - [x] Log to audit
 - [ ] Tagging: when new invoice uploaded and vendor has active pattern
   - [x] If invoice_amount within pattern.tolerance_pct of pattern.avg_amount → set is_recurring=True, recurring_pattern_id
   - [x] Run in Celery pipeline step before match
@@ -926,13 +926,13 @@
   - [x] Hard limit: max 500 rows returned
 
 #### Frontend
-- [ ] "Ask AI" sidebar panel (all pages)
-  - [ ] Input field: "Ask anything about your invoices..."
-  - [ ] Suggested prompts (5 pre-built):
-    - [ ] "Show all invoices over $50k this month"
-    - [ ] "Which vendors have the most exceptions?"
-    - [ ] "What's our approval backlog?"
-    - [ ] "Show invoices pending > 7 days"
+- [x] "Ask AI" sidebar panel (all pages)
+  - [x] Input field: "Ask anything about your invoices..."
+  - [x] Suggested prompts (5 pre-built):
+    - [x] "Show all invoices over $50k this month"
+    - [x] "Which vendors have the most exceptions?"
+    - [x] "What's our approval backlog?"
+    - [x] "Show invoices pending > 7 days"
     - [ ] "Top 5 exception types last quarter"
   - [ ] Results as table with pagination
   - [ ] "Show SQL" toggle (expandable)
@@ -944,21 +944,21 @@
 ### Predictive Cash Flow Forecasting (V2)
 
 #### Backend
-- [ ] Algorithm: for each pending/matched invoice with due_date
-  - [ ] expected_outflow_date = today + avg(payment_terms_days) if no due_date
-  - [ ] Bucket by week: sum expected outflows per 7-day period
-- [ ] GET `/api/v1/kpi/cash-flow-forecast`
-  - [ ] Returns: `[{week_start: date, expected_outflow: Decimal, invoice_count: int, confidence: str}]`
-  - [ ] Confidence: "high" (due_date set) vs "estimated" (payment_terms proxy)
-- [ ] GET `/api/v1/kpi/cash-flow-export` — CSV download for treasury
-  - [ ] Columns: invoice#, vendor, amount, currency, expected_date, status
+- [x] Algorithm: for each pending/matched invoice with due_date
+  - [x] expected_outflow_date = today + avg(payment_terms_days) if no due_date
+  - [x] Bucket by week: sum expected outflows per 7-day period
+- [x] GET `/api/v1/kpi/cash-flow-forecast`
+  - [x] Returns: `[{week_start: date, expected_outflow: Decimal, invoice_count: int, confidence: str}]`
+  - [x] Confidence: "high" (due_date set) vs "estimated" (payment_terms proxy)
+- [x] GET `/api/v1/kpi/cash-flow-export` — CSV download for treasury
+  - [x] Columns: invoice#, vendor, amount, currency, expected_date, status
 
 #### Frontend
-- [ ] KPI dashboard: "Cash Flow Forecast" section below trend chart
-  - [ ] Bar chart: weekly expected outflows (next 12 weeks)
-  - [ ] Color: confirmed (dark blue) vs estimated (light blue)
-  - [ ] Total bar at top: "~$245K expected outflow this month"
-- [ ] "Export CSV" button for treasury team
+- [x] KPI dashboard: "Cash Flow Forecast" section below trend chart
+  - [x] Bar chart: weekly expected outflows (next 12 weeks)
+  - [x] Color: confirmed (dark blue) vs estimated (light blue)
+  - [x] Total bar at top: "~$245K expected outflow this month"
+- [x] "Export CSV" button for treasury team
 
 ---
 
