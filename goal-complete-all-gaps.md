@@ -278,7 +278,7 @@ cd frontend && npm run build
 - [ ] GAP-9: Multi-entity support
 - [ ] GAP-12: Invoice template system
 - [ ] GAP-4: Mobile PWA + responsive approvals
-- [ ] NEAR-2: Permission audit
+- [x] NEAR-2: Permission audit
 - [ ] NEAR-4: Test coverage expansion
 
 STATUS: NOT CONVERGED
