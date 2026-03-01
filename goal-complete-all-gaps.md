@@ -266,7 +266,7 @@ cd frontend && npm run build
 ## STATUS
 
 - [ ] Gap 0: Fix TODO.md drift (5 items)
-- [ ] GAP-1: Email IMAP ingestion
+- [x] GAP-1: Email IMAP ingestion
 - [ ] GAP-3: Multi-currency FX support
 - [ ] GAP-11: Vendor risk scoring
 - [x] GAP-10: GDPR data retention
