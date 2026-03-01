@@ -1,6 +1,33 @@
 # Progress — AI AP Operations Manager
 
 ## [2026-03-01] Repo + Docs Cleanup
+### 2026-03-01 — Loop: goal-p3-completion
+
+**Iterations:** 4
+**Goal file:** goal-p3-completion.md
+**Commits since start:**
+```
+df6fd2f docs: mark completed infra items in TODO
+5b13f6b test: add unit tests for match engine and fraud scoring
+e4b6044 Merge branch 'batch/task-4-20260301-115432'
+2793632 Merge branch 'batch/task-2-20260301-115432'
+274119e docs: mark P3 completed items in TODO.md
+2d89403 chore: mark recurring patterns admin page as complete in TODO
+222da7b feat: implement recurring patterns admin page
+06bcc0e feat: add recurring-patterns detect endpoint with vendor_id filter and vendor_name in list response
+a8a8757 feat: add health checks, JSON logging, and prometheus metrics
+485ef50 chore: add rule_suggestions migration
+9e97cc9 feat: add entity_id filter to KPI endpoints
+a2ec186 feat: add rule suggestions endpoints
+ef656a8 Merge branch 'batch/task-3-20260301-114520'
+5232275 Merge branch 'batch/task-2-20260301-114520'
+bc710a4 feat: add inspection status badge to match tab
+0a37b78 feat: add currency display in invoice list and dashboard
+50ebaf2 feat: add bank account format validation to vendor schema
+```
+
+---
+
 **What**: Organized repo root and updated all project documentation to reflect current state.
 - Moved 13 loop goal/proposed-tasks files from repo root → `docs/loop-history/`
 - Added `goal-*.md`, `proposed-tasks*.md` to `.gitignore` (loop artifacts, not source)
