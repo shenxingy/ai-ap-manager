@@ -51,6 +51,13 @@ interface CashFlowForecastPoint {
   confidence: number;
 }
 
+interface KpiBenchmarks {
+  touchless_rate: { industry: number; smb: number; unit: string };
+  exception_rate: { industry: number; smb: number; unit: string };
+  avg_cycle_time_days: { industry: number; smb: number; unit: string };
+  gl_coding_accuracy: { industry: number; smb: number; unit: string };
+}
+
 // ─── KPI Card ───
 
 function KpiCard({
@@ -141,6 +148,12 @@ export default function DashboardPage() {
     queryKey: ["kpi-cash-flow-forecast"],
     queryFn: () => api.get("/kpi/cash-flow-forecast").then((r) => r.data),
     refetchInterval: 15 * 60 * 1000,
+  });
+
+  const { data: benchmarks } = useQuery<KpiBenchmarks>({
+    queryKey: ["kpi-benchmarks"],
+    queryFn: () => api.get("/kpi/benchmarks").then((r) => r.data),
+    refetchInterval: 60 * 60 * 1000,
   });
 
   const isLoading = summaryLoading || summaryFetching || trendsLoading || trendsFetching;
@@ -236,6 +249,70 @@ export default function DashboardPage() {
           <SkeletonCard />
           <SkeletonCard />
         </div>
+      )}
+
+      {/* Industry Benchmarks Card */}
+      {benchmarks && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Industry Benchmarks</CardTitle>
+            <CardDescription className="text-sm text-gray-500 mt-1">
+              Compare your performance against industry and SMB averages
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Touchless Rate</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Industry avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.touchless_rate.industry}{benchmarks.touchless_rate.unit}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">SMB avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.touchless_rate.smb}{benchmarks.touchless_rate.unit}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Exception Rate</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Industry avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.exception_rate.industry}{benchmarks.exception_rate.unit}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">SMB avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.exception_rate.smb}{benchmarks.exception_rate.unit}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Avg Cycle Time</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Industry avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.avg_cycle_time_days.industry}{benchmarks.avg_cycle_time_days.unit}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">SMB avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.avg_cycle_time_days.smb}{benchmarks.avg_cycle_time_days.unit}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">GL Coding Accuracy</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Industry avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.gl_coding_accuracy.industry}{benchmarks.gl_coding_accuracy.unit}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">SMB avg</span>
+                    <span className="font-semibold text-gray-900">{benchmarks.gl_coding_accuracy.smb}{benchmarks.gl_coding_accuracy.unit}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Trends Chart — skeleton while loading, empty state if no data */}
