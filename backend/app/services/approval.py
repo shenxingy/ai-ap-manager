@@ -161,9 +161,6 @@ def create_approval_task(
         # Send Slack/Teams webhook notification
         try:
             from app.services.notifications import send_approval_request
-            approver = db.execute(
-                select(Invoice.vendor).where(Invoice.id == invoice_id)
-            ).scalars().first()
             approver_user = db.execute(
                 select(User).where(User.id == approver_id)
             ).scalars().first()
