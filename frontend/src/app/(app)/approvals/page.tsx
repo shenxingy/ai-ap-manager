@@ -435,103 +435,150 @@ export default function ApprovalsPage() {
               </button>
             </div>
           )}
-          <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 cursor-pointer"
-                    />
-                  </TableHead>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Step</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Assigned At</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tasks.length === 0 && (
+          <div className="hidden sm:block">
+            <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-400 py-8">
-                      No pending approvals.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {tasks.map((task) => (
-                  <TableRow key={task.id}>
-                    <TableCell>
+                    <TableHead className="w-10">
                       <input
                         type="checkbox"
-                        checked={selectedIds.has(task.id)}
-                        onChange={() => toggleSelectId(task.id)}
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
                         className="h-4 w-4 cursor-pointer"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/invoices/${task.invoice_id}`}
-                        className="text-blue-600 hover:underline font-medium"
-                      >
-                        {task.invoice_number || task.invoice_id.slice(0, 8)}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{task.vendor_name_raw || task.vendor_name || "—"}</TableCell>
-                    <TableCell className="text-right">
+                    </TableHead>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Step</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Assigned At</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tasks.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-gray-400 py-8">
+                        No pending approvals.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {tasks.map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(task.id)}
+                          onChange={() => toggleSelectId(task.id)}
+                          className="h-4 w-4 cursor-pointer"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/invoices/${task.invoice_id}`}
+                          className="text-blue-600 hover:underline font-medium"
+                        >
+                          {task.invoice_number || task.invoice_id.slice(0, 8)}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{task.vendor_name_raw || task.vendor_name || "—"}</TableCell>
+                      <TableCell className="text-right">
+                        {task.total_amount != null
+                          ? `$${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {task.step_order != null ? `Step ${task.step_order}` : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {task.status === "partially_approved" ? (
+                          <div className="flex flex-col gap-1">
+                            <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-100 w-fit">
+                              1 of {task.approval_required_count ?? 2} approvals
+                            </Badge>
+                            <span className="text-xs text-yellow-700 font-medium">
+                              ◉ 1 / ◎ {task.approval_required_count ?? 2}
+                            </span>
+                          </div>
+                        ) : (
+                          <Badge variant="outline">{task.status}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {format(new Date(task.created_at || task.assigned_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => openDecision(task, "approve")}
+                          >
+                            {task.status === "partially_approved" ? "Add 2nd Approval" : "Approve"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => openDecision(task, "reject")}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          </div>
+
+          <div className="block sm:hidden space-y-3">
+            {tasks.length === 0 && (
+              <div className="text-center text-gray-400 py-8">
+                No pending approvals.
+              </div>
+            )}
+            {tasks.map((task) => (
+              <Card key={task.id}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between font-medium">
+                    <Link
+                      href={`/invoices/${task.invoice_id}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {task.invoice_number || task.invoice_id.slice(0, 8)}
+                    </Link>
+                    <span className="text-right">
                       {task.total_amount != null
                         ? `$${task.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                         : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {task.step_order != null ? `Step ${task.step_order}` : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {task.status === "partially_approved" ? (
-                        <div className="flex flex-col gap-1">
-                          <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-100 w-fit">
-                            1 of {task.approval_required_count ?? 2} approvals
-                          </Badge>
-                          <span className="text-xs text-yellow-700 font-medium">
-                            ◉ 1 / ◎ {task.approval_required_count ?? 2}
-                          </span>
-                        </div>
-                      ) : (
-                        <Badge variant="outline">{task.status}</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {format(new Date(task.created_at || task.assigned_at), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => openDecision(task, "approve")}
-                        >
-                          {task.status === "partially_approved" ? "Add 2nd Approval" : "Approve"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => openDecision(task, "reject")}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{task.vendor_name_raw || task.vendor_name || "—"}</div>
+                  {task.status === "partially_approved" ? (
+                    <div className="flex flex-col gap-1">
+                      <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-100 w-fit">
+                        1 of {task.approval_required_count ?? 2} approvals
+                      </Badge>
+                    </div>
+                  ) : (
+                    <Badge variant="outline">{task.status}</Badge>
+                  )}
+                  <div className="flex gap-2 pt-2">
+                    <Button size="sm" onClick={() => openDecision(task, "approve")} className="flex-1">
+                      {task.status === "partially_approved" ? "Add 2nd" : "Approve"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => openDecision(task, "reject")} className="flex-1">
+                      Reject
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </>
       )}
 
