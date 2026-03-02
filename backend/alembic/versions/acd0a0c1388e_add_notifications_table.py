@@ -19,9 +19,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Drop notification_prefs column added by previous migration (not used)
-    op.drop_column('users', 'notification_prefs')
-
     # Create notifications table
     op.create_table(
         'notifications',
@@ -44,5 +41,3 @@ def downgrade() -> None:
     op.drop_index('ix_notifications_invoice_id', table_name='notifications')
     op.drop_index('ix_notifications_user_id', table_name='notifications')
     op.drop_table('notifications')
-
-    op.add_column('users', sa.Column('notification_prefs', postgresql.JSONB(astext_type=sa.Text()), autoincrement=False, nullable=True))
