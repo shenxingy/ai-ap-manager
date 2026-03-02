@@ -119,6 +119,22 @@ services:
       - backend
     command: npm run dev
 
+  # ─── Ollama (local LLM) ─ optional, start with: docker-compose --profile ai-local up
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ai-local]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollamamodels:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   pgdata:
   miniodata:
+  ollamamodels:
