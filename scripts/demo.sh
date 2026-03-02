@@ -29,13 +29,21 @@ fi
 # Set NEXT_PUBLIC_API_URL to Tailscale IP so browser API calls reach the server
 TS_IP=$(tailscale ip -4 2>/dev/null || true)
 if [ -n "$TS_IP" ]; then
-  # Update or insert NEXT_PUBLIC_API_URL
+  # Set NEXT_PUBLIC_API_URL so browser API calls reach the server
   if grep -q "^NEXT_PUBLIC_API_URL=" .env; then
     sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${TS_IP}:8002|" .env
   else
     echo "NEXT_PUBLIC_API_URL=http://${TS_IP}:8002" >> .env
   fi
   info "NEXT_PUBLIC_API_URL set to http://${TS_IP}:8002"
+
+  # Allow Tailscale origin in CORS
+  if grep -q "^CORS_ORIGINS=" .env; then
+    sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=http://localhost:3000,http://${TS_IP}:3000|" .env
+  else
+    echo "CORS_ORIGINS=http://localhost:3000,http://${TS_IP}:3000" >> .env
+  fi
+  info "CORS_ORIGINS updated for Tailscale access"
 fi
 
 # ─── Start services ──────────────────────────────────────────
