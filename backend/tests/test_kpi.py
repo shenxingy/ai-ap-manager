@@ -55,3 +55,23 @@ def test_exception_rate_zero_denominator():
     exception_rate = total_exceptions / total_received if total_received > 0 else 0.0
 
     assert exception_rate == 0.0
+
+
+def test_touchless_rate_all_auto_approved():
+    """All 5 invoices auto-approved (no ApprovalTask) → touchless_rate = 1.0."""
+    total_approved = 5
+    auto_approved = 5
+
+    touchless_rate = auto_approved / total_approved if total_approved > 0 else 0.0
+
+    assert touchless_rate == 1.0
+
+
+def test_touchless_rate_none_auto_approved():
+    """All 5 invoices required manual approval (all have ApprovalTask) → touchless_rate = 0.0."""
+    total_approved = 5
+    auto_approved = 0
+
+    touchless_rate = auto_approved / total_approved if total_approved > 0 else 0.0
+
+    assert touchless_rate == 0.0

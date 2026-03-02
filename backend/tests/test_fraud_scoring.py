@@ -211,12 +211,15 @@ def test_score_threshold_high(mock_audit_log):
     r_no_existing_exc = MagicMock()
     r_no_existing_exc.scalars.return_value.first.return_value = None  # no prior FRAUD_FLAG
 
+    r_analysts = MagicMock()
+    r_analysts.scalars.return_value.all.return_value = []  # in-app notification recipients
+
     r_no_existing_incident = MagicMock()
     r_no_existing_incident.scalars.return_value.first.return_value = None  # no prior FraudIncident
 
     db.execute.side_effect = [
         r_inv, r_hist, r_dup, r_approved, r_bank, r_vendor,
-        r_no_existing_exc, r_no_existing_incident,
+        r_no_existing_exc, r_analysts, r_no_existing_incident,
     ]
 
     result = score_invoice(db, invoice.id)
