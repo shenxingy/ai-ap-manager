@@ -1,4 +1,8 @@
-.PHONY: up down logs migrate seed shell-db test lint
+.PHONY: demo up down logs migrate seed shell-db test lint
+
+# ─── Demo (one-command quickstart) ───
+demo:
+	@bash scripts/demo.sh
 
 # ─── Docker ───
 up:
