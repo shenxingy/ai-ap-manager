@@ -31,7 +31,7 @@ async def get_kpi_summary(
     days: int = Query(default=30, ge=1, le=365, description="Lookback window in days"),
     entity_id: uuid.UUID | None = Query(default=None, description="Filter by entity ID"),
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user=Depends(require_role("AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
     base_filters = [Invoice.deleted_at.is_(None), Invoice.created_at >= since]
@@ -148,7 +148,7 @@ async def get_kpi_trends(
     days: int = Query(default=30, ge=7, le=365),
     entity_id: uuid.UUID | None = Query(default=None, description="Filter by entity ID"),
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user=Depends(require_role("AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -211,7 +211,7 @@ async def get_kpi_trends(
 @router.get("/cash-flow-forecast", summary="12-week cash flow forecast from pending invoices")
 async def get_cash_flow_forecast(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user=Depends(require_role("AP_ANALYST", "ADMIN", "AUDITOR")),
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN", "AUDITOR")),
 ):
     """Return 12 weeks of expected outflows bucketed by payment week.
 
@@ -278,7 +278,7 @@ async def get_cash_flow_forecast(
 @router.get("/cash-flow-export", summary="Cash flow forecast exported as CSV")
 async def get_cash_flow_export(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user=Depends(require_role("AP_ANALYST", "ADMIN", "AUDITOR")),
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN", "AUDITOR")),
 ):
     """Stream pending invoices as CSV for treasury/cash-flow planning."""
     invoices = (await db.execute(
