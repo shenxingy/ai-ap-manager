@@ -103,18 +103,7 @@ These were explicitly deferred to the roadmap, not implementation gaps:
 | Rule A/B testing framework | P3 — `is_shadow_mode` flag exists, comparison job not built |
 | Playwright E2E tests | P3 |
 | k6/Locust load tests | P3 |
-| Tolerance configurable by vendor/category/currency | P3 — match engine currently uses global config only |
-
-## ⚠️ Known Test Coverage Gaps
-
-Features implemented but lacking unit tests:
-
-| Feature | Missing Tests |
-|---------|---------------|
-| Approval token | create, verify, expiry, reuse rejection |
-| GL coding service | vendor_history lookup, po_line fallback, category_default |
-| KPI queries | touchless_rate edge cases (all approved, none approved) |
-| Policy upload + extraction | Celery task, LLM extraction path, state transitions |
+| Tolerance configurable by vendor/category/currency | ✅ Implemented — `resolve_tolerance()` in match_engine.py, `overrides` array in config_json |
 
 ---
 
