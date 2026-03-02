@@ -27,8 +27,8 @@ if [ ! -f .env ]; then
 fi
 
 # ─── Start services ──────────────────────────────────────────
-info "Starting Docker services ..."
-docker-compose up -d --remove-orphans
+info "Building and starting Docker services ..."
+docker-compose up -d --build --remove-orphans
 
 # ─── Wait for Postgres ───────────────────────────────────────
 info "Waiting for PostgreSQL to be ready ..."
