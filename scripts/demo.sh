@@ -16,7 +16,7 @@ die()     { echo -e "${RED}[demo] ERROR:${RESET} $*" >&2; exit 1; }
 
 # ─── Prereq checks ───────────────────────────────────────────
 command -v docker  >/dev/null 2>&1 || die "Docker not found. Install from https://docs.docker.com/get-docker/"
-command -v docker-compose >/dev/null 2>&1 || die "docker-compose not found. Install Docker Desktop or docker-compose CLI."
+command -v docker compose >/dev/null 2>&1 || die "docker compose not found. Install Docker Desktop or docker compose CLI."
 
 # ─── .env setup ──────────────────────────────────────────────
 if [ ! -f .env ]; then
@@ -28,12 +28,12 @@ fi
 
 # ─── Start services ──────────────────────────────────────────
 info "Building and starting Docker services ..."
-docker-compose up -d --build --remove-orphans
+docker compose up -d --build --remove-orphans
 
 # ─── Wait for Postgres ───────────────────────────────────────
 info "Waiting for PostgreSQL to be ready ..."
 RETRIES=30
-until docker-compose exec -T db pg_isready -U ap_user -d ap_db -q 2>/dev/null; do
+until docker compose exec -T db pg_isready -U ap_user -d ap_db -q 2>/dev/null; do
   RETRIES=$((RETRIES - 1))
   [ "$RETRIES" -le 0 ] && die "PostgreSQL did not become ready in time."
   printf "."
@@ -57,12 +57,12 @@ success "Backend is ready."
 
 # ─── Migrations ──────────────────────────────────────────────
 info "Running database migrations ..."
-docker-compose exec -T backend alembic -c alembic.ini upgrade head
+docker compose exec -T backend alembic -c alembic.ini upgrade head
 success "Migrations applied."
 
 # ─── Seed data ───────────────────────────────────────────────
 info "Seeding demo data (idempotent) ..."
-docker-compose exec -T backend python scripts/seed.py
+docker compose exec -T backend python scripts/seed.py
 success "Seed data loaded."
 
 # ─── Done ────────────────────────────────────────────────────
