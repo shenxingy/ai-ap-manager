@@ -217,15 +217,7 @@ class TestClaudeCodeClient:
 # ─── Factory (get_llm_client) ───
 
 class TestGetLlmClient:
-    def test_returns_null_for_none_provider(self, monkeypatch):
-        monkeypatch.setenv("LLM_PROVIDER", "none")
-        monkeypatch.setenv("LLM_PROVIDER_EXTRACTION", "")
-        with patch("app.ai.llm_client.get_llm_client.__module__"):
-            from app.core.config import Settings
-            settings = Settings(LLM_PROVIDER="none", LLM_PROVIDER_EXTRACTION="")
-            with patch("app.ai.llm_client.Settings", return_value=settings):
-                pass  # factory tested indirectly below
-
+    def test_returns_null_for_none_provider(self):
         client = _make_client_with_settings(LLM_PROVIDER="none")
         assert isinstance(client, NullClient)
 
@@ -271,15 +263,9 @@ class TestGetLlmClient:
 
 
 def _make_client_with_settings(use_case: str = "extraction", **settings_kwargs):
-    """Helper to test get_llm_client with custom settings without touching the real config."""
+    """Helper: build Settings with custom values and invoke get_llm_client() with them patched in."""
     from app.core.config import Settings
-    from app.ai.llm_client import (
-        _USE_CASE_SETTING,
-        AnthropicClient,
-        ClaudeCodeClient,
-        NullClient,
-        OllamaClient,
-    )
+    from app.ai.llm_client import get_llm_client
 
     defaults = dict(
         LLM_PROVIDER="none",
@@ -294,33 +280,9 @@ def _make_client_with_settings(use_case: str = "extraction", **settings_kwargs):
     )
     defaults.update(settings_kwargs)
 
-    settings = Settings(**defaults)
+    fake_settings = Settings(**defaults)
 
-    with patch("app.ai.llm_client.settings", settings):
-        from app.ai.llm_client import get_llm_client
-        # Re-import to get fresh settings reference via patch
-        import app.ai.llm_client as llm_mod
-        original_get = llm_mod.get_llm_client
-
-        def patched_get(uc: str) -> object:
-            setting_name = _USE_CASE_SETTING.get(uc)
-            provider = ""
-            if setting_name:
-                provider = getattr(settings, setting_name, "").strip()
-            if not provider:
-                provider = settings.LLM_PROVIDER.strip()
-            if not provider:
-                provider = "none"
-            provider = provider.lower()
-
-            if provider == "anthropic":
-                if not settings.ANTHROPIC_API_KEY:
-                    return NullClient()
-                return AnthropicClient(api_key=settings.ANTHROPIC_API_KEY, model=settings.ANTHROPIC_MODEL)
-            if provider == "ollama":
-                return OllamaClient(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL)
-            if provider == "claude_code":
-                return ClaudeCodeClient()
-            return NullClient()
-
-        return patched_get(use_case)
+    # get_llm_client does: from app.core.config import settings
+    # Patch the module-level 'settings' in app.core.config so the import picks it up
+    with patch("app.core.config.settings", fake_settings):
+        return get_llm_client(use_case)
