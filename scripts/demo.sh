@@ -65,15 +65,23 @@ info "Seeding demo data (idempotent) ..."
 docker compose exec -T backend python scripts/seed.py
 success "Seed data loaded."
 
+# ─── Detect access URL ───────────────────────────────────────
+# Prefer Tailscale IP (accessible from other devices), fallback to localhost
+ACCESS_IP="localhost"
+if command -v tailscale >/dev/null 2>&1; then
+  TS_IP=$(tailscale ip -4 2>/dev/null || true)
+  [ -n "$TS_IP" ] && ACCESS_IP="$TS_IP"
+fi
+
 # ─── Done ────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo -e "${BOLD}  AI AP Manager is ready!${RESET}"
 echo -e "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
-echo -e "  ${BOLD}Dashboard:${RESET}      http://localhost:3000"
-echo -e "  ${BOLD}API Docs:${RESET}       http://localhost:8002/docs"
-echo -e "  ${BOLD}MinIO Console:${RESET}  http://localhost:9001"
+echo -e "  ${BOLD}Dashboard:${RESET}      http://${ACCESS_IP}:3000"
+echo -e "  ${BOLD}API Docs:${RESET}       http://${ACCESS_IP}:8002/docs"
+echo -e "  ${BOLD}MinIO Console:${RESET}  http://${ACCESS_IP}:9001"
 echo ""
 echo -e "  ${BOLD}Demo accounts:${RESET}"
 echo -e "  ┌─────────────────────────────────────────────────┐"
