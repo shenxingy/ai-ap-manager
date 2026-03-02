@@ -1,6 +1,6 @@
 # Gap Analysis — AI AP Operations Manager
 Generated: 2026-03-01 | Auditor: Claude Code (direct codebase inspection)
-Last Updated: 2026-03-01 | Status: All Gaps Closed ✅
+Last Updated: 2026-03-01 | Status: All Features Implemented ✅ | Known Test Gaps: 4 features
 
 ---
 
@@ -85,6 +85,9 @@ All gaps from the original audit have been closed across two loop runs (2026-03-
 | Multi-entity support | `entities` table, `entity_id` FK on Invoice, Vendor, PO, GR |
 | Invoice template system | `invoice_templates` table, vendor portal `GET /portal/templates` |
 | Slack/Teams notifications | `app/services/notifications.py`, wired in approval + fraud |
+| Policy/contract upload → LLM rule extraction | `POST /rules/upload-policy`, `extract_rules_from_policy` Celery task (pdfminer + Claude), draft→in_review→published flow, `/admin/rules` frontend |
+| User notification preferences per channel | `notification_prefs` column on users, `GET/PUT /users/me/notification-prefs` endpoints, admin settings UI |
+| In-app notification center (polling) | `notifications` table, bell icon in AppShell, 30s polling — WebSocket/SSE push deferred |
 
 ---
 
@@ -94,18 +97,24 @@ These were explicitly deferred to the roadmap, not implementation gaps:
 
 | Item | Notes |
 |------|-------|
-| In-app notification center (WebSocket/SSE) | P3 — requires real-time infra investment |
-| User notification preferences per channel | P3 |
-| Service worker (PWA offline) | P3 |
-| Policy/contract upload → LLM rule extraction | P3 — `POST /rules/upload-policy` + LLM flow |
+| In-app notification center (WebSocket/SSE) | P3 — requires real-time infra investment (currently 30s polling) |
+| Service worker (PWA offline) | P3 — manifest done, offline logic not implemented |
 | ERP production connectors (BAPI RFC/REST) | P3 — CSV connectors are V2; live API is V3 |
-| Rule A/B testing framework | P3 |
-| Payment batching + scheduling optimizer | P3 |
+| Rule A/B testing framework | P3 — `is_shadow_mode` flag exists, comparison job not built |
 | Playwright E2E tests | P3 |
 | k6/Locust load tests | P3 |
-| Frontend Jest unit tests | P3 |
-| Prometheus metrics endpoint | P3 |
-| Structured JSON logging | P3 |
+| Tolerance configurable by vendor/category/currency | P3 — match engine currently uses global config only |
+
+## ⚠️ Known Test Coverage Gaps
+
+Features implemented but lacking unit tests:
+
+| Feature | Missing Tests |
+|---------|---------------|
+| Approval token | create, verify, expiry, reuse rejection |
+| GL coding service | vendor_history lookup, po_line fallback, category_default |
+| KPI queries | touchless_rate edge cases (all approved, none approved) |
+| Policy upload + extraction | Celery task, LLM extraction path, state transitions |
 
 ---
 

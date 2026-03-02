@@ -388,7 +388,7 @@
 - [x] `run_3way_match` response: include `grn_lines_used` per invoice line
 - [x] Auto-select match type: if GRN exists for this PO → use 3way, else 2way
 - [x] Update GET `/api/v1/invoices/{id}/match` response to include GRN data
-- [-] Tolerance configurable by vendor / category / currency (extend rule engine config format)
+- [x] Tolerance configurable by vendor / category / currency (extend rule engine config format)
 - [x] POST `/api/v1/invoices/{id}/match` — `?match_type=3way` param (supports match_type=auto/2way/3way)
 
 #### Frontend
@@ -582,8 +582,8 @@
 
 #### Frontend
 - [x] Fraud Incidents page (`/admin/fraud`) — ADMIN only
-  - [ ] Table: invoice · score · signals · status (open/reviewed) · outcome
-  - [ ] Mark as reviewed with outcome notes
+  - [x] Table: invoice · score · signals · status (open/reviewed) · outcome
+  - [x] Mark as reviewed with outcome notes
 
 ---
 
@@ -1045,9 +1045,10 @@
 - [x] Backend unit tests (pytest):
   - [x] Match engine: MISSING_PO, PRICE_VARIANCE, QTY_VARIANCE, auto-approve
   - [x] Fraud scoring: each signal independently, score thresholds
-  - [ ] Approval token: create, verify, expiry, reuse rejection
-  - [ ] GL coding: vendor_history, po_line fallback, category_default
-  - [ ] KPI queries: touchless_rate calculation edge cases (all approved, none approved)
+  - [x] Approval token: create, verify, expiry, reuse rejection
+  - [x] GL coding: vendor_history, po_line fallback, category_default
+  - [x] KPI queries: touchless_rate calculation edge cases (all approved, none approved)
+  - [x] Policy upload: text extraction, LLM JSON parsing, state transition draft→in_review
 - [x] ~~[OUT OF SCOPE — needs external infra]~~ Backend integration tests:
   - [x] ~~[OUT OF SCOPE — needs external infra]~~ Full invoice pipeline: upload → OCR → extraction → match → approval (mocked MinIO + Celery)
   - [x] ~~[OUT OF SCOPE — needs external infra]~~ Auth: token creation, refresh, expiry, role enforcement

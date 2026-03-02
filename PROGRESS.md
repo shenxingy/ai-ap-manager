@@ -1,5 +1,46 @@
 # Progress — AI AP Operations Manager
 
+## [2026-03-01] Gap Closure: Tolerance Overrides + Missing Tests
+
+**Result**: success — 60/60 tests passing
+
+**What was done**:
+1. **Tolerance by vendor/category/currency** — added `resolve_tolerance()` helper to `match_engine.py`. Config supports optional `overrides` list with `vendor_id`, `category`, `currency` keys. Applied in both `run_2way_match` and `run_3way_match`. Specificity order: vendor > category > currency > global.
+2. **Test coverage gaps closed** — 4 areas with missing tests:
+   - `test_kpi.py`: added touchless_rate=100% and touchless_rate=0% edge cases
+   - `tests/test_gl_coding.py` (new): `_word_similarity`, `CATEGORY_GL_MAP`, Counter logic, async category_default fallback
+   - `tests/test_policy_upload.py` (new): TXT/DOCX extraction, `_call_llm` JSON parsing/error handling, state transition draft→in_review
+   - `test_fraud_scoring.py`: fixed pre-existing bug — `test_score_threshold_high` was missing `r_analysts` mock (high-risk path queries analysts for in-app notifications)
+
+**Key lessons**:
+- `resolve_tolerance` applies overrides in ascending specificity order (currency → category → vendor), so higher-specificity entries win by overwriting lower-specificity ones
+- Celery task lazy imports (`from sqlalchemy import create_engine` inside the function body) require patching the source modules (`sqlalchemy.create_engine`, `anthropic.Anthropic`), not the task module
+- When testing async services that import ML models lazily, patch the source module attribute (`app.services.gl_classifier.predict_gl_account`), not the consuming module
+- Adding in-app notifications to existing services adds DB queries — test mocks must account for the new calls
+
+---
+
+## [2026-03-01] Documentation Accuracy Audit
+
+**Result**: success — corrected stale documentation; identified true remaining gaps
+
+**Audit findings**:
+- `Policy/contract upload → LLM rule extraction` was **incorrectly listed as P3 deferred** in GAP_ANALYSIS.md. Actual state: **fully implemented** — `POST /rules/upload-policy`, Celery task with pdfminer + Claude extraction, human review draft→in_review→published flow, complete frontend at `/admin/rules` (602 lines). The feature was present in TODO.md as `[x]` all along; only GAP_ANALYSIS.md was wrong.
+- `User notification preferences per channel` was also incorrectly listed as P3 deferred — it is implemented (`notification_prefs` column + endpoints + UI).
+- `Fraud Incidents page` table/review UI was marked `[ ]` in TODO.md — in fact implemented in `frontend/src/app/(app)/admin/fraud/page.tsx`.
+- `In-app notification center` is partially implemented (polling) — bell icon + notifications API works; WebSocket/SSE push is genuinely deferred.
+
+**True remaining gaps after audit**:
+1. Tolerance configurable by vendor/category/currency — `[-]` in TODO, match engine only supports global config
+2. Unit test coverage: approval token, GL coding, KPI edge cases, policy upload Celery task — 4 test areas with no tests
+3. WebSocket/SSE real-time notification push — genuinely deferred P3
+4. Service worker offline support — PWA manifest done, offline logic not built
+5. ERP live API connectors (BAPI/RFC) — CSV is V2, live API is V3
+
+**Key lesson**: GAP_ANALYSIS.md drifted out of sync with actual codebase — loop iterations added features but didn't always update this file. Treat TODO.md as ground truth; cross-check GAP_ANALYSIS.md after each major loop run.
+
+---
+
 ## [2026-03-01] Repo + Docs Cleanup
 ### 2026-03-01 — Loop: goal-payment-runs
 
