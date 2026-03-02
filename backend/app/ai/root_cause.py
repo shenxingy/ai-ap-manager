@@ -14,36 +14,25 @@ def generate_narrative(
     kpi_summary: dict,
     report_id: str,
 ) -> tuple[str, int, int, str]:
-    """Generate a 3-5 paragraph root cause narrative using Claude.
+    """Generate a 3-5 paragraph root cause narrative using the configured LLM provider.
 
     Returns: (narrative_text, prompt_tokens, completion_tokens, model_used)
     """
-    from app.core.config import settings
-
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-    except ImportError:
-        logger.error("anthropic package not installed")
-        return _fallback_narrative(process_mining_data, anomaly_data, kpi_summary), 0, 0, "fallback"
+    from app.ai.llm_client import get_llm_client
 
     prompt = _build_prompt(process_mining_data, anomaly_data, kpi_summary)
+    client = get_llm_client("analytics")
 
     try:
-        response = client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        narrative = response.content[0].text if response.content else ""
-        prompt_tokens = response.usage.input_tokens
-        completion_tokens = response.usage.output_tokens
-        model_used = settings.ANTHROPIC_MODEL
+        resp = client.complete([{"role": "user", "content": prompt}], max_tokens=1500)
 
-        # Log to ai_call_logs
-        _log_ai_call(report_id, prompt, narrative, prompt_tokens, completion_tokens, model_used)
+        # NullClient returns empty text — fall back to heuristic narrative
+        if not resp.text:
+            narrative = _fallback_narrative(process_mining_data, anomaly_data, kpi_summary)
+            return narrative, 0, 0, "fallback"
 
-        return narrative, prompt_tokens, completion_tokens, model_used
+        _log_ai_call(report_id, prompt, resp.text, resp.prompt_tokens, resp.completion_tokens, resp.model)
+        return resp.text, resp.prompt_tokens, resp.completion_tokens, resp.model
 
     except Exception as exc:
         logger.error("LLM call failed for report %s: %s", report_id, exc)
