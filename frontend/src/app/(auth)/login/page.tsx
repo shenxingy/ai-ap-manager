@@ -35,12 +35,16 @@ export default function LoginPage() {
       formData.append("username", email);
       formData.append("password", password);
 
-      const res = await api.post("/auth/token", formData, {
+      const res = await api.post("/auth/login", formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
-      const { access_token, user } = res.data;
-      setAuth(access_token, user, rememberMe);
+      const { access_token } = res.data;
+      // Fetch user profile after receiving token
+      const meRes = await api.get("/auth/me", {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      setAuth(access_token, meRes.data, rememberMe);
       router.push("/dashboard");
     } catch {
       setError("Invalid email or password. Please try again.");
