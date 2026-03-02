@@ -69,7 +69,11 @@ def test_extract_docx_via_dispatch():
 
 
 # ─── _call_llm JSON parsing ───────────────────────────────────────────────────
-# Anthropic is imported lazily inside _call_llm, so we patch the source module.
+# _call_llm now uses get_llm_client("policy") from the abstraction layer.
+# We mock get_llm_client to return a fake LLM client for these unit tests.
+
+from app.ai.llm_client import LLMResponse
+
 
 def _make_db_for_llm() -> MagicMock:
     db = MagicMock()
@@ -78,12 +82,20 @@ def _make_db_for_llm() -> MagicMock:
     return db
 
 
-def _mock_anthropic_response(text: str) -> MagicMock:
-    response = MagicMock()
-    response.content = [MagicMock(text=text)]
-    response.usage.input_tokens = 100
-    response.usage.output_tokens = 50
-    return response
+def _make_llm_client_mock(text: str, raise_exc: Exception | None = None) -> MagicMock:
+    """Return a mock BaseLLMClient whose complete() returns the given text (or raises)."""
+    mock_client = MagicMock()
+    if raise_exc:
+        mock_client.complete.side_effect = raise_exc
+    else:
+        mock_client.complete.return_value = LLMResponse(
+            text=text,
+            prompt_tokens=100,
+            completion_tokens=50,
+            latency_ms=42,
+            model="test-model",
+        )
+    return mock_client
 
 
 def test_call_llm_clean_json():
@@ -92,17 +104,10 @@ def test_call_llm_clean_json():
     db = _make_db_for_llm()
     version_id = uuid.uuid4()
 
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = _mock_anthropic_response(
-        json.dumps(expected)
-    )
+    mock_client = _make_llm_client_mock(json.dumps(expected))
 
-    # Anthropic is imported inside _call_llm via "from anthropic import Anthropic"
-    with patch("anthropic.Anthropic", return_value=mock_client):
-        with patch("app.core.config.settings") as mock_settings:
-            mock_settings.ANTHROPIC_API_KEY = "test-key"
-            mock_settings.ANTHROPIC_MODEL = "claude-sonnet-4-6"
-            result = _call_llm(db, "Invoice tolerance is 3%", version_id)
+    with patch("app.ai.llm_client.get_llm_client", return_value=mock_client):
+        result = _call_llm(db, "Invoice tolerance is 3%", version_id)
 
     assert result["tolerance_pct"] == 0.03
     assert result["auto_approve_threshold"] == 5000.0
@@ -115,34 +120,24 @@ def test_call_llm_invalid_json_returns_notes():
     db = _make_db_for_llm()
     version_id = uuid.uuid4()
 
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = _mock_anthropic_response(
-        "Sorry, I cannot extract rules from this document."
-    )
+    mock_client = _make_llm_client_mock("Sorry, I cannot extract rules from this document.")
 
-    with patch("anthropic.Anthropic", return_value=mock_client):
-        with patch("app.core.config.settings") as mock_settings:
-            mock_settings.ANTHROPIC_API_KEY = "test-key"
-            mock_settings.ANTHROPIC_MODEL = "claude-sonnet-4-6"
-            result = _call_llm(db, "some policy text", version_id)
+    with patch("app.ai.llm_client.get_llm_client", return_value=mock_client):
+        result = _call_llm(db, "some policy text", version_id)
 
     assert "notes" in result
     assert "Parse error" in result["notes"]
 
 
 def test_call_llm_api_error_returns_empty():
-    """LLM API call raises exception → empty dict returned, ai_call_log still written."""
+    """LLM client raises exception → empty dict returned, ai_call_log still written."""
     db = _make_db_for_llm()
     version_id = uuid.uuid4()
 
-    mock_client = MagicMock()
-    mock_client.messages.create.side_effect = Exception("API unavailable")
+    mock_client = _make_llm_client_mock("", raise_exc=Exception("API unavailable"))
 
-    with patch("anthropic.Anthropic", return_value=mock_client):
-        with patch("app.core.config.settings") as mock_settings:
-            mock_settings.ANTHROPIC_API_KEY = "test-key"
-            mock_settings.ANTHROPIC_MODEL = "claude-sonnet-4-6"
-            result = _call_llm(db, "some policy text", version_id)
+    with patch("app.ai.llm_client.get_llm_client", return_value=mock_client):
+        result = _call_llm(db, "some policy text", version_id)
 
     assert result == {}
     db.add.assert_called_once()  # ai_call_log still logged
