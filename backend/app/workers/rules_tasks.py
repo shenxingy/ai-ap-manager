@@ -86,56 +86,52 @@ USER_PROMPT_TEMPLATE = (
 
 
 def _call_llm(db, policy_text: str, rule_version_id: uuid.UUID) -> dict:
-    """Call Claude LLM to extract rule config from policy text.
+    """Call LLM via provider abstraction to extract rule config from policy text.
 
     Logs the call to ai_call_logs. Returns parsed JSON dict.
     """
-    from anthropic import Anthropic
-    from app.core.config import settings
+    from app.ai.llm_client import get_llm_client
     from app.models.audit import AICallLog
-
-    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     # Truncate text to avoid excessive token usage (keep ~15K chars)
     truncated_text = policy_text[:15000]
     user_message = USER_PROMPT_TEMPLATE.format(text=truncated_text)
 
-    request_payload = {
-        "model": settings.ANTHROPIC_MODEL,
-        "max_tokens": 1024,
-        "system": SYSTEM_PROMPT,
-        "messages": [{"role": "user", "content": user_message}],
-    }
-
-    start_ts = time.monotonic()
     call_status = "success"
     error_message = None
     response_text = ""
+    model_used = "unknown"
     prompt_tokens = 0
     completion_tokens = 0
+    latency_ms = 0
 
     try:
-        response = client.messages.create(**request_payload)
-        response_text = response.content[0].text if response.content else ""
-        prompt_tokens = response.usage.input_tokens
-        completion_tokens = response.usage.output_tokens
+        client = get_llm_client("policy")
+        resp = client.complete(
+            messages=[{"role": "user", "content": user_message}],
+            max_tokens=1024,
+            system=SYSTEM_PROMPT,
+        )
+        response_text = resp.text
+        prompt_tokens = resp.prompt_tokens
+        completion_tokens = resp.completion_tokens
+        latency_ms = resp.latency_ms
+        model_used = resp.model
     except Exception as exc:
         call_status = "error"
         error_message = str(exc)
         logger.error("LLM call failed for rule version %s: %s", rule_version_id, exc)
 
-    latency_ms = int((time.monotonic() - start_ts) * 1000)
-
     # Log to ai_call_logs
     log_entry = AICallLog(
         call_type="policy_parse",
-        model=settings.ANTHROPIC_MODEL,
+        model=model_used,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         latency_ms=latency_ms,
         status=call_status,
         error_message=error_message,
-        request_json=json.dumps(request_payload, default=str),
+        request_json=json.dumps({"system": SYSTEM_PROMPT, "user": user_message[:500]}, default=str),
         response_json=json.dumps({"text": response_text}) if response_text else None,
     )
     db.add(log_entry)
@@ -143,6 +139,10 @@ def _call_llm(db, policy_text: str, rule_version_id: uuid.UUID) -> dict:
 
     if call_status == "error":
         return {}
+
+    if not response_text:
+        # NullClient or empty response
+        return {"notes": "LLM provider returned no response (check LLM_PROVIDER_POLICY setting)."}
 
     # Parse JSON from response
     try:
