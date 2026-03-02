@@ -1,18 +1,15 @@
-"""Dual-pass LLM invoice extraction using Anthropic Claude.
+"""Dual-pass LLM invoice extraction.
 
-All LLM calls are logged to ai_call_logs. Invalid/missing API key is handled
-gracefully: the extractor returns an empty result with low confidence rather
-than crashing the pipeline.
+All LLM calls are logged to ai_call_logs. When the configured provider is 'none'
+or unavailable, the extractor returns an empty result rather than crashing.
 """
 import json
 import logging
-import time
 import uuid
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models.audit import AICallLog
 
 logger = logging.getLogger(__name__)
@@ -93,28 +90,14 @@ _SCALAR_FIELDS = [
 
 # ─── Internal helpers ───
 
-def _call_claude(prompt: str, raw_text: str) -> tuple[str, int, int, int]:
-    """Call Claude API. Returns (response_text, prompt_tokens, completion_tokens, latency_ms).
+def _call_llm(prompt: str, raw_text: str) -> tuple[str, int, int, int, str]:
+    """Call LLM via provider abstraction. Returns (text, prompt_tokens, completion_tokens, latency_ms, model)."""
+    from app.ai.llm_client import get_llm_client
 
-    Raises any anthropic exceptions for the caller to handle.
-    """
-    import anthropic  # lazy import — not installed in test envs without key
-
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = get_llm_client("extraction")
     full_prompt = prompt + raw_text
-
-    start = time.monotonic()
-    message = client.messages.create(
-        model=settings.ANTHROPIC_MODEL,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": full_prompt}],
-    )
-    latency_ms = int((time.monotonic() - start) * 1000)
-
-    response_text = message.content[0].text if message.content else ""
-    prompt_tokens = message.usage.input_tokens if message.usage else 0
-    completion_tokens = message.usage.output_tokens if message.usage else 0
-    return response_text, prompt_tokens, completion_tokens, latency_ms
+    resp = client.complete([{"role": "user", "content": full_prompt}], max_tokens=2048)
+    return resp.text, resp.prompt_tokens, resp.completion_tokens, resp.latency_ms, resp.model
 
 
 def _parse_json_response(text: str) -> dict:
@@ -139,6 +122,7 @@ def _log_ai_call(
     prompt_tokens: int,
     completion_tokens: int,
     latency_ms: int,
+    model: str,
     status: str = "success",
     error_message: str | None = None,
     request_snippet: str | None = None,
@@ -147,7 +131,7 @@ def _log_ai_call(
     entry = AICallLog(
         invoice_id=invoice_id,
         call_type=call_type,
-        model=settings.ANTHROPIC_MODEL,
+        model=model,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         latency_ms=latency_ms,
@@ -181,7 +165,7 @@ def run_extraction_pass(
     prompt = _PASS1_PROMPT if pass_number == 1 else _PASS2_PROMPT
 
     try:
-        response_text, p_tokens, c_tokens, latency_ms = _call_claude(prompt, raw_text)
+        response_text, p_tokens, c_tokens, latency_ms, model = _call_llm(prompt, raw_text)
         fields = _parse_json_response(response_text)
         _log_ai_call(
             db=db,
@@ -190,6 +174,7 @@ def run_extraction_pass(
             prompt_tokens=p_tokens,
             completion_tokens=c_tokens,
             latency_ms=latency_ms,
+            model=model,
             status="success",
             request_snippet=raw_text[:500] if raw_text else None,
             response_snippet=response_text[:1000] if response_text else None,
@@ -202,7 +187,7 @@ def run_extraction_pass(
             "error": None,
         }
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Claude pass %d failed: %s", pass_number, exc)
+        logger.warning("LLM extraction pass %d failed: %s", pass_number, exc)
         _log_ai_call(
             db=db,
             invoice_id=invoice_id,
@@ -210,6 +195,7 @@ def run_extraction_pass(
             prompt_tokens=0,
             completion_tokens=0,
             latency_ms=0,
+            model="unknown",
             status="error",
             error_message=str(exc)[:500],
         )
