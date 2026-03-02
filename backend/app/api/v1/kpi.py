@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select, not_, exists
+from sqlalchemy import func, select, not_, exists, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
@@ -165,7 +165,7 @@ async def get_kpi_trends(
         select(
             trunc_fn.label("period_start"),
             func.count(Invoice.id).label("received"),
-            func.sum(func.cast(Invoice.status == "approved", type_=None)).label("approved"),
+            func.sum(func.cast(Invoice.status == "approved", Integer)).label("approved"),
             func.avg(Invoice.total_amount).label("avg_amount"),
         )
         .where(*trend_filters)
@@ -211,7 +211,7 @@ async def get_kpi_trends(
 @router.get("/cash-flow-forecast", summary="12-week cash flow forecast from pending invoices")
 async def get_cash_flow_forecast(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN", "AUDITOR")),
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return 12 weeks of expected outflows bucketed by payment week.
 
@@ -278,7 +278,7 @@ async def get_cash_flow_forecast(
 @router.get("/cash-flow-export", summary="Cash flow forecast exported as CSV")
 async def get_cash_flow_export(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
-    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN", "AUDITOR")),
+    current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Stream pending invoices as CSV for treasury/cash-flow planning."""
     invoices = (await db.execute(

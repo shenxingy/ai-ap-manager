@@ -218,17 +218,17 @@ async def list_invoices(
         item = InvoiceListItem.model_validate(inv)
 
         # Count inbound messages since the last outbound message
-        # Subquery: max created_at of outbound messages
+        # Subquery: max created_at of outbound messages (scalar, no correlation)
         outbound_max = select(func.max(VendorMessage.created_at)).where(
             VendorMessage.invoice_id == inv.id,
             VendorMessage.direction == "outbound",
-        )
+        ).scalar_subquery()
 
         # Count inbound messages after the last outbound (or all inbound if no outbound)
         unread_stmt = select(func.count()).select_from(VendorMessage).where(
             VendorMessage.invoice_id == inv.id,
             VendorMessage.direction == "inbound",
-            VendorMessage.created_at > outbound_max.correlate(VendorMessage),
+            VendorMessage.created_at > outbound_max,
         )
         unread_result = await db.execute(unread_stmt)
         item.unread_vendor_messages = unread_result.scalar_one() or 0
