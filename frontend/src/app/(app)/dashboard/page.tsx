@@ -197,7 +197,7 @@ export default function DashboardPage() {
           />
           <KpiCard
             title="Avg Cycle Time"
-            value={summary ? `${summary.avg_cycle_time_hours.toFixed(1)}` : "—"}
+            value={summary ? `${(summary.avg_cycle_time_hours ?? 0).toFixed(1)}` : "—"}
             unit="hrs"
           />
           <KpiCard
@@ -212,9 +212,9 @@ export default function DashboardPage() {
       {/* Mini KPI Cards — Total Approved / Pending / Exceptions / Fraud / SLA */}
       {!isLoading && summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <KpiCard title="Total Approved" value={summary.total_approved.toLocaleString()} />
-          <KpiCard title="Total Pending" value={summary.total_pending.toLocaleString()} />
-          <KpiCard title="Total Exceptions" value={summary.total_exceptions.toLocaleString()} />
+          <KpiCard title="Total Approved" value={(summary.total_approved ?? 0).toLocaleString()} />
+          <KpiCard title="Total Pending" value={(summary.total_pending ?? 0).toLocaleString()} />
+          <KpiCard title="Total Exceptions" value={(summary.total_exceptions ?? 0).toLocaleString()} />
           <KpiCard
             title="Open Fraud Incidents"
             value={openFraudCount}
