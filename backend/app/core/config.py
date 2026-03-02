@@ -1,5 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -39,6 +41,20 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
     USE_CLAUDE_VISION: bool = False
+
+    # ─── LLM Provider Routing ───
+    # Global default provider: anthropic | ollama | claude_code | none
+    LLM_PROVIDER: str = "claude_code"
+    # Per-use-case overrides (empty string = use global LLM_PROVIDER)
+    LLM_PROVIDER_EXTRACTION: str = ""
+    LLM_PROVIDER_POLICY: str = ""
+    LLM_PROVIDER_ANALYTICS: str = ""
+    # ask_ai runs inside async FastAPI route — claude_code (subprocess) is illegal here
+    LLM_PROVIDER_ASK_AI: str = "none"
+
+    # ─── Ollama ───
+    OLLAMA_BASE_URL: str = "http://ollama:11434"
+    OLLAMA_MODEL: str = "qwen2.5:7b"
 
     # OCR
     OCR_MIN_CONFIDENCE: float = 0.75
@@ -82,6 +98,17 @@ class Settings(BaseSettings):
     RETENTION_ENABLED: bool = False
     RETENTION_DAYS_INVOICES: int = 2555  # ~7 years
     RETENTION_DAYS_AUDIT_LOGS: int = 365  # 1 year
+
+    @model_validator(mode="after")
+    def _validate_llm_providers(self) -> "Settings":
+        ask_ai_effective = (self.LLM_PROVIDER_ASK_AI or self.LLM_PROVIDER or "none").lower()
+        if ask_ai_effective == "claude_code":
+            raise ValueError(
+                "LLM_PROVIDER_ASK_AI cannot resolve to 'claude_code'. "
+                "The Ask AI endpoint is async and cannot block on a subprocess. "
+                "Set LLM_PROVIDER_ASK_AI=none or LLM_PROVIDER_ASK_AI=anthropic."
+            )
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:
