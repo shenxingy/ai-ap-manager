@@ -44,8 +44,9 @@ success "PostgreSQL is ready."
 
 # ─── Wait for backend ────────────────────────────────────────
 info "Waiting for backend API to start ..."
-RETRIES=30
-until curl -s http://localhost:8002/health >/dev/null 2>&1; do
+sleep 5  # give uvicorn/gunicorn time to bind before polling
+RETRIES=60
+until curl -sf http://localhost:8002/health/live >/dev/null 2>&1; do
   RETRIES=$((RETRIES - 1))
   [ "$RETRIES" -le 0 ] && die "Backend did not start in time. Run 'make logs' to diagnose."
   printf "."
