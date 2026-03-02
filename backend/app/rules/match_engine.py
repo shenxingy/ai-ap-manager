@@ -91,6 +91,50 @@ def get_active_match_rules(db: Session) -> tuple[dict, uuid.UUID | None]:
         return DEFAULT_TOLERANCE.copy(), rv.id
 
 
+def resolve_tolerance(
+    base_config: dict,
+    vendor_id: uuid.UUID | None = None,
+    category: str | None = None,
+    currency: str | None = None,
+) -> dict:
+    """Apply per-vendor / per-category / per-currency tolerance overrides.
+
+    The base_config may contain an optional ``overrides`` list:
+    ::
+
+        "overrides": [
+            {"vendor_id": "<uuid>", "amount_tolerance_pct": 0.05},
+            {"category": "OFFICE_SUPPLIES", "amount_tolerance_pct": 0.03},
+            {"currency": "EUR", "amount_tolerance_pct": 0.025}
+        ]
+
+    Specificity order (highest wins): vendor > category > currency.
+    Within the same level, the first matching entry wins.
+    Keys not present in the override are inherited from the base config.
+    """
+    overrides: list[dict] = base_config.get("overrides") or []
+    if not overrides:
+        return base_config
+
+    # Build merged config starting from base (strip the overrides key itself)
+    resolved = {k: v for k, v in base_config.items() if k != "overrides"}
+
+    vendor_id_str = str(vendor_id) if vendor_id else None
+
+    # Apply in ascending specificity so that higher-specificity entries win
+    for level_key, level_value in [("currency", currency), ("category", category), ("vendor_id", vendor_id_str)]:
+        if level_value is None:
+            continue
+        for override in overrides:
+            if override.get(level_key) == level_value:
+                for k, v in override.items():
+                    if k != level_key:
+                        resolved[k] = v
+                break  # first match at this level wins
+
+    return resolved
+
+
 # ─── PO lookup helpers ───
 
 def _find_po_by_id(db: Session, po_id: uuid.UUID):
@@ -251,7 +295,13 @@ def run_2way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     inv_lines = db.execute(line_items_stmt).scalars().all()
 
     # ── Load active rules ──
-    tolerance, rule_version_id = get_active_match_rules(db)
+    base_tolerance, rule_version_id = get_active_match_rules(db)
+    tolerance = resolve_tolerance(
+        base_tolerance,
+        vendor_id=invoice.vendor_id,
+        category=invoice.category,
+        currency=invoice.currency,
+    )
     amt_tol_pct = float(tolerance["amount_tolerance_pct"])
     amt_tol_abs = float(tolerance["amount_tolerance_abs"])
     qty_tol_pct = float(tolerance["qty_tolerance_pct"])
@@ -444,7 +494,13 @@ def run_3way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     inv_lines = db.execute(line_items_stmt).scalars().all()
 
     # ── Load active rules ──
-    tolerance, rule_version_id = get_active_match_rules(db)
+    base_tolerance, rule_version_id = get_active_match_rules(db)
+    tolerance = resolve_tolerance(
+        base_tolerance,
+        vendor_id=invoice.vendor_id,
+        category=invoice.category,
+        currency=invoice.currency,
+    )
     qty_tol_pct = float(tolerance["qty_tolerance_pct"])
     auto_approve_threshold = float(tolerance["auto_approve_threshold"])
     auto_approve_requires_match = bool(tolerance.get("auto_approve_requires_match", True))
