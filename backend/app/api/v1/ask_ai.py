@@ -1,4 +1,5 @@
 """Ask AI endpoint — natural language queries over AP data with SQL whitelist safety."""
+import asyncio
 import logging
 from typing import Annotated
 
@@ -61,21 +62,27 @@ async def ask_ai(
 
     The LLM generates a SELECT-only SQL query. We validate it against a whitelist
     of allowed tables and reject any DML/DDL. Results are returned as a summary.
-    """
-    from app.core.config import settings
 
-    if not settings.ANTHROPIC_API_KEY:
+    Requires LLM_PROVIDER_ASK_AI != 'none'. When set to 'none', returns 503.
+    ClaudeCodeClient (subprocess) is explicitly banned for this endpoint by config validation.
+    """
+    from app.ai.llm_client import NullClient, get_llm_client
+
+    client = get_llm_client("ask_ai")
+    if isinstance(client, NullClient):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI service not configured (ANTHROPIC_API_KEY not set).",
+            detail="Ask AI is not configured. Set LLM_PROVIDER_ASK_AI=anthropic or LLM_PROVIDER_ASK_AI=ollama.",
         )
 
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question cannot be empty.")
 
-    # Step 1: Ask LLM to generate SQL
-    sql_query = await _generate_sql(question, settings)
+    loop = asyncio.get_event_loop()
+
+    # Step 1: Ask LLM to generate SQL (sync client → run in thread pool)
+    sql_query = await loop.run_in_executor(None, lambda: _generate_sql(question, client))
 
     # Step 2: Validate SQL safety
     _validate_sql_safety(sql_query)
@@ -93,8 +100,10 @@ async def ask_ai(
             detail="Query execution failed. Try rephrasing your question.",
         )
 
-    # Step 4: Ask LLM to summarize the result
-    answer = await _summarize_result(question, sql_query, columns, rows, settings)
+    # Step 4: Ask LLM to summarize the result (sync client → run in thread pool)
+    answer = await loop.run_in_executor(
+        None, lambda: _summarize_result(question, sql_query, columns, rows, client)
+    )
 
     return AskAiResponse(
         question=question,
@@ -124,7 +133,6 @@ def _validate_sql_safety(sql: str) -> None:
             )
 
     # Check that only allowed tables are referenced (basic FROM/JOIN extraction)
-    # This is a heuristic check — not foolproof but catches obvious violations
     import re
     table_refs = re.findall(r'(?:from|join)\s+([a-zA-Z_][a-zA-Z_0-9]*)', sql_lower)
     for table in table_refs:
@@ -135,13 +143,9 @@ def _validate_sql_safety(sql: str) -> None:
             )
 
 
-async def _generate_sql(question: str, settings) -> str:
-    """Use LLM to convert natural language to SQL."""
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-
-        schema_hint = """
+def _generate_sql(question: str, client) -> str:
+    """Use LLM to convert natural language to SQL. Sync — call via run_in_executor."""
+    schema_hint = """
 Tables available (SELECT only):
 - invoices: id, invoice_number, vendor_id, status, total_amount, due_date, created_at, currency, fraud_score
 - invoice_line_items: id, invoice_id, description, quantity, unit_price, gl_account, line_total
@@ -149,7 +153,7 @@ Tables available (SELECT only):
 - approval_tasks: id, invoice_id, approver_id, status, created_at, decided_at, decision
 - vendors: id, name, email, country, payment_terms
 """
-        prompt = f"""You are a SQL expert for an Accounts Payable system. Generate a single PostgreSQL SELECT query for the following question.
+    prompt = f"""You are a SQL expert for an Accounts Payable system. Generate a single PostgreSQL SELECT query for the following question.
 {schema_hint}
 Rules:
 - Only use the tables listed above
@@ -162,19 +166,18 @@ Question: {question}
 
 SQL:"""
 
-        response = client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=500,
+    try:
+        resp = client.complete(
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=500,
         )
-        sql = response.content[0].text.strip() if response.content else ""
+        sql = resp.text.strip()
         # Strip markdown code blocks if present
         if sql.startswith("```"):
             sql = "\n".join(sql.split("\n")[1:])
         if sql.endswith("```"):
             sql = "\n".join(sql.split("\n")[:-1])
         return sql.strip()
-
     except Exception as exc:
         logger.error("_generate_sql LLM call failed: %s", exc)
         raise HTTPException(
@@ -183,18 +186,9 @@ SQL:"""
         )
 
 
-async def _summarize_result(
-    question: str,
-    sql: str,
-    columns: list[str],
-    rows: list,
-    settings,
-) -> str:
-    """Use LLM to summarize query results in natural language."""
+def _summarize_result(question: str, sql: str, columns: list[str], rows: list, client) -> str:
+    """Use LLM to summarize query results in natural language. Sync — call via run_in_executor."""
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-
         rows_preview = []
         for row in rows[:10]:  # Only first 10 rows for the summary prompt
             rows_preview.append(dict(zip(columns, [str(v) for v in row])))
@@ -206,13 +200,11 @@ The query returned {len(rows)} rows. Here is a preview:
 
 Provide a concise, friendly 2-3 sentence summary of what the data shows. Be specific with numbers."""
 
-        response = client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=300,
+        resp = client.complete(
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
         )
-        return response.content[0].text.strip() if response.content else f"Query returned {len(rows)} rows."
-
+        return resp.text.strip() if resp.text else f"Query returned {len(rows)} rows."
     except Exception as exc:
         logger.warning("_summarize_result failed: %s", exc)
         return f"Query returned {len(rows)} rows with columns: {', '.join(columns)}."
