@@ -26,6 +26,18 @@ if [ ! -f .env ]; then
   warn "To use Anthropic API instead, set ANTHROPIC_API_KEY in .env and LLM_PROVIDER=anthropic."
 fi
 
+# Set NEXT_PUBLIC_API_URL to Tailscale IP so browser API calls reach the server
+TS_IP=$(tailscale ip -4 2>/dev/null || true)
+if [ -n "$TS_IP" ]; then
+  # Update or insert NEXT_PUBLIC_API_URL
+  if grep -q "^NEXT_PUBLIC_API_URL=" .env; then
+    sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${TS_IP}:8002|" .env
+  else
+    echo "NEXT_PUBLIC_API_URL=http://${TS_IP}:8002" >> .env
+  fi
+  info "NEXT_PUBLIC_API_URL set to http://${TS_IP}:8002"
+fi
+
 # ─── Start services ──────────────────────────────────────────
 info "Building and starting Docker services ..."
 docker compose up -d --build --remove-orphans
