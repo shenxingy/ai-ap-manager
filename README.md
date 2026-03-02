@@ -202,8 +202,8 @@ ai-ap-manager/
 │   ├── seed.py             # Idempotent demo data seeder
 │   └── demo.sh             # One-command quickstart (called by make demo)
 ├── nginx/                  # Production reverse proxy config
-├── docker-compose.yml      # Local development stack
-├── docker-compose.prod.yml # Production stack (Nginx + Gunicorn)
+├── docker compose.yml      # Local development stack
+├── docker compose.prod.yml # Production stack (Nginx + Gunicorn)
 └── Makefile                # Dev workflow shortcuts
 ```
 
@@ -247,13 +247,13 @@ uvicorn app.main:app --reload --port 8002
 
 ## Production Deployment
 
-A production-ready `docker-compose.prod.yml` with Nginx reverse proxy and Gunicorn (120s timeout for LLM calls) is included:
+A production-ready `docker compose.prod.yml` with Nginx reverse proxy and Gunicorn (120s timeout for LLM calls) is included:
 
 ```bash
 cp .env.example .env.prod
 # Edit: set ANTHROPIC_API_KEY, strong JWT_SECRET, production DB creds
 
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker compose.prod.yml up -d
 ```
 
 ---
