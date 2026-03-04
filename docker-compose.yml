@@ -103,6 +103,28 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ─── Celery Beat (scheduler) ──────────────────────────────
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL_SYNC: postgresql://ap_user:ap_pass@db:5432/ap_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ─── Frontend (Next.js) ───────────────────────────────────────
   frontend:
     build:
