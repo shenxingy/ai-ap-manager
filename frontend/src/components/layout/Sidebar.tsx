@@ -106,16 +106,16 @@ export function Sidebar({ onClose }: SidebarProps) {
   const [selectedEntityId, setSelectedEntityId] = useState<string>("");
 
   // Fetch entities
-  const { data: entitiesData } = useQuery({
+  const { data: entitiesData } = useQuery<Entity[]>({
     queryKey: ["entities"],
-    queryFn: () =>
+    queryFn: async (): Promise<Entity[]> =>
       api
         .get("/entities")
         .then((r) => r.data.items as Entity[])
         .catch(() => [] as Entity[]),
   });
 
-  const entities = entitiesData || [];
+  const entities: Entity[] = entitiesData || [];
 
   // Load selectedEntityId from localStorage on mount
   useEffect(() => {
