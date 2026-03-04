@@ -97,6 +97,7 @@ async def upload_invoice(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN"))],
 ):
+    """Accept an invoice PDF or image, store it in MinIO, persist the record, and enqueue OCR extraction."""
     # Validate MIME type
     content_type = file.content_type or ""
     if content_type not in ALLOWED_MIME_TYPES:
@@ -184,6 +185,7 @@ async def list_invoices(
     date_to: datetime | None = Query(default=None),
     overdue: bool = Query(default=False, description="If true, return only overdue pending invoices"),
 ):
+    """Return a paginated, filterable list of invoices with unread vendor message counts."""
     stmt = select(Invoice).where(Invoice.deleted_at.is_(None))
 
     if invoice_status:
@@ -255,6 +257,7 @@ async def get_invoice(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
 ):
+    """Fetch full invoice detail including line items, extraction results, and FX-normalized amount."""
     stmt = (
         select(Invoice)
         .where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
@@ -303,6 +306,7 @@ async def get_gl_suggestions(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN"))],
 ):
+    """Return frequency-based GL account coding suggestions for each line item on the invoice."""
     from app.services.gl_coding import suggest_gl_codes
     from app.schemas.gl_coding import GLLineSuggestion, GLSuggestionResponse
 
@@ -322,6 +326,7 @@ async def get_fraud_score(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN", "AUDITOR"))],
 ):
+    """Return the fraud score and derived risk level (low/medium/high/critical) for an invoice."""
     from app.models.invoice import Invoice
     stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
     invoice = (await db.execute(stmt)).scalars().first()
@@ -352,6 +357,7 @@ async def get_invoice_audit(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
 ):
+    """Return the merged, chronologically sorted audit trail for an invoice, including vendor messages."""
     import json as _json
     from app.models.audit import AuditLog
     from app.schemas.invoice import AuditLogOut
@@ -780,6 +786,7 @@ async def send_vendor_message(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
 ):
+    """Record an outbound vendor message or internal AP note and mock-send the email notification."""
     # Verify invoice exists
     stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
     invoice = (await db.execute(stmt)).scalar_one_or_none()
@@ -836,6 +843,7 @@ async def list_vendor_messages(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
 ):
+    """Return all vendor messages (outbound, inbound, and internal notes) for an invoice in chronological order."""
     stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
     invoice = (await db.execute(stmt)).scalar_one_or_none()
     if invoice is None:
