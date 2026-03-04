@@ -1,6 +1,5 @@
-"use client";
-
-import { useState, useEffect, useRef, Suspense } from "react";
+import { Suspense } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -445,6 +444,8 @@ function ExceptionSheet({
 
 // ─── Exceptions Content (uses useSearchParams) ───
 
+"use client";
+
 function ExceptionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -692,6 +693,11 @@ function ExceptionsContent() {
 }
 
 // ─── Page ───
+
+export const metadata = {
+  title: "Exceptions | AP Manager",
+  description: "Review and manage invoice processing exceptions.",
+};
 
 export default function ExceptionsPage() {
   return (
