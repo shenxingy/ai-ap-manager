@@ -100,7 +100,8 @@ class Settings(BaseSettings):
     RETENTION_DAYS_AUDIT_LOGS: int = 365  # 1 year
 
     @model_validator(mode="after")
-    def _validate_llm_providers(self) -> "Settings":
+    def _validate_settings(self) -> "Settings":
+        # Reject claude_code for ask_ai (async route can't block on subprocess)
         ask_ai_effective = (self.LLM_PROVIDER_ASK_AI or self.LLM_PROVIDER or "none").lower()
         if ask_ai_effective == "claude_code":
             raise ValueError(
@@ -108,6 +109,14 @@ class Settings(BaseSettings):
                 "The Ask AI endpoint is async and cannot block on a subprocess. "
                 "Set LLM_PROVIDER_ASK_AI=none or LLM_PROVIDER_ASK_AI=anthropic."
             )
+
+        # Reject default secrets in production
+        if self.APP_ENV == "production":
+            if "dev-secret" in self.JWT_SECRET or "change-in-production" in self.JWT_SECRET:
+                raise ValueError("JWT_SECRET must be changed from default in production.")
+            if "dev-approval" in self.APPROVAL_TOKEN_SECRET or "change-in-production" in self.APPROVAL_TOKEN_SECRET:
+                raise ValueError("APPROVAL_TOKEN_SECRET must be changed from default in production.")
+
         return self
 
     @property
