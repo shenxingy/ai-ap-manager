@@ -1,3 +1,5 @@
+"""Authentication routes: login and current-user endpoints."""
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
@@ -21,6 +23,7 @@ async def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_session),
 ):
+    """Authenticate a user by email/password and return a JWT bearer token."""
     result = await db.execute(select(User).where(User.email == form.username, User.deleted_at.is_(None)))
     user = result.scalar_one_or_none()
     if not user or not verify_password(form.password, user.password_hash):
@@ -48,4 +51,5 @@ async def login(
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)):
+    """Return the profile of the currently authenticated user."""
     return current_user
