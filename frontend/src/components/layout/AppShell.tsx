@@ -21,7 +21,11 @@ interface Notification {
   created_at: string;
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+interface AppShellProps {
+  children: React.ReactNode;
+}
+
+export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const { token, user, setAuth, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
