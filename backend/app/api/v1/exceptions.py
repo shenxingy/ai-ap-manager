@@ -10,10 +10,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_current_user, require_role
+from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.exception_record import ExceptionComment, ExceptionRecord
-from app.models.invoice import Invoice
+
 from app.models.user import User
 from app.schemas.exception_record import (
     ExceptionCommentCreate,

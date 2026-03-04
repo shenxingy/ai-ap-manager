@@ -422,9 +422,8 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
     Args:
         vendor_id: Optional UUID string — limit detection to a single vendor.
     """
-    from datetime import date, timedelta as td
     from decimal import Decimal
-    from sqlalchemy import select, text, func
+    from sqlalchemy import select, func
     from app.models.invoice import Invoice
     from app.models.vendor import Vendor
     from app.models.recurring_pattern import RecurringInvoicePattern

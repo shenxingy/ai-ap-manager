@@ -81,7 +81,7 @@ def generate_root_cause_report(self, report_id: str):
                 ).scalars().first()
                 if report:
                     report.status = "failed"
-                    report.error_message = str(exc)
+                    report.error_message = "Report generation failed. See server logs."
                     db.commit()
         except Exception:
             pass

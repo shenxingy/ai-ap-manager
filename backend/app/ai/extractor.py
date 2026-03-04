@@ -197,7 +197,7 @@ def run_extraction_pass(
             latency_ms=0,
             model="unknown",
             status="error",
-            error_message=str(exc)[:500],
+            error_message="Extraction failed. See server logs.",
         )
         return {
             "fields": {},

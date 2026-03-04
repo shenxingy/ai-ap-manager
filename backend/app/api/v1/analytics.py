@@ -288,7 +288,7 @@ async def create_root_cause_report(
         logger.warning("Failed to queue generate_root_cause_report: %s", exc)
         # Not fatal — mark as failed so user can see the error
         report.status = "failed"
-        report.error_message = f"Failed to queue generation task: {exc}"
+        report.error_message = "Failed to queue report generation. See server logs."
         await db.commit()
         await db.refresh(report)
 
