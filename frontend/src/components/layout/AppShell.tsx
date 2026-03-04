@@ -47,15 +47,24 @@ export function AppShell({ children }: AppShellProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false);
       }
     }
-    if (notifOpen) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setNotifOpen(false);
+    }
+    if (notifOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [notifOpen]);
 
   // Auth guard
@@ -114,6 +123,7 @@ export function AppShell({ children }: AppShellProps) {
           <button
             className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-md"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
           >
             {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -131,6 +141,7 @@ export function AppShell({ children }: AppShellProps) {
                   size="icon"
                   className="relative"
                   onClick={() => setNotifOpen((v) => !v)}
+                  aria-label="Notifications"
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (

@@ -1,33 +1,46 @@
-# AI AP Operations Manager
+<h1 align="center">AI AP Operations Manager</h1>
 
-> AI-native Accounts Payable automation for manufacturing and supply chain enterprises.
+<p align="center">
+  <strong>AI-native Accounts Payable automation for manufacturing and supply chain enterprises.</strong>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688.svg)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](https://docs.docker.com/compose/)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/shenxingy/ai-ap-manager/actions"><img src="https://github.com/shenxingy/ai-ap-manager/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11-blue.svg" alt="Python"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.115-009688.svg" alt="FastAPI"></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-14-black.svg" alt="Next.js"></a>
+  <a href="https://docs.docker.com/compose/"><img src="https://img.shields.io/badge/Docker-Compose-2496ED.svg" alt="Docker"></a>
+</p>
+
+<p align="center">
+  End-to-end AP automation: invoice ingestion &rarr; OCR extraction &rarr; 2/3/4-way matching &rarr; exception handling &rarr; approval workflows &rarr; payment tracking &rarr; KPI reporting.
+</p>
 
 ---
 
-## What It Does
+<!-- TODO: Add screenshots after running Docker with seed data
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard">
+</p>
+-->
 
-End-to-end AP automation: **invoice ingestion → OCR extraction → 2/3/4-way matching → exception handling → approval workflows → payment tracking → KPI reporting.**
+## Key Principle
 
-**Core principle**: A deterministic rule engine owns all business decisions. The LLM is used only for structuring tasks (OCR correction, policy parsing, root-cause narration) — never for final approve/reject decisions. Every decision is auditable and traceable to a specific rule version.
+A **deterministic rule engine** owns all business decisions. The LLM assists with structuring tasks (OCR correction, policy parsing, root-cause narration) but **never** makes final approve/reject decisions. Every decision is auditable and traceable to a specific rule version.
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/your-username/ai-ap-manager.git
+git clone https://github.com/shenxingy/ai-ap-manager.git
 cd ai-ap-manager
 make demo
 ```
 
 That's it. The script will:
-1. Copy `.env.example` → `.env` (LLM defaults to `claude_code` — free, no API key needed)
+1. Copy `.env.example` -> `.env` (LLM defaults to `claude_code` -- free, no API key needed)
 2. Start all Docker services
 3. Run database migrations
 4. Load seed data (vendors, POs, invoices, users)
@@ -50,6 +63,53 @@ That's it. The script will:
 
 ---
 
+## Features
+
+### Ingestion & Extraction
+- Email IMAP polling (monitors AP mailbox, extracts attachments)
+- PDF/image upload via UI or API
+- Tesseract OCR + LLM field correction
+- Recurring invoice detection and duplicate detection
+
+### Matching Engine
+- **2-way match**: Invoice vs Purchase Order (amount + quantity tolerance)
+- **3-way match**: + Goods Receipt Note (partial receipt, multi-GRN aggregation)
+- **4-way match**: + Inspection Report (quality-inspection workflows)
+- Per-vendor / per-category / per-currency tolerance overrides
+- Multi-currency with daily ECB FX rates
+
+### Exception Handling
+- Typed exception taxonomy: `PRICE_OVER_TOLERANCE`, `QTY_OVER_RECEIPT`, `GRN_NOT_FOUND`, `DUPLICATE`, `FRAUD_SUSPECT`, etc.
+- Auto-routing rules (assign exceptions to teams/users by type/vendor/amount)
+- Exception comment threads and vendor portal
+
+### Approval Workflow
+- Multi-level approval matrix (configurable by amount tier and department)
+- Email-token approvals (HMAC-signed, one-click approve/reject)
+- Approval escalation with configurable SLA
+- Slack/Teams webhook notifications
+
+### Intelligence Layer
+- **GL ML Classifier**: TF-IDF + Logistic Regression, weekly auto-retrain
+- **Fraud Scoring**: Rule-based (duplicate vendor/bank, round-amount flags, velocity checks)
+- **Rule Self-Optimization**: Recommendations from override history
+- **Root Cause Analysis**: LLM-generated narrative for exception spikes
+- **Policy Parsing**: Upload a policy PDF, LLM extracts rules, human reviews, then publish
+
+### Analytics & KPI
+- KPI dashboard: touchless rate, cycle time, exception rate, GL accuracy, fraud catch rate
+- Industry benchmarks comparison
+- Cash flow forecast and audit trail export (CSV)
+
+### Admin & Operations
+- RBAC: `AP_CLERK`, `AP_ANALYST`, `APPROVER`, `ADMIN`, `AUDITOR`
+- Multi-entity support (subsidiaries with entity selector)
+- ERP CSV sync: SAP PO import, Oracle GRN import
+- GDPR data retention automation
+- Vendor risk scoring and in-app notification center
+
+---
+
 ## Architecture
 
 ```mermaid
@@ -57,7 +117,7 @@ graph TB
     subgraph Ingestion
         A[Email IMAP] --> C[Celery Worker]
         B[PDF/Image Upload] --> C
-        C --> D[OCR — Tesseract]
+        C --> D[OCR - Tesseract]
         D --> E[LLM Field Correction]
     end
 
@@ -85,7 +145,7 @@ graph TB
 
     subgraph External
         R[Vendor Portal] --> I
-        S[ERP CSV Sync — SAP/Oracle] --> F
+        S[ERP CSV Sync] --> F
         T[Slack/Teams Alerts] --> H
     end
 
@@ -95,79 +155,25 @@ graph TB
     style Output fill:#fff3e0,stroke:#fb8c00
 ```
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       Tech Stack                            │
-├──────────────┬──────────────────────────────────────────────┤
-│ Frontend     │ Next.js 14, TypeScript, shadcn/ui, Recharts  │
-│ Backend      │ FastAPI, SQLAlchemy 2.0, Alembic, Pydantic   │
-│ Database     │ PostgreSQL 16                                 │
-│ Queue        │ Celery + Redis 7                              │
-│ Storage      │ MinIO (S3-compatible)                         │
-│ OCR          │ Tesseract (local) / Google Vision (prod)      │
-│ AI/LLM       │ Claude claude-sonnet-4-6 via Anthropic API          │
-│ ML           │ scikit-learn — TF-IDF + Logistic Regression   │
-│ Infra        │ Docker Compose (dev) / Nginx + Gunicorn (prod)│
-└──────────────┴──────────────────────────────────────────────┘
-```
+## Tech Stack
 
----
-
-## Feature Map
-
-### Ingestion & Extraction
-- Email IMAP polling (monitors AP mailbox, extracts attachments)
-- PDF/image upload via UI or API
-- Tesseract OCR + LLM field correction
-- Recurring invoice detection (auto-tags known patterns)
-- Duplicate invoice detection
-
-### Matching Engine
-- **2-way match**: Invoice vs Purchase Order (amount + quantity tolerance)
-- **3-way match**: + Goods Receipt Note (partial receipt, multi-GRN aggregation)
-- **4-way match**: + Inspection Report (quality-inspection workflows)
-- Per-vendor / per-category / per-currency tolerance overrides
-- Multi-currency with daily ECB FX rates
-
-### Exception Handling
-- Typed exception taxonomy: `PRICE_OVER_TOLERANCE`, `QTY_OVER_RECEIPT`, `GRN_NOT_FOUND`, `DUPLICATE`, `FRAUD_SUSPECT`, etc.
-- Auto-routing rules (assign exceptions to teams/users by type/vendor/amount)
-- Exception comment threads (vendor communication hub)
-- Vendor portal for status check, disputes, and invoice submissions
-
-### Approval Workflow
-- Multi-level approval matrix (configurable by amount tier and department)
-- Email-token approvals (HMAC-signed, one-click approve/reject from email)
-- Approval escalation (beat task, configurable SLA)
-- Slack/Teams webhook notifications
-
-### Intelligence Layer
-- **GL ML Classifier**: TF-IDF + Logistic Regression, weekly auto-retrain, accuracy visible in admin
-- **Fraud Scoring**: Rule-based (duplicate vendor/bank, round-amount flags, velocity checks)
-- **Rule Self-Optimization**: System surfaces rule change recommendations from override history
-- **Root Cause Analysis**: LLM-generated narrative when exception rate spikes
-- **Policy Parsing**: Upload a policy/contract PDF → LLM extracts matching rules → human reviews → published
-
-### Analytics & KPI
-- KPI dashboard: touchless rate, cycle time, exception rate, GL accuracy, fraud catch rate
-- Industry benchmarks comparison (Tipalti, Medius, Coupa)
-- Cash flow forecast (payment schedule + due date analysis)
-- Audit trail export (CSV) with full decision replay
-
-### Admin & Operations
-- RBAC: `AP_CLERK`, `AP_ANALYST`, `APPROVER`, `ADMIN`, `AUDITOR`
-- Multi-entity support (subsidiaries with entity selector in sidebar)
-- ERP CSV sync: SAP PO import, Oracle GRN import
-- GDPR data retention automation (monthly Celery beat)
-- Vendor risk scoring (weekly, auto-flags high-risk vendors)
-- User notification preferences (email / Slack / Teams per event type)
-- In-app notification center (30s polling)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14, TypeScript, shadcn/ui, Recharts |
+| Backend | FastAPI, SQLAlchemy 2.0, Alembic, Pydantic |
+| Database | PostgreSQL 16 |
+| Queue | Celery + Redis 7 |
+| Storage | MinIO (S3-compatible) |
+| OCR | Tesseract (local) / Google Vision (prod) |
+| AI/LLM | Claude Sonnet via Anthropic API |
+| ML | scikit-learn (TF-IDF + Logistic Regression) |
+| Infra | Docker Compose (dev) / Nginx + Gunicorn (prod) |
 
 ---
 
 ## LLM Configuration
 
-Four backends, switchable via `.env` — no code changes needed:
+Four backends, switchable via `.env` -- no code changes needed:
 
 | Provider | Setup | Cost | Notes |
 |----------|-------|------|-------|
@@ -190,27 +196,21 @@ ai-ap-manager/
 │   └── src/lib/            # Axios API client, React Query hooks, Zustand stores
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/         # REST endpoints (invoices, exceptions, approvals, kpi, admin...)
+│   │   ├── api/v1/         # REST endpoints
 │   │   ├── core/           # Config, security, dependencies
-│   │   ├── db/             # Database session management
-│   │   ├── middleware/     # Request/response middleware
 │   │   ├── models/         # SQLAlchemy ORM models
 │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── services/       # Business logic (approval, fraud, GL coding, notifications...)
+│   │   ├── services/       # Business logic
 │   │   ├── rules/          # Deterministic match engine (2/3/4-way)
 │   │   ├── ai/             # LLM abstraction layer (4 providers)
 │   │   ├── integrations/   # ERP CSV imports (SAP, Oracle)
 │   │   └── workers/        # Celery tasks + beat schedule
 │   ├── alembic/            # Database migrations
-│   ├── tests/              # Test suite
-│   └── scripts/            # Database seeding scripts
-├── docs/                   # Architecture, PRD, API, rules engine, security docs
-├── scripts/
-│   ├── seed.py             # Idempotent demo data seeder
-│   └── demo.sh             # One-command quickstart (called by make demo)
+│   └── tests/              # Test suite
+├── docs/                   # Architecture, API, rules engine, security docs
 ├── nginx/                  # Production reverse proxy config
 ├── docker-compose.yml      # Local development stack
-├── docker-compose.prod.yml # Production stack (Nginx + Gunicorn)
+├── docker-compose.prod.yml # Production stack
 └── Makefile                # Dev workflow shortcuts
 ```
 
@@ -239,8 +239,6 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8002
 ```
 
-**Port reference**:
-
 | Service | Host Port |
 |---------|-----------|
 | Frontend | 3000 |
@@ -254,13 +252,13 @@ uvicorn app.main:app --reload --port 8002
 
 ## Production Deployment
 
-A production-ready `docker compose.prod.yml` with Nginx reverse proxy and Gunicorn (120s timeout for LLM calls) is included:
+A production-ready `docker-compose.prod.yml` with Nginx reverse proxy and Gunicorn (120s timeout for LLM calls) is included:
 
 ```bash
 cp .env.example .env.prod
-# Edit: set ANTHROPIC_API_KEY, strong JWT_SECRET, production DB creds
+# Edit: set ANTHROPIC_API_KEY, strong JWT_SECRET, production DB creds, DOMAIN_NAME
 
-docker compose -f docker compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ---
@@ -269,35 +267,19 @@ docker compose -f docker compose.prod.yml up -d
 
 | Doc | Description |
 |-----|-------------|
-| [GOALS.md](GOALS.md) | Vision, milestones, north star metrics vs industry benchmarks |
-| [TODO.md](TODO.md) | Full task backlog (P0/P1/P2/P3) |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, data flow, module map |
-| [docs/PRD.md](docs/PRD.md) | Product requirements and user journeys |
-| [docs/DATABASE.md](docs/DATABASE.md) | ERD and all table schemas |
-| [docs/API.md](docs/API.md) | REST API endpoint reference |
-| [docs/RULES_ENGINE.md](docs/RULES_ENGINE.md) | Match engine design, tolerance config, exception taxonomy |
-| [docs/AI_MODULES.md](docs/AI_MODULES.md) | LLM integration design and safety guardrails |
-| [docs/SECURITY.md](docs/SECURITY.md) | RBAC, authentication, audit, data protection |
-| [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) | Feature completion audit |
-
----
-
-## Implementation Status
-
-| Phase | Status |
-|-------|--------|
-| **MVP (P0)** — Invoice upload → OCR → 2-way match → exception queue → approval → KPI | ✅ |
-| **V1 (P1)** — 3-way match, email IMAP, multi-level approval, recurring detection, vendor portal | ✅ |
-| **V2 (P2)** — ERP CSV sync, FX rates, GL ML classifier, 4-way match, multi-entity | ✅ |
-| **P3 (selected)** — Slack/Teams, vendor risk scoring, GDPR retention, notification center | ✅ |
-
-Remaining roadmap (explicitly deferred): PWA service worker, WebSocket push, live ERP API connectors (BAPI/REST), Playwright E2E tests, Prometheus metrics.
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, data flow, module map |
+| [PRD.md](docs/PRD.md) | Product requirements and user journeys |
+| [DATABASE.md](docs/DATABASE.md) | ERD and all table schemas |
+| [API.md](docs/API.md) | REST API endpoint reference |
+| [RULES_ENGINE.md](docs/RULES_ENGINE.md) | Match engine design, tolerance config, exception taxonomy |
+| [AI_MODULES.md](docs/AI_MODULES.md) | LLM integration design and safety guardrails |
+| [SECURITY.md](docs/SECURITY.md) | RBAC, authentication, audit, data protection |
 
 ---
 
 ## Contributing
 
-PRs welcome. Please open an issue first for major changes.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
 
 ```bash
 make test   # Run tests before submitting
@@ -308,4 +290,4 @@ make lint   # Check linting
 
 ## License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)

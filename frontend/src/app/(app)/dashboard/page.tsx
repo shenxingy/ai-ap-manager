@@ -395,7 +395,7 @@ export default function DashboardPage() {
           </div>
           <Button variant="outline" size="sm" asChild>
             <a
-              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002"}/api/v1/kpi/cash-flow-export`}
+              href={`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/kpi/cash-flow-export`}
               download
             >
               Export CSV
