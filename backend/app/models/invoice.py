@@ -9,6 +9,25 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 
 
 class Invoice(Base, UUIDMixin, TimestampMixin):
+    """Invoice entity representing a supplier invoice in the AP system.
+
+    An invoice flows through the following lifecycle:
+      ingested → extracting → extracted → matching → matched → exception/approved → paid/rejected
+
+    Key relationships:
+      - entity_id: Links to the Entity (legal entity/company) receiving this invoice
+      - vendor_id: Links to the Vendor (supplier) who issued the invoice
+      - po_id: Links to a Purchase Order for 3-way matching
+      - payment_run_id: Links to a PaymentRun after approval
+      - line_items: Child InvoiceLineItem records (line-level details)
+      - extraction_results: Dual-pass extraction records for field-level audit
+
+    Important fields:
+      - status: Workflow stage (see status enum in comment below)
+      - fraud_score: Risk assessment (0-100) from fraud_scoring service
+      - normalized_amount_usd: Amount in USD for cross-currency comparison
+      - deleted_at: Soft-delete timestamp (invoices never hard-deleted for audit)
+    """
     __tablename__ = "invoices"
 
     invoice_number: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
@@ -24,7 +43,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="ingested"
     )  # ingested, extracting, extracted, matching, matched, exception, approved, paid, rejected, cancelled
-    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)  # MinIO path (e.g., bucket/year/month/uuid.pdf)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -56,8 +75,8 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("recurring_invoice_patterns.id"), nullable=True
     )
     ocr_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)  # 0.0-1.0
-    extraction_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    normalized_amount_usd: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)
+    extraction_model: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Model name used in extraction (e.g., "claude-sonnet-4-6" or "tesseract")
+    normalized_amount_usd: Mapped[float | None] = mapped_column(Numeric(18, 4), nullable=True)  # Total amount converted to USD for reporting and cross-currency analysis
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     payment_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("payment_runs.id"), nullable=True, index=True
@@ -71,6 +90,19 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
 
 
 class InvoiceLineItem(Base, UUIDMixin, TimestampMixin):
+    """Line-item detail on an invoice (per-line purchase, tax, etc.).
+
+    Each invoice can have multiple line items. This table stores the extracted
+    line-by-line breakdown and enriched data like GL account suggestions.
+
+    Relationships:
+      - invoice_id: Parent Invoice
+      - po_line_item_id: Child/line-level link to PO (for 3-way matching)
+
+    GL Coding:
+      - gl_account: User-edited GL account code
+      - gl_account_suggested: AI-suggested GL code from gl_coding service (based on historical frequency)
+    """
     __tablename__ = "invoice_line_items"
 
     invoice_id: Mapped[uuid.UUID] = mapped_column(
