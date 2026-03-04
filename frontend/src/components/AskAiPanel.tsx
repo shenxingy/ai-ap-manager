@@ -21,6 +21,10 @@ interface AskAiResult {
   sql?: string;
 }
 
+interface AskAiPanelProps {
+  // Component takes no props
+}
+
 const SUGGESTED_QUERIES = [
   "Which vendors have the most exceptions this month?",
   "Show me invoices with fraud score above 40",
@@ -30,10 +34,10 @@ const SUGGESTED_QUERIES = [
 
 // ─── Panel ───
 
-export function AskAiPanel() {
-  const [question, setQuestion] = useState("");
+export function AskAiPanel({}: AskAiPanelProps) {
+  const [question, setQuestion] = useState<string>("");
   const [result, setResult] = useState<AskAiResult | null>(null);
-  const [showSql, setShowSql] = useState(false);
+  const [showSql, setShowSql] = useState<boolean>(false);
 
   const askMutation = useMutation({
     mutationFn: (q: string) =>
@@ -44,18 +48,18 @@ export function AskAiPanel() {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = (): void => {
     const q = question.trim();
     if (!q) return;
     askMutation.mutate(q);
   };
 
-  const handleSuggestion = (q: string) => {
+  const handleSuggestion = (q: string): void => {
     setQuestion(q);
     askMutation.mutate(q);
   };
 
-  const handleReset = () => {
+  const handleReset = (): void => {
     setResult(null);
     setQuestion("");
     setShowSql(false);
@@ -90,8 +94,8 @@ export function AskAiPanel() {
               className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
               placeholder="Ask anything about your AP data…"
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuestion(e.target.value)}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleSubmit()}
               disabled={askMutation.isPending}
             />
             <Button
@@ -168,7 +172,7 @@ export function AskAiPanel() {
                 <div>
                   <button
                     className="text-xs text-gray-400 hover:text-gray-600"
-                    onClick={() => setShowSql((v) => !v)}
+                    onClick={() => setShowSql((v: boolean) => !v)}
                   >
                     {showSql ? "Hide SQL" : "Show SQL"}
                   </button>
