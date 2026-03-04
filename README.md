@@ -189,21 +189,28 @@ ai-ap-manager/
 │   ├── src/components/     # UI components (shadcn/ui based)
 │   └── src/lib/            # Axios API client, React Query hooks, Zustand stores
 ├── backend/
-│   └── app/
-│       ├── api/v1/         # REST endpoints (invoices, exceptions, approvals, kpi, admin...)
-│       ├── rules/          # Deterministic match engine (2/3/4-way)
-│       ├── services/       # Business logic (approval, fraud, GL coding, notifications...)
-│       ├── ai/             # LLM abstraction layer (4 providers)
-│       ├── workers/        # Celery tasks + beat schedule
-│       ├── models/         # SQLAlchemy ORM models
-│       └── schemas/        # Pydantic request/response schemas
+│   ├── app/
+│   │   ├── api/v1/         # REST endpoints (invoices, exceptions, approvals, kpi, admin...)
+│   │   ├── core/           # Config, security, dependencies
+│   │   ├── db/             # Database session management
+│   │   ├── middleware/     # Request/response middleware
+│   │   ├── models/         # SQLAlchemy ORM models
+│   │   ├── schemas/        # Pydantic request/response schemas
+│   │   ├── services/       # Business logic (approval, fraud, GL coding, notifications...)
+│   │   ├── rules/          # Deterministic match engine (2/3/4-way)
+│   │   ├── ai/             # LLM abstraction layer (4 providers)
+│   │   ├── integrations/   # ERP CSV imports (SAP, Oracle)
+│   │   └── workers/        # Celery tasks + beat schedule
+│   ├── alembic/            # Database migrations
+│   ├── tests/              # Test suite
+│   └── scripts/            # Database seeding scripts
 ├── docs/                   # Architecture, PRD, API, rules engine, security docs
 ├── scripts/
 │   ├── seed.py             # Idempotent demo data seeder
 │   └── demo.sh             # One-command quickstart (called by make demo)
 ├── nginx/                  # Production reverse proxy config
-├── docker compose.yml      # Local development stack
-├── docker compose.prod.yml # Production stack (Nginx + Gunicorn)
+├── docker-compose.yml      # Local development stack
+├── docker-compose.prod.yml # Production stack (Nginx + Gunicorn)
 └── Makefile                # Dev workflow shortcuts
 ```
 
