@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.deps import get_current_user, require_role
+from app.core.deps import require_role
 from app.core.limiter import limiter
 from app.db.session import get_session
-from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult
+from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.approval import VendorMessage
 from app.models.user import User
 from app.schemas.invoice import (

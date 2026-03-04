@@ -12,8 +12,6 @@ Email token endpoint (no auth):
 import logging
 import uuid
 from decimal import Decimal
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -21,7 +19,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.deps import get_current_user, require_role
+from app.core.deps import require_role
 from app.schemas.approval import (
     ApprovalDecisionRequest,
     ApprovalListResponse,
