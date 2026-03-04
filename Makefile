@@ -31,7 +31,7 @@ seed:
 	docker compose exec backend python scripts/seed.py
 
 shell-db:
-	docker compose exec db psql -U ap_user -d ap_manager
+	docker compose exec db psql -U ap_user -d ap_db
 
 # ─── Development ───
 backend-dev:

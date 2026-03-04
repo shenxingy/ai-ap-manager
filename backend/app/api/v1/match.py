@@ -282,7 +282,7 @@ async def trigger_match(
         logger.exception("Re-match failed for invoice %s: %s", invoice_id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Match engine error: {str(exc)}",
+            detail="Match engine error",
         )
 
     # Refresh invoice status from DB
