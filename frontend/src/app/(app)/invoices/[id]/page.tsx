@@ -321,6 +321,13 @@ function RecordPaymentDialog({
 
 // ─── Page ───
 
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  return {
+    title: `Invoice ${params.id} | AP Manager`,
+    description: "Invoice detail view with matching and approval status.",
+  };
+}
+
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
