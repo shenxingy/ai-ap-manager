@@ -41,7 +41,18 @@ Thumbs.db
 logs/
 tasks.txt
 
-# Loop goal files at repo root (use docs/loop-history/ for archives)
+# Loop goal files at repo root
 /goal-*.md
 /proposed-tasks*.md
 /review-goal.md
+
+# Internal development artifacts (not for public repo)
+BRAINSTORM.md
+PROGRESS.md
+GOALS.md
+TODO.md
+SECURITY_AUDIT_REPORT.md
+docs/loop-history/
+docs/plans/
+docs/GAP_ANALYSIS.md
+backend/verification_results.txt
