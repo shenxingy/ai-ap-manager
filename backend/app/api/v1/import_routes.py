@@ -94,7 +94,7 @@ async def import_pos(
     errors: list[ImportRowError] = []
 
     # Cache vendor lookups
-    vendor_cache: dict[str, Vendor | None] = {}
+    vendor_cache: dict[str, Vendor] = {}
 
     for idx, row in enumerate(rows, start=2):  # row 1 = header
         po_number = _get(row, "po_number")

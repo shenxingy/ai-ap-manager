@@ -8,7 +8,7 @@ Endpoints:
 """
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
@@ -56,7 +56,7 @@ class TemplateCreate(BaseModel):
 )
 async def list_templates(
     db: Annotated[AsyncSession, Depends(get_session)],
-    _current_user: Annotated[object, Depends(require_role("ADMIN", "AP_ANALYST"))],
+    _current_user: Annotated[Any, Depends(require_role("ADMIN", "AP_ANALYST"))],
 ):
     result = await db.execute(
         select(InvoiceTemplate)
@@ -75,7 +75,7 @@ async def list_templates(
 async def create_template(
     body: TemplateCreate,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("ADMIN", "AP_ANALYST"))],
+    current_user: Annotated[Any, Depends(require_role("ADMIN", "AP_ANALYST"))],
 ):
     template = InvoiceTemplate(
         vendor_id=body.vendor_id,
@@ -99,7 +99,7 @@ async def create_template(
 async def get_template(
     template_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _current_user: Annotated[object, Depends(require_role("ADMIN", "AP_ANALYST"))],
+    _current_user: Annotated[Any, Depends(require_role("ADMIN", "AP_ANALYST"))],
 ):
     result = await db.execute(
         select(InvoiceTemplate).where(
@@ -121,7 +121,7 @@ async def get_template(
 async def delete_template(
     template_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _current_user: Annotated[object, Depends(require_role("ADMIN"))],
+    _current_user: Annotated[Any, Depends(require_role("ADMIN"))],
 ):
     result = await db.execute(
         select(InvoiceTemplate).where(

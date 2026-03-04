@@ -115,16 +115,16 @@ async def get_process_mining(
 
         result = []
         for from_status, to_status, label in STEPS:
-            hours = step_hours[label]
-            if not hours:
+            hour_list = step_hours[label]
+            if not hour_list:
                 continue
             result.append({
                 "step": label,
                 "from_status": from_status,
                 "to_status": to_status,
-                "median_hours": round(statistics.median(hours), 2),
-                "p90_hours": round(_percentile(hours, 90), 2),
-                "invoice_count": len(hours),
+                "median_hours": round(statistics.median(hour_list), 2),
+                "p90_hours": round(_percentile(hour_list, 90), 2),
+                "invoice_count": len(hour_list),
             })
 
         return result

@@ -6,9 +6,13 @@ Celery tasks (which cannot use async sessions).
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone, date
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from app.models.approval import ApprovalTask
 
 from app.core.config import settings
 from app.core.security import create_approval_token, verify_approval_token

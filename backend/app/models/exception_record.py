@@ -45,7 +45,7 @@ class ExceptionRecord(Base, UUIDMixin, TimestampMixin):
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_root_cause: Mapped[str | None] = mapped_column(Text, nullable=True)  # LLM-generated root cause narrative
 
-    invoice: Mapped["Invoice"] = relationship("Invoice", foreign_keys=[invoice_id])  # type: ignore[name-defined]
+    invoice: Mapped["Invoice"] = relationship("Invoice", foreign_keys=[invoice_id])
     comments: Mapped[list["ExceptionComment"]] = relationship(
         "ExceptionComment", back_populates="exception", order_by="ExceptionComment.created_at"
     )
@@ -63,4 +63,4 @@ class ExceptionComment(Base, UUIDMixin, TimestampMixin):
     body: Mapped[str] = mapped_column(Text, nullable=False)
 
     exception: Mapped["ExceptionRecord"] = relationship("ExceptionRecord", back_populates="comments")
-    author: Mapped["User"] = relationship("User")  # type: ignore[name-defined]
+    author: Mapped["User"] = relationship("User")

@@ -58,6 +58,7 @@ def upload_file(
     """Upload bytes or file-like object to MinIO. Returns the object path."""
     client = get_client()
 
+    stream: io.BytesIO | io.IOBase
     if isinstance(data, bytes):
         stream = io.BytesIO(data)
         length = len(data)

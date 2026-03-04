@@ -3,7 +3,7 @@ import re
 import uuid
 import logging
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
@@ -40,7 +40,7 @@ router = APIRouter()
 )
 async def list_vendors(
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
+    current_user: Annotated[Any, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     name: str | None = Query(default=None),
@@ -120,7 +120,7 @@ async def list_vendors(
 async def get_vendor(
     vendor_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
+    current_user: Annotated[Any, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
 ):
     stmt = (
         select(Vendor)
@@ -171,7 +171,7 @@ async def get_vendor(
 async def create_vendor(
     body: VendorCreate,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+    current_user: Annotated[Any, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
 ):
     # EIN format validation for USD vendors
     if body.currency == "USD" and body.tax_id:
@@ -250,7 +250,7 @@ async def update_vendor(
     vendor_id: uuid.UUID,
     body: VendorUpdate,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+    current_user: Annotated[Any, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
 ):
     stmt = (
         select(Vendor)
@@ -345,7 +345,7 @@ async def add_vendor_alias(
     vendor_id: uuid.UUID,
     body: VendorAliasCreate,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+    current_user: Annotated[Any, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
 ):
     # Verify vendor exists
     vendor = (
@@ -387,7 +387,7 @@ async def remove_vendor_alias(
     vendor_id: uuid.UUID,
     alias_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+    current_user: Annotated[Any, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
 ):
     alias = (
         await db.execute(
@@ -446,7 +446,7 @@ class ComplianceDocOut(BaseModel):
 async def upload_compliance_doc(
     vendor_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
+    current_user: Annotated[Any, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN"))],
     doc_type: str = Form(..., description="W9 | W8BEN | VAT | insurance | other"),
     file: UploadFile = File(..., description="Document file"),
     expiry_date: date | None = Form(default=None),
@@ -541,7 +541,7 @@ async def upload_compliance_doc(
 async def list_compliance_docs(
     vendor_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
+    current_user: Annotated[Any, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
 ):
     vendor = (
         await db.execute(
