@@ -153,6 +153,7 @@ async def approve_task(
     body: ApprovalDecisionRequest,
     current_user=Depends(require_role("APPROVER", "ADMIN")),
 ):
+    """Approve a pending ApprovalTask and record an override log entry."""
     from app.services.approval import process_approval_decision
     from app.models.invoice import Invoice
 
@@ -211,6 +212,7 @@ async def reject_task(
     body: ApprovalDecisionRequest,
     current_user=Depends(require_role("APPROVER", "ADMIN")),
 ):
+    """Reject a pending ApprovalTask and record an override log entry."""
     from app.services.approval import process_approval_decision
     from app.models.invoice import Invoice
 
