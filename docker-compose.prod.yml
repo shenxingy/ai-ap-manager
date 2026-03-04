@@ -158,11 +158,11 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     restart: always
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_NAME}/api
+      NEXT_PUBLIC_API_URL: https://${DOMAIN_NAME}/api
     expose:
       - "3000"
     depends_on:
