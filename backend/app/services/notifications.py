@@ -27,14 +27,20 @@ def send_approval_request(
 ) -> None:
     """Send approval request notification to Slack/Teams.
 
+    Notifies the approver of a pending invoice awaiting their decision via
+    configured Slack and/or Teams webhooks. Does nothing if no webhooks are configured.
+
     Args:
-        invoice_number: Invoice ID
-        vendor_name: Vendor name
-        amount: Invoice amount
-        currency: Currency code (e.g., "USD")
-        approver_email: Email of the approver
-        approve_url: URL to approve (with token)
-        reject_url: URL to reject (with token)
+        invoice_number: Invoice ID or number.
+        vendor_name: Name of the vendor/supplier.
+        amount: Invoice amount (numeric).
+        currency: Currency code (e.g., "USD", "EUR").
+        approver_email: Email address of the approver.
+        approve_url: URL to approve invoice (includes secure token).
+        reject_url: URL to reject invoice (includes secure token).
+
+    Returns:
+        None. Notification delivery is fire-and-forget; errors are logged but not raised.
     """
     # Return immediately if both webhooks are not configured
     if not settings.SLACK_WEBHOOK_URL and not settings.TEAMS_WEBHOOK_URL:
@@ -60,11 +66,17 @@ def send_approval_decision(
 ) -> None:
     """Send approval decision notification to Slack/Teams.
 
+    Notifies stakeholders that an invoice has been approved or rejected via
+    configured Slack and/or Teams webhooks. Does nothing if no webhooks are configured.
+
     Args:
-        invoice_number: Invoice ID
-        decision: "approved" or "rejected"
-        actor_email: Email of the person who made the decision
-        notes: Optional decision notes
+        invoice_number: Invoice ID or number.
+        decision: Decision outcome, either "approved" or "rejected".
+        actor_email: Email address of the person who made the decision.
+        notes: Optional notes explaining the decision. Appended to the message if provided.
+
+    Returns:
+        None. Notification delivery is fire-and-forget; errors are logged but not raised.
     """
     # Return immediately if both webhooks are not configured
     if not settings.SLACK_WEBHOOK_URL and not settings.TEAMS_WEBHOOK_URL:
@@ -90,14 +102,21 @@ def send_fraud_alert(
 ) -> None:
     """Send fraud alert notification to Slack/Teams.
 
-    Only sends if risk_level is "HIGH" or "CRITICAL".
+    Notifies the fraud team of high or critical-risk invoices detected by the fraud
+    scoring engine. Alerts are only sent if risk_level is "HIGH" or "CRITICAL"; lower
+    risks are silently dropped. Configured via Slack and/or Teams webhooks.
 
     Args:
-        invoice_number: Invoice ID
-        vendor_name: Vendor name
-        fraud_score: Fraud score (0-100)
-        risk_level: Risk level ("LOW", "MEDIUM", "HIGH", "CRITICAL")
-        signals: List of triggered fraud signals
+        invoice_number: Invoice ID or number.
+        vendor_name: Name of the vendor/supplier.
+        fraud_score: Fraud risk score on a 0-100 scale.
+        risk_level: Risk category: "LOW", "MEDIUM", "HIGH", or "CRITICAL".
+            Only "HIGH" and "CRITICAL" trigger notifications.
+        signals: List of triggered fraud detection signals (e.g., ["duplicate_vendor", "amount_anomaly"]).
+            If empty, shown as "none" in the alert.
+
+    Returns:
+        None. Notification delivery is fire-and-forget; errors are logged but not raised.
     """
     # Return immediately if both webhooks are not configured
     if not settings.SLACK_WEBHOOK_URL and not settings.TEAMS_WEBHOOK_URL:
@@ -124,7 +143,17 @@ def send_fraud_alert(
 
 
 def _send_slack(message: str) -> None:
-    """POST JSON to Slack webhook."""
+    """Post a message to Slack via configured webhook.
+
+    Internal helper that sends a simple JSON payload to the Slack incoming webhook URL.
+    Errors (network, timeout, invalid URL) are caught and logged; exceptions are not raised.
+
+    Args:
+        message: Text message to send to Slack.
+
+    Returns:
+        None. Delivery errors are logged but not propagated.
+    """
     try:
         payload = json.dumps({"text": message})
         req = urllib.request.Request(
@@ -141,7 +170,17 @@ def _send_slack(message: str) -> None:
 
 
 def _send_teams(message: str) -> None:
-    """POST JSON to Teams webhook."""
+    """Post a message to Teams via configured webhook.
+
+    Internal helper that sends a MessageCard JSON payload to the Teams incoming webhook URL.
+    Errors (network, timeout, invalid URL) are caught and logged; exceptions are not raised.
+
+    Args:
+        message: Text message to include in the Teams MessageCard.
+
+    Returns:
+        None. Delivery errors are logged but not propagated.
+    """
     try:
         payload = json.dumps({
             "@type": "MessageCard",
