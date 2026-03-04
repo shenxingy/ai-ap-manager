@@ -120,6 +120,7 @@ async def get_exception(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR"))],
 ):
+    """Return a single exception record with its linked invoice summary."""
     stmt = (
         select(ExceptionRecord)
         .where(ExceptionRecord.id == exception_id)
@@ -147,6 +148,7 @@ async def patch_exception(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "ADMIN"))],
 ):
+    """Update an exception's status, assignee, or resolution notes and write an audit log entry."""
     stmt = (
         select(ExceptionRecord)
         .where(ExceptionRecord.id == exception_id)
@@ -252,6 +254,7 @@ async def create_comment(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_CLERK", "ADMIN"))],
 ):
+    """Append a comment to an exception record and write an audit log entry."""
     # Verify exception exists
     exc_result = await db.execute(
         select(ExceptionRecord).where(ExceptionRecord.id == exception_id)
@@ -301,6 +304,7 @@ async def list_comments(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN", "APPROVER"))],
 ):
+    """Return all comments for an exception, ordered chronologically."""
     # Verify exception exists
     exc_result = await db.execute(
         select(ExceptionRecord).where(ExceptionRecord.id == exception_id)
