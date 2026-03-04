@@ -27,7 +27,16 @@ CATEGORY_GL_MAP = {
 
 
 def _word_similarity(a: str | None, b: str | None) -> float:
-    """Word overlap similarity (0.0-1.0)."""
+    """Compute word overlap similarity between two strings.
+
+    Parameters:
+        a: First string to compare (or None).
+        b: Second string to compare (or None).
+
+    Returns:
+        float: Similarity score from 0.0 (no overlap) to 1.0 (perfect overlap),
+            based on the ratio of shared words to total unique words.
+    """
     if not a or not b:
         return 0.0
     wa = set(a.lower().split())
@@ -51,7 +60,20 @@ async def suggest_gl_codes(
       3. category_default — hardcoded category → GL mapping
       4. none — no suggestion available
 
-    Returns list of dicts matching GLLineSuggestion fields.
+    Parameters:
+        db: Async database session.
+        invoice_id: UUID of the target invoice.
+
+    Returns:
+        list[dict]: List of GL suggestions, one per line item. Each dict contains:
+            - line_id: The line item ID
+            - line_number: The line number
+            - description: The line description
+            - gl_account: Suggested GL account code (or None)
+            - cost_center: Suggested cost center (or None)
+            - confidence_pct: Confidence score from 0.0 to 1.0
+            - source: How the suggestion was generated ('ml_classifier', 'vendor_history',
+              'po_line', 'category_default', or 'none')
     """
     from app.models.invoice import Invoice, InvoiceLineItem
     from app.models.purchase_order import POLineItem
