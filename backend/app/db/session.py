@@ -27,3 +27,19 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+
+async def get_readonly_session() -> AsyncGenerator[AsyncSession, None]:
+    """Read-only session: sets transaction to READ ONLY mode.
+
+    Used by endpoints that execute untrusted queries (e.g. ask_ai)
+    to prevent any DML even if SQL validation is bypassed.
+    """
+    async with AsyncSessionLocal() as session:
+        from sqlalchemy import text
+        await session.execute(text("SET TRANSACTION READ ONLY"))
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise

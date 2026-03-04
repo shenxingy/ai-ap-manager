@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
 from app.core.limiter import limiter
-from app.db.session import get_session
+from app.db.session import get_readonly_session
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class AskAiResponse(BaseModel):
 async def ask_ai(
     request: Request,
     body: AskAiRequest,
-    db: Annotated[AsyncSession, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_readonly_session)],
     current_user: Annotated[User, Depends(require_role("AP_ANALYST", "AP_MANAGER", "ADMIN", "AUDITOR"))],
 ):
     """Natural language query against AP data.
