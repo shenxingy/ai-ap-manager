@@ -1,4 +1,3 @@
-import uuid
 from typing import Annotated
 from uuid import UUID
 
@@ -57,7 +56,7 @@ def require_role(*roles: str):
 
 async def get_current_vendor_id(
     token: Annotated[str, Depends(oauth2_scheme)],
-) -> uuid.UUID:
+) -> UUID:
     """Validate a vendor portal JWT and return the vendor_id.
 
     Vendor tokens have type='vendor_portal' and a 'vendor_id' claim.
