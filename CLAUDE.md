@@ -41,26 +41,37 @@ Covers the full AP lifecycle: invoice ingestion → extraction → 2/3-way match
 
 ```
 ai-ap-manager/
-├── frontend/               # Next.js app
-│   ├── app/                # App Router pages
-│   ├── components/         # Shared UI components
-│   └── lib/                # API clients, utils
+├── frontend/               # Next.js 14 app
+│   ├── src/
+│   │   ├── app/            # App Router pages (including portal, auth)
+│   │   ├── components/     # Shared UI components (layout, providers, ui, AskAiPanel)
+│   │   ├── lib/            # API clients, utils, tests
+│   │   └── store/          # Zustand state stores
+│   └── public/             # Static assets
 ├── backend/                # FastAPI app
 │   ├── app/
 │   │   ├── api/            # Route handlers (v1/)
 │   │   ├── core/           # Config, security, deps
-│   │   ├── models/         # SQLAlchemy models
-│   │   ├── schemas/        # Pydantic schemas
-│   │   ├── services/       # Business logic
-│   │   ├── rules/          # Rule engine (deterministic)
+│   │   ├── db/             # Database session management
+│   │   ├── middleware/     # Request/response middleware (metrics, request-id)
+│   │   ├── models/         # SQLAlchemy ORM models
+│   │   ├── schemas/        # Pydantic request/response schemas
+│   │   ├── services/       # Business logic (approval, fraud, GL, notifications, etc.)
+│   │   ├── rules/          # Rule engine (deterministic match engine)
 │   │   ├── ai/             # LLM integration layer
-│   │   └── workers/        # Celery tasks
-│   ├── alembic/            # DB migrations
-│   └── tests/
-├── docs/                   # All design docs
-│   └── plans/              # Per-feature implementation plans
-├── scripts/                # Dev utility scripts
-├── docker-compose.yml
+│   │   ├── integrations/   # ERP CSV imports (SAP, Oracle)
+│   │   └── workers/        # Celery tasks + beat scheduler
+│   ├── alembic/            # Database migrations
+│   ├── tests/              # Test suite
+│   └── scripts/            # Database seeding scripts
+├── docs/                   # All design docs (architecture, API, rules, security, etc.)
+│   ├── plans/              # Per-feature implementation plans
+│   └── loop-history/       # Loop iteration logs and summaries
+├── scripts/                # Root-level dev utility scripts
+├── nginx/                  # Production reverse proxy config
+├── docker-compose.yml      # Local development stack
+├── docker-compose.prod.yml # Production stack (Nginx + Gunicorn)
+├── Makefile                # Dev workflow shortcuts
 └── .env.example
 ```
 
