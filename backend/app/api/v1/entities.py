@@ -2,7 +2,7 @@
 import uuid
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
@@ -63,7 +63,7 @@ class EntityListResponse(BaseModel):
 )
 async def list_entities(
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(get_current_user)],
+    current_user: Annotated[Any, Depends(get_current_user)],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ):
@@ -101,7 +101,7 @@ async def list_entities(
 async def create_entity(
     body: EntityCreate,
     db: Annotated[AsyncSession, Depends(get_session)],
-    current_user: Annotated[object, Depends(require_role("ADMIN"))],
+    current_user: Annotated[Any, Depends(require_role("ADMIN"))],
 ):
     """Create a new entity."""
     # Check if entity with same name already exists

@@ -5,9 +5,13 @@ Checks invoices for SLA violations and creates alert records.
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from app.models.sla_alert import SLAAlert
 
 logger = logging.getLogger(__name__)
 

@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 from app.workers.celery_app import celery_app
 
@@ -69,8 +70,8 @@ def poll_ap_mailbox() -> dict:
         for uid in uids:
             try:
                 _, msg_data = mail.fetch(uid, "(RFC822)")
-                raw = msg_data[0][1]
-                msg = email.message_from_bytes(raw)
+                raw = cast(tuple[bytes, bytes], msg_data[0])[1]
+                msg = email.message_from_bytes(cast(bytes, raw))
                 count = _ingest_message(msg)
                 processed += count
                 # Mark as Seen regardless of attachment outcome
@@ -127,7 +128,7 @@ def _ingest_message(msg: email.message.Message) -> int:
             if not is_valid:
                 continue
 
-            payload = part.get_payload(decode=True)
+            payload = cast(bytes, part.get_payload(decode=True))
             if not payload:
                 continue
 
