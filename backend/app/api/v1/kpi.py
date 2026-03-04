@@ -33,6 +33,7 @@ async def get_kpi_summary(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
+    """Return aggregate KPI counts and rates for the requested lookback window."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     base_filters = [Invoice.deleted_at.is_(None), Invoice.created_at >= since]
     if entity_id is not None:
@@ -118,6 +119,7 @@ async def get_sla_summary(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
+    """Return counts of invoices approaching their due date and already overdue."""
     now = datetime.now(timezone.utc)
     start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     approaching_cutoff = start_of_today + timedelta(days=3)
@@ -150,6 +152,7 @@ async def get_kpi_trends(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
+    """Return time-series trend data bucketed by day or week for the requested period."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     if period == "weekly":
