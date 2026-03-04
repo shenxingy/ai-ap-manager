@@ -32,9 +32,22 @@ FRAUD_INCIDENT_THRESHOLD = 40
 
 
 def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
-    """Score an invoice for fraud risk. Updates invoice.fraud_score in DB.
+    """Score an invoice for fraud risk and update database.
 
-    Returns: {fraud_score: int, triggered_signals: list[str], created_exception: bool}
+    Evaluates 7 deterministic fraud signals (round amount, spike, duplicate, stale date,
+    new vendor, bank change, ghost vendor). Automatically creates FRAUD_FLAG exception
+    if score >= HIGH threshold and FraudIncident if >= 40. Sends fraud alert notifications
+    for HIGH+ risk scores.
+
+    Args:
+        db: SQLAlchemy synchronous session.
+        invoice_id: UUID of the invoice to score.
+
+    Returns:
+        Dictionary with:
+        - fraud_score (int): Total fraud score (0-100+).
+        - triggered_signals (list[str]): List of signal names triggered.
+        - created_exception (bool): Whether a FRAUD_FLAG exception was auto-created.
     """
     from app.models.invoice import Invoice
     from app.services import audit as audit_svc
@@ -224,7 +237,20 @@ def _ensure_fraud_exception(
     score: int,
     signals: list[str],
 ) -> None:
-    """Create FRAUD_FLAG exception if one doesn't already exist (open)."""
+    """Create FRAUD_FLAG exception if one doesn't already exist.
+
+    Creates a critical-severity FRAUD_FLAG exception record for the invoice only if
+    an open FRAUD_FLAG exception doesn't already exist for it. Does not commit.
+
+    Args:
+        db: SQLAlchemy synchronous session.
+        invoice_id: UUID of the invoice to flag.
+        score: Fraud score that triggered the exception.
+        signals: List of fraud signal names triggered.
+
+    Returns:
+        None. Exception is added to session (requires db.flush() or db.commit()).
+    """
     from app.models.exception_record import ExceptionRecord
 
     existing = db.execute(
@@ -255,7 +281,21 @@ def _ensure_fraud_incident(
     score: int,
     signals: list[str],
 ) -> None:
-    """Create FraudIncident if one doesn't already exist for this invoice."""
+    """Create FraudIncident record if one doesn't already exist.
+
+    Creates a FraudIncident audit record for the invoice only if one doesn't already
+    exist. Tracks the fraud score and triggered signals at the time of flagging.
+    Does not commit.
+
+    Args:
+        db: SQLAlchemy synchronous session.
+        invoice_id: UUID of the invoice.
+        score: Fraud score at the time of flagging.
+        signals: List of fraud signal names triggered.
+
+    Returns:
+        None. FraudIncident is added to session (requires db.flush() or db.commit()).
+    """
     from app.models.fraud_incident import FraudIncident
 
     existing = db.execute(
