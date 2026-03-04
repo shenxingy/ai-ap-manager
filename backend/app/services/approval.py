@@ -506,7 +506,15 @@ def process_approval_decision(
 # ─── List pending tasks for approver ───
 
 def get_pending_tasks_for_approver(db: Session, approver_id: uuid.UUID) -> list:
-    """Return all pending ApprovalTasks assigned to the given approver."""
+    """Return all pending ApprovalTasks assigned to the given approver.
+
+    Args:
+        db: Sync SQLAlchemy session.
+        approver_id: UUID of the approver.
+
+    Returns:
+        List of ApprovalTask ORM objects with status="pending", sorted by due_at ascending.
+    """
     from app.models.approval import ApprovalTask
 
     stmt = select(ApprovalTask).where(
@@ -518,7 +526,16 @@ def get_pending_tasks_for_approver(db: Session, approver_id: uuid.UUID) -> list:
 
 
 def get_resolved_tasks_for_approver(db: Session, approver_id: uuid.UUID) -> list:
-    """Return all resolved (approved/rejected) ApprovalTasks for the given approver."""
+    """Return all resolved (approved/rejected) ApprovalTasks for the given approver.
+
+    Args:
+        db: Sync SQLAlchemy session.
+        approver_id: UUID of the approver.
+
+    Returns:
+        List of ApprovalTask ORM objects with status in ["approved", "rejected"],
+        sorted by decided_at descending.
+    """
     from app.models.approval import ApprovalTask
 
     stmt = select(ApprovalTask).where(
