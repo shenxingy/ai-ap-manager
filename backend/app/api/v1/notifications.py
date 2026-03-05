@@ -80,7 +80,7 @@ async def mark_notification_read(
         await db.commit()
         await db.refresh(notif)
 
-    return notif
+    return notif  # type: ignore[no-any-return]
 
 
 # ─── POST /notifications/read-all ───

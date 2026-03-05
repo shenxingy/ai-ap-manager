@@ -446,8 +446,6 @@ function ExceptionSheet({
 
 // ─── Exceptions Content (uses useSearchParams) ───
 
-"use client";
-
 function ExceptionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -695,11 +693,6 @@ function ExceptionsContent() {
 }
 
 // ─── Page ───
-
-export const metadata = {
-  title: "Exceptions | AP Manager",
-  description: "Review and manage invoice processing exceptions.",
-};
 
 export default function ExceptionsPage() {
   return (

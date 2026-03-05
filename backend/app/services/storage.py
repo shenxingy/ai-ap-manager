@@ -92,7 +92,7 @@ def get_presigned_url(
         object_name=object_name,
         expires=timedelta(seconds=expires_seconds),
     )
-    return url
+    return url  # type: ignore[no-any-return]
 
 
 def download_file(bucket: str, object_name: str) -> bytes:
@@ -100,7 +100,7 @@ def download_file(bucket: str, object_name: str) -> bytes:
     client = get_client()
     response = client.get_object(bucket_name=bucket, object_name=object_name)
     try:
-        return response.read()
+        return response.read()  # type: ignore[no-any-return]
     finally:
         response.close()
         response.release_conn()

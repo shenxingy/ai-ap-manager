@@ -14,11 +14,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ─── Password ─────────────────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(password)  # type: ignore[no-any-return]
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return pwd_context.verify(plain, hashed)  # type: ignore[no-any-return]
 
 
 # ─── JWT ──────────────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ def create_access_token(subject: str, role: str) -> str:
     expire = datetime.now(UTC) + timedelta(
         minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    return jwt.encode(
+    return jwt.encode(  # type: ignore[no-any-return]
         {"sub": subject, "role": role, "exp": expire, "type": "access"},
         settings.JWT_SECRET,
         algorithm=settings.JWT_ALGORITHM,
@@ -38,7 +38,7 @@ def create_refresh_token(subject: str) -> str:
     expire = datetime.now(UTC) + timedelta(
         days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
-    return jwt.encode(
+    return jwt.encode(  # type: ignore[no-any-return]
         {"sub": subject, "exp": expire, "type": "refresh"},
         settings.JWT_SECRET,
         algorithm=settings.JWT_ALGORITHM,
@@ -48,7 +48,7 @@ def create_refresh_token(subject: str) -> str:
 def create_vendor_access_token(vendor_id: str) -> str:
     """Create a vendor portal JWT (type: vendor_portal). Expires in 30 days."""
     expire = datetime.now(UTC) + timedelta(days=30)
-    return jwt.encode(
+    return jwt.encode(  # type: ignore[no-any-return]
         {"vendor_id": vendor_id, "type": "vendor_portal", "exp": expire},
         settings.JWT_SECRET,
         algorithm=settings.JWT_ALGORITHM,
@@ -57,7 +57,7 @@ def create_vendor_access_token(vendor_id: str) -> str:
 
 def decode_token(token: str) -> dict:
     """Raises JWTError on invalid/expired token."""
-    return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+    return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])  # type: ignore[no-any-return]
 
 
 # ─── Email Approval Tokens ────────────────────────────────────────────────────
