@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.deps import get_current_user
-from app.db.session import get_session
+from app.db.session import get_readonly_session, get_session
 from app.main import app
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -184,6 +184,7 @@ async def test_ask_ai_empty_question_returns_400():
     """POST /api/v1/ask-ai with empty question should return 400."""
     mock_session = make_mock_session()
     app.dependency_overrides[get_session] = make_session_override(mock_session)
+    app.dependency_overrides[get_readonly_session] = make_session_override(mock_session)
     app.dependency_overrides[get_current_user] = override_get_current_user
     try:
         with patch("app.api.v1.ask_ai._generate_sql", side_effect=Exception("no api key")):

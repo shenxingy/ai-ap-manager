@@ -7,7 +7,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.deps import get_current_user
 from app.core.security import create_access_token
-from app.db.session import get_session
+from app.db.session import get_readonly_session, get_session
 from app.main import app
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -119,6 +119,7 @@ async def test_ask_ai_rejects_dml_keywords():
 
     mock_session = make_mock_session()
     app.dependency_overrides[get_session] = make_session_override(mock_session)
+    app.dependency_overrides[get_readonly_session] = make_session_override(mock_session)
     app.dependency_overrides[get_current_user] = await make_override_get_current_user(role="AP_ANALYST")
 
     dml_keywords = [
