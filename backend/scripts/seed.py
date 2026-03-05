@@ -5,10 +5,9 @@ Run: docker exec ai-ap-manager-backend-1 python scripts/seed.py
 """
 import asyncio
 import json
-import sys
 import os
-from datetime import datetime, timezone, timedelta
-from decimal import Decimal
+import sys
+from datetime import UTC, datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -17,17 +16,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.config import settings
 from app.core.security import hash_password as get_password_hash
+from app.models.approval import ApprovalTask
+from app.models.exception_record import ExceptionRecord
+from app.models.fraud_incident import FraudIncident
+from app.models.goods_receipt import GoodsReceipt, GRLineItem
+from app.models.invoice import Invoice, InvoiceLineItem
+from app.models.purchase_order import POLineItem, PurchaseOrder
+from app.models.rule import Rule, RuleVersion
 from app.models.user import User
 from app.models.vendor import Vendor
-from app.models.purchase_order import PurchaseOrder, POLineItem
-from app.models.goods_receipt import GoodsReceipt, GRLineItem
-from app.models.rule import Rule, RuleVersion
-from app.models.invoice import Invoice, InvoiceLineItem
-from app.models.exception_record import ExceptionRecord
-from app.models.approval import ApprovalTask
-from app.models.fraud_incident import FraudIncident
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 # ─── Upsert helpers ───────────────────────────────────────────────────────────
@@ -137,7 +136,7 @@ async def _upsert_matching_rule(db: AsyncSession, created_by_id) -> RuleVersion:
     )
     existing_rv = rv_result.scalars().first()
     if existing_rv:
-        print(f"  [skip] Published matching rule")
+        print("  [skip] Published matching rule")
         return existing_rv
     config = {
         "amount_tolerance_pct": 0.02, "amount_tolerance_abs": 50.00,
@@ -152,7 +151,7 @@ async def _upsert_matching_rule(db: AsyncSession, created_by_id) -> RuleVersion:
     )
     db.add(rv)
     await db.flush()
-    print(f"  [new]  Matching tolerance rule (published)")
+    print("  [new]  Matching tolerance rule (published)")
     return rv
 
 
@@ -281,10 +280,10 @@ async def seed():
     async with SessionLocal() as db:
         print("\n── Users ──")
         admin    = await _upsert_user(db, "admin@example.com",    "Admin User",       "ADMIN")
-        clerk    = await _upsert_user(db, "clerk@example.com",    "AP Clerk",         "AP_CLERK")
-        analyst  = await _upsert_user(db, "analyst@example.com",  "AP Analyst",       "AP_ANALYST")
-        approver = await _upsert_user(db, "approver@example.com", "Finance Approver", "APPROVER")
-        auditor  = await _upsert_user(db, "auditor@example.com",  "Internal Auditor", "AUDITOR")
+        clerk    = await _upsert_user(db, "clerk@example.com",    "AP Clerk",         "AP_CLERK")  # noqa: F841
+        analyst  = await _upsert_user(db, "analyst@example.com",  "AP Analyst",       "AP_ANALYST")  # noqa: F841
+        approver = await _upsert_user(db, "approver@example.com", "Finance Approver", "APPROVER")  # noqa: F841
+        auditor  = await _upsert_user(db, "auditor@example.com",  "Internal Auditor", "AUDITOR")  # noqa: F841
         await db.commit()
 
         print("\n── Vendors ──")
@@ -309,7 +308,7 @@ async def seed():
             {"line_number": 1, "description": "Business Laptops Dell XPS 15", "quantity": 5, "unit_price": 1200.00, "unit": "ea", "category": "IT"},
             {"line_number": 2, "description": "4K Monitors UltraSharp 27\"",  "quantity": 5, "unit_price":  500.00, "unit": "ea", "category": "IT"},
         ])
-        po4 = await _upsert_po(db, "PO-2026-004", techflow.id, 3200.00, [
+        po4 = await _upsert_po(db, "PO-2026-004", techflow.id, 3200.00, [  # noqa: F841
             {"line_number": 1, "description": "Adobe Creative Cloud Licenses", "quantity": 8, "unit_price": 400.00, "unit": "ea", "category": "software"},
         ])
         po5 = await _upsert_po(db, "PO-2026-005", metalwrks.id, 6750.00, [
@@ -322,19 +321,19 @@ async def seed():
         await db.commit()
 
         print("\n── Goods Receipts ──")
-        gr1 = await _upsert_gr(db, "GR-2026-001", po1.id, acme.id, [
+        gr1 = await _upsert_gr(db, "GR-2026-001", po1.id, acme.id, [  # noqa: F841
             {"line_number": 1, "description": "Industrial Widgets A-100", "quantity": 100.0},
             {"line_number": 2, "description": "Steel Bolts Grade 8",      "quantity": 500.0},
         ])
-        gr2 = await _upsert_gr(db, "GR-2026-002", po3.id, techflow.id, [
+        gr2 = await _upsert_gr(db, "GR-2026-002", po3.id, techflow.id, [  # noqa: F841
             {"line_number": 1, "description": "Business Laptops Dell XPS 15", "quantity": 4.0},   # partial (80%)
             {"line_number": 2, "description": "4K Monitors UltraSharp 27\"",  "quantity": 5.0},
         ], received_days_ago=5)
-        gr3 = await _upsert_gr(db, "GR-2026-003", po5.id, metalwrks.id, [
+        gr3 = await _upsert_gr(db, "GR-2026-003", po5.id, metalwrks.id, [  # noqa: F841
             {"line_number": 1, "description": "Hot-Rolled Steel Sheets 4x8ft", "quantity": 50.0},
             {"line_number": 2, "description": "Hex Bolts M12x50mm",            "quantity": 25.0},
         ], received_days_ago=3)
-        gr4 = await _upsert_gr(db, "GR-2026-004", po6.id, metalwrks.id, [
+        gr4 = await _upsert_gr(db, "GR-2026-004", po6.id, metalwrks.id, [  # noqa: F841
             {"line_number": 1, "description": "CNC Machined Aluminum Parts", "quantity": 200.0},
         ], received_days_ago=2)
         await db.commit()
@@ -404,7 +403,7 @@ async def seed():
         )
 
         # INV-007: no PO, extracted, low fraud
-        inv7 = await _upsert_invoice(
+        inv7 = await _upsert_invoice(  # noqa: F841
             db, invoice_number="INV-2026-007", vendor=acme, po=None, status="extracted",
             subtotal=1944.44, invoice_days_ago=3, fraud_score=25,
             fraud_signals=["no_po_reference"],
@@ -434,7 +433,7 @@ async def seed():
         )
 
         # INV-010: Acme, extracted, OVERDUE (due 5 days ago)
-        inv10 = await _upsert_invoice(
+        inv10 = await _upsert_invoice(  # noqa: F841
             db, invoice_number="INV-2026-010", vendor=acme, po=po2, status="extracted",
             subtotal=11574.07, invoice_days_ago=35, payment_terms=30,
             line_items=[
