@@ -5,7 +5,7 @@ Celery tasks (which cannot use async sessions).
 """
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone, date
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -16,11 +16,10 @@ if TYPE_CHECKING:
 
 from app.core.config import settings
 from app.core.security import create_approval_token, verify_approval_token
-from app.services import audit as audit_svc
-
+from app.models.approval_matrix import UserDelegation
 from app.models.exception_record import ExceptionRecord
 from app.models.vendor import VendorComplianceDoc
-from app.models.approval_matrix import UserDelegation
+from app.services import audit as audit_svc
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ def create_approval_task(
     from app.models.user import User
     from app.services import email as email_svc
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(hours=due_hours)
 
     # ─── Compliance doc expiry check ───
@@ -64,7 +63,7 @@ def create_approval_task(
                 select(VendorComplianceDoc).where(
                     VendorComplianceDoc.vendor_id == invoice_obj.vendor_id,
                     VendorComplianceDoc.status == "approved",
-                    VendorComplianceDoc.expiry_date < datetime.now(timezone.utc),
+                    VendorComplianceDoc.expiry_date < datetime.now(UTC),
                 )
             ).scalars().all()
         )
@@ -169,7 +168,7 @@ def create_approval_task(
             db.add(notif)
             db.flush()
         except Exception:
-            pass
+            logger.warning("Failed to create in-app notification for approver %s", approver_id, exc_info=True)
 
         email_svc.send_approval_request_email(
             task=task,
@@ -194,7 +193,7 @@ def create_approval_task(
                 reject_url=reject_url,
             )
         except Exception:
-            pass
+            logger.warning("Failed to send webhook notification for invoice %s", invoice_id, exc_info=True)
     else:
         logger.warning("Invoice %s not found when sending approval email.", invoice_id)
 
@@ -252,7 +251,7 @@ def process_approval_decision(
         # Allow rejection even after a partial approval
         pass
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if channel == "email":
         # Validate raw token against stored hash
@@ -493,7 +492,7 @@ def process_approval_decision(
             db.add(notif)
             db.commit()
         except Exception:
-            pass
+            logger.warning("Failed to create decision notification for actor %s", actor_id, exc_info=True)
 
     logger.info(
         "Approval decision: task=%s action=%s channel=%s invoice=%s",
@@ -626,8 +625,9 @@ def build_approval_chain(db: Session, invoice) -> list[dict]:
     Returns:
         List of dicts with keys: step_order, approver_role.
     """
-    from app.models.approval_matrix import ApprovalMatrixRule
     from sqlalchemy import and_, or_
+
+    from app.models.approval_matrix import ApprovalMatrixRule
 
     amount = invoice.total_amount
 

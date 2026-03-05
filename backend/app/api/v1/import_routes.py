@@ -1,20 +1,20 @@
 """CSV bulk import endpoints for POs, GRNs, and Vendors."""
 import csv
-import io
 import difflib
+import io
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
 from app.db.session import get_session
-from app.models.purchase_order import PurchaseOrder
 from app.models.goods_receipt import GoodsReceipt
+from app.models.purchase_order import PurchaseOrder
 from app.models.vendor import Vendor
 from app.schemas.imports import ImportResult, ImportRowError
 
@@ -51,7 +51,7 @@ def _get(row: dict[str, str], key: str) -> str:
 def _parse_date(value: str) -> datetime | None:
     for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d"):
         try:
-            return datetime.strptime(value, fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(value, fmt).replace(tzinfo=UTC)
         except ValueError:
             pass
     return None

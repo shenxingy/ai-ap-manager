@@ -1,7 +1,6 @@
 """Audit log API endpoints."""
 import csv
 import io
-import uuid
 from datetime import datetime
 from typing import Annotated
 
@@ -10,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, require_role
+from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.audit import AuditLog
 from app.models.user import User

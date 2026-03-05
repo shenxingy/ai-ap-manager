@@ -3,20 +3,20 @@ import csv
 import io
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select, not_, exists, Integer
+from sqlalchemy import Integer, exists, func, not_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_session
-from app.models.invoice import Invoice
-from app.models.exception_record import ExceptionRecord
 from app.models.approval import ApprovalTask
+from app.models.exception_record import ExceptionRecord
+from app.models.invoice import Invoice
 from app.schemas.kpi import KPISummary, KPITrendPoint, KPITrends
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,8 @@ PENDING_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched"
 FORECAST_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched", "exception"}
 
 
+# ─── KPI Summary ───
+
 @router.get("/summary", response_model=KPISummary, summary="KPI summary for the last N days")
 async def get_kpi_summary(
     days: int = Query(default=30, ge=1, le=365, description="Lookback window in days"),
@@ -34,7 +36,7 @@ async def get_kpi_summary(
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return aggregate KPI counts and rates for the requested lookback window."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
     base_filters = [Invoice.deleted_at.is_(None), Invoice.created_at >= since]
     if entity_id is not None:
         base_filters.append(Invoice.entity_id == entity_id)
@@ -114,13 +116,15 @@ async def get_kpi_summary(
     )
 
 
+# ─── SLA Summary ───
+
 @router.get("/sla-summary", summary="SLA overdue and approaching-due invoice counts")
 async def get_sla_summary(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return counts of invoices approaching their due date and already overdue."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     approaching_cutoff = start_of_today + timedelta(days=3)
 
@@ -144,6 +148,8 @@ async def get_sla_summary(
     return {"approaching_count": approaching_count, "overdue_count": overdue_count}
 
 
+# ─── Trends ───
+
 @router.get("/trends", response_model=KPITrends, summary="KPI time-series trends")
 async def get_kpi_trends(
     period: str = Query(default="daily", pattern="^(daily|weekly)$"),
@@ -153,7 +159,7 @@ async def get_kpi_trends(
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return time-series trend data bucketed by day or week for the requested period."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
 
     if period == "weekly":
         trunc_fn = func.date_trunc("week", Invoice.created_at)
@@ -211,6 +217,8 @@ async def get_kpi_trends(
     return KPITrends(period=period, points=points)
 
 
+# ─── Cash Flow Forecast ───
+
 @router.get("/cash-flow-forecast", summary="12-week cash flow forecast from pending invoices")
 async def get_cash_flow_forecast(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
@@ -222,7 +230,7 @@ async def get_cash_flow_forecast(
     (estimated, confidence=0.5). Invoices with no date fall in the current week
     (confidence=0.3).
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Monday of current week (as date for simple arithmetic)
     today = now.date()
     week_start_0 = today - timedelta(days=today.weekday())
@@ -278,6 +286,8 @@ async def get_cash_flow_forecast(
     return result
 
 
+# ─── Cash Flow Export ───
+
 @router.get("/cash-flow-export", summary="Cash flow forecast exported as CSV")
 async def get_cash_flow_export(
     db: Annotated[AsyncSession, Depends(get_session)] = ...,
@@ -316,6 +326,8 @@ async def get_cash_flow_export(
         headers={"Content-Disposition": "attachment; filename=cash-flow-forecast.csv"},
     )
 
+
+# ─── Benchmarks ───
 
 @router.get("/benchmarks")
 async def get_benchmarks(current_user=Depends(get_current_user)):

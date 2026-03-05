@@ -6,7 +6,6 @@ Uses only urllib.request and json — no external dependencies.
 import json
 import logging
 import urllib.request
-from typing import Optional
 
 from app.core.config import settings
 
@@ -62,7 +61,7 @@ def send_approval_decision(
     invoice_number: str,
     decision: str,
     actor_email: str,
-    notes: Optional[str] = None,
+    notes: str | None = None,
 ) -> None:
     """Send approval decision notification to Slack/Teams.
 

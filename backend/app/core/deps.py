@@ -30,10 +30,11 @@ async def get_current_user(
         if not user_id:
             raise credentials_exc
     except JWTError:
-        raise credentials_exc
+        raise credentials_exc from None
+
+    from sqlalchemy import select
 
     from app.models.user import User
-    from sqlalchemy import select
 
     result = await db.execute(select(User).where(User.id == UUID(user_id)))
     user = result.scalar_one_or_none()
@@ -76,4 +77,4 @@ async def get_current_vendor_id(
             raise credentials_exc
         return UUID(vendor_id_str)
     except (JWTError, ValueError):
-        raise credentials_exc
+        raise credentials_exc from None

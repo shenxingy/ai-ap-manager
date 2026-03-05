@@ -7,7 +7,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-
 # ─── Upload response ───
 
 class InvoiceUploadResponse(BaseModel):

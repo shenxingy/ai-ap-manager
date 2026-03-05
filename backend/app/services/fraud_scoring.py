@@ -7,7 +7,7 @@ Auto-creates FraudIncident when score >= 40.
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -89,7 +89,7 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
 
     # ── Signal 3: Potential duplicate ──
     if vendor_id and inv_total > 0:
-        window_start = datetime.now(timezone.utc) - timedelta(days=settings.DUPLICATE_DETECTION_WINDOW_DAYS)
+        window_start = datetime.now(UTC) - timedelta(days=settings.DUPLICATE_DETECTION_WINDOW_DAYS)
         dup_stmt = select(Invoice).where(
             Invoice.vendor_id == vendor_id,
             Invoice.total_amount == invoice.total_amount,
@@ -104,10 +104,10 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
 
     # ── Signal 4: Stale invoice date ──
     if invoice.invoice_date:
-        ninety_days_ago = datetime.now(timezone.utc) - timedelta(days=90)
+        ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
         inv_date = invoice.invoice_date
         if inv_date.tzinfo is None:
-            inv_date = inv_date.replace(tzinfo=timezone.utc)
+            inv_date = inv_date.replace(tzinfo=UTC)
         if inv_date < ninety_days_ago:
             triggered.append("stale_invoice_date")
             total_score += SIGNAL_WEIGHTS["stale_invoice_date"]
@@ -128,7 +128,7 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
     # ── Signal 6: Bank account changed within 30 days ──
     if vendor_id:
         from app.models.fraud_incident import VendorBankHistory
-        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
         bank_change = db.execute(
             select(VendorBankHistory).where(
                 VendorBankHistory.vendor_id == vendor_id,
@@ -172,9 +172,10 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
 
         # Send fraud alert notification (Slack/Teams webhook + in-app)
         try:
-            from app.services.notifications import send_fraud_alert
-            from app.models.user import User
             from sqlalchemy import select as sa_select
+
+            from app.models.user import User
+            from app.services.notifications import send_fraud_alert
             if total_score >= settings.FRAUD_SCORE_CRITICAL_THRESHOLD:
                 risk_level = "CRITICAL"
             else:
@@ -205,7 +206,7 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
                 ))
             db.flush()
         except Exception:
-            pass
+            logger.warning("Failed to send fraud alert notification for invoice %s", invoice_id, exc_info=True)
 
     # ── Auto-create FraudIncident if score >= threshold ──
     if total_score >= FRAUD_INCIDENT_THRESHOLD:

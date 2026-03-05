@@ -1,9 +1,9 @@
 import hashlib
 import hmac
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -24,7 +24,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ─── JWT ──────────────────────────────────────────────────────────────────────
 
 def create_access_token(subject: str, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
     )
     return jwt.encode(
@@ -35,7 +35,7 @@ def create_access_token(subject: str, role: str) -> str:
 
 
 def create_refresh_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
     return jwt.encode(
@@ -47,7 +47,7 @@ def create_refresh_token(subject: str) -> str:
 
 def create_vendor_access_token(vendor_id: str) -> str:
     """Create a vendor portal JWT (type: vendor_portal). Expires in 30 days."""
-    expire = datetime.now(timezone.utc) + timedelta(days=30)
+    expire = datetime.now(UTC) + timedelta(days=30)
     return jwt.encode(
         {"vendor_id": vendor_id, "type": "vendor_portal", "exp": expire},
         settings.JWT_SECRET,

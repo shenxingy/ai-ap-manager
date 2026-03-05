@@ -3,7 +3,7 @@ import io
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.workers.celery_app import celery_app
 
@@ -16,6 +16,7 @@ def _get_sync_session():
     """Return a sync SQLAlchemy session. Caller must close it."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.core.config import settings
 
     engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
@@ -66,12 +67,13 @@ def process_invoice(self, invoice_id: str) -> dict:
     db = _get_sync_session()
 
     try:
-        from app.models.invoice import Invoice, InvoiceLineItem, ExtractionResult
-        from app.services import storage as storage_svc
-        from app.services import audit as audit_svc
+        from sqlalchemy import select
+
         from app.ai import extractor
         from app.core.config import settings
-        from sqlalchemy import select
+        from app.models.invoice import ExtractionResult, Invoice, InvoiceLineItem
+        from app.services import audit as audit_svc
+        from app.services import storage as storage_svc
 
         inv_uuid = uuid.UUID(invoice_id)
 
@@ -104,7 +106,7 @@ def process_invoice(self, invoice_id: str) -> dict:
             )
         except Exception as exc:
             logger.warning("MinIO download failed for %s: %s", invoice_id, exc)
-            raise self.retry(exc=exc, countdown=30)
+            raise self.retry(exc=exc, countdown=30) from exc
 
         # 3. OCR
         raw_text = ""
@@ -113,7 +115,6 @@ def process_invoice(self, invoice_id: str) -> dict:
         if settings.USE_CLAUDE_VISION:
             # Claude vision: pass image bytes directly — OCR skipped
             # Convert to base64 for Claude vision API
-            import base64
             raw_text = f"[VISION_MODE] base64 image length={len(file_bytes)}"
             # In vision mode, pass the image bytes as raw_text placeholder;
             # the extractor would need a separate vision code path.
@@ -262,6 +263,7 @@ def process_invoice(self, invoice_id: str) -> dict:
         # 7b. Normalize amount to USD (for cross-currency duplicate detection)
         try:
             from decimal import Decimal
+
             from app.services.fx import convert_to_usd
             if invoice.total_amount is not None and invoice.currency:
                 invoice.normalized_amount_usd = float(
@@ -340,7 +342,7 @@ def process_invoice(self, invoice_id: str) -> dict:
         db.rollback()
         logger.exception("process_invoice failed for %s: %s", invoice_id, exc)
         # Retry on transient errors
-        raise self.retry(exc=exc, countdown=60)
+        raise self.retry(exc=exc, countdown=60) from exc
 
     finally:
         db.close()
@@ -365,6 +367,7 @@ def _check_recurring_pattern(db, invoice) -> None:
     If auto_fast_track: creates approval task and advances status to 'matched'.
     """
     from sqlalchemy import select
+
     from app.models.recurring_pattern import RecurringInvoicePattern
 
     if invoice.vendor_id is None or invoice.total_amount is None:
@@ -423,10 +426,12 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
         vendor_id: Optional UUID string — limit detection to a single vendor.
     """
     from decimal import Decimal
-    from sqlalchemy import select, func
+
+    from sqlalchemy import select
+
     from app.models.invoice import Invoice
-    from app.models.vendor import Vendor
     from app.models.recurring_pattern import RecurringInvoicePattern
+    from app.models.vendor import Vendor
 
     logger.info("detect_recurring_patterns started vendor_id=%s", vendor_id)
     db = _get_sync_session()
@@ -440,7 +445,7 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
     skipped = 0
 
     try:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
+        cutoff = datetime.now(UTC) - timedelta(days=LOOKBACK_DAYS)
 
         # Get vendors to scan — optionally scoped to a single vendor
         vendor_stmt = select(Vendor.id).where(Vendor.deleted_at.is_(None))
@@ -474,8 +479,6 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
                 skipped += 1
                 continue
 
-            avg_interval = sum(intervals) / len(intervals)
-
             # Find best matching canonical frequency
             best_freq = None
             for freq in CANDIDATE_FREQUENCIES:
@@ -499,7 +502,7 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
                 )
             ).scalars().first()
 
-            now_utc = datetime.now(timezone.utc)
+            now_utc = datetime.now(UTC)
 
             if existing:
                 existing.frequency_days = best_freq
@@ -525,7 +528,7 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
     except Exception as exc:
         db.rollback()
         logger.exception("detect_recurring_patterns failed: %s", exc)
-        raise self.retry(exc=exc, countdown=60)
+        raise self.retry(exc=exc, countdown=60) from exc
 
     finally:
         db.close()

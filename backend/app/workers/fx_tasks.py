@@ -9,7 +9,7 @@ USD-based pairs (e.g. USD/EUR, USD/GBP, USD/JPY, …).
 import logging
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -79,7 +79,7 @@ def fetch_fx_rates():
     try:
         valid_date, ecb_rates = _fetch_ecb_rates()
         pairs = _build_usd_pairs(ecb_rates)
-        fetched_at = datetime.now(timezone.utc)
+        fetched_at = datetime.now(UTC)
         upserted = 0
         for pair in pairs:
             db.execute(text("""

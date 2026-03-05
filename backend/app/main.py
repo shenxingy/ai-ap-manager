@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 import sentry_sdk
 from fastapi import FastAPI, Request
@@ -11,8 +11,8 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import setup_logging
-from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.metrics import PrometheusMiddleware, metrics_endpoint
+from app.middleware.request_id import RequestIdMiddleware
 
 setup_logging()
 
@@ -84,6 +84,7 @@ async def _check_db() -> str:
     """Run SELECT 1 via async session. Returns 'ok' or error message."""
     try:
         from sqlalchemy import text
+
         from app.db.session import AsyncSessionLocal
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))

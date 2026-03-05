@@ -1,6 +1,6 @@
 """Override log API endpoints — admin-only override history."""
-import uuid
 import logging
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query

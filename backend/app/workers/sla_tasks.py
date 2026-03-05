@@ -1,6 +1,6 @@
 """Celery task for daily SLA alert checks."""
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from app.workers.celery_app import celery_app
 
@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 # Statuses that count as "pending approval" for SLA purposes
 PENDING_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched", "exception"}
 
+
+# ─── Daily SLA Alert Check ───
 
 @celery_app.task(name="app.workers.sla_tasks.check_sla_alerts")
 def check_sla_alerts():
@@ -24,6 +26,7 @@ def check_sla_alerts():
     try:
         from sqlalchemy import create_engine, func, select
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.invoice import Invoice
         from app.models.sla_alert import SlaAlert
@@ -31,7 +34,7 @@ def check_sla_alerts():
         engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
         Session = sessionmaker(bind=engine, expire_on_commit=False)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         warning_days = settings.SLA_WARNING_DAYS_BEFORE
 
@@ -51,7 +54,7 @@ def check_sla_alerts():
                 due = inv.due_date
                 # Make tz-aware if naive
                 if due.tzinfo is None:
-                    due = due.replace(tzinfo=timezone.utc)
+                    due = due.replace(tzinfo=UTC)
 
                 days_until = int((due - now).total_seconds() / 86400)
 
@@ -108,8 +111,10 @@ def check_sla_alerts():
 
     except Exception as exc:
         logger.exception("check_sla_alerts failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": "SLA alert check failed"}
 
+
+# ─── Weekly Compliance Doc Expiry ───
 
 @celery_app.task(name="app.workers.sla_tasks.expire_compliance_docs")
 def expire_compliance_docs():
@@ -125,6 +130,7 @@ def expire_compliance_docs():
     try:
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.vendor import VendorComplianceDoc
 
@@ -161,8 +167,10 @@ def expire_compliance_docs():
 
     except Exception as exc:
         logger.exception("expire_compliance_docs failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": "Compliance doc expiry check failed"}
 
+
+# ─── Daily Approval Escalation ───
 
 @celery_app.task(name="app.workers.sla_tasks.escalate_overdue_approvals")
 def escalate_overdue_approvals():
@@ -178,6 +186,7 @@ def escalate_overdue_approvals():
     try:
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.approval import ApprovalTask
         from app.models.user import User
@@ -185,7 +194,7 @@ def escalate_overdue_approvals():
         engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
         Session = sessionmaker(bind=engine, expire_on_commit=False)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stats = {"escalated": 0, "already_admin": 0, "no_admin_found": 0}
 
         with Session() as db:
@@ -234,4 +243,4 @@ def escalate_overdue_approvals():
 
     except Exception as exc:
         logger.exception("escalate_overdue_approvals failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": "Approval escalation failed"}

@@ -151,15 +151,6 @@ def verify_vendor_reply_token(raw_token: str) -> str | None:
         # Verify format is a valid UUID
         uuid.UUID(invoice_id_str)
 
-        # Recompute the hash
-        expected_hash = hmac.new(
-            settings.APPROVAL_TOKEN_SECRET.encode(),
-            raw_token.encode(),
-            hashlib.sha256,
-        ).hexdigest()
-
-        # This check is optional here since we don't store the hash,
-        # but we could enhance it later. For now, validate format only.
         return invoice_id_str
 
     except (ValueError, IndexError):

@@ -1,7 +1,7 @@
 """In-app notification center API endpoints."""
-import uuid
 import logging
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -76,7 +76,7 @@ async def mark_notification_read(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
 
     if notif.read_at is None:
-        notif.read_at = datetime.now(timezone.utc)
+        notif.read_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(notif)
 
@@ -91,7 +91,7 @@ async def mark_all_read(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> dict:
     """Mark all unread notifications for the current user as read."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await db.execute(
         update(Notification)
         .where(

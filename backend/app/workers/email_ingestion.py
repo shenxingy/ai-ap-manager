@@ -3,7 +3,7 @@ import email
 import email.utils
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -32,6 +32,7 @@ MIME_BY_EXT = {
 def _get_sync_session():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.core.config import settings
 
     engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
@@ -49,6 +50,7 @@ def poll_ap_mailbox() -> dict:
     Returns immediately if IMAP_HOST is not configured.
     """
     import imaplib
+
     from app.core.config import settings
 
     if not settings.IMAP_HOST:
@@ -84,7 +86,7 @@ def poll_ap_mailbox() -> dict:
 
     except Exception as exc:
         logger.exception("poll_ap_mailbox: IMAP connection error: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": "IMAP connection error"}
 
     logger.info("poll_ap_mailbox done: processed=%d errors=%d", processed, errors)
     return {"status": "ok", "processed": processed, "errors": errors}
@@ -97,10 +99,10 @@ def _ingest_message(msg: email.message.Message) -> int:
 
     Returns the count of invoices created.
     """
-    from app.models.invoice import Invoice
-    from app.services import storage as storage_svc
-    from app.services import audit as audit_svc
     from app.core.config import settings
+    from app.models.invoice import Invoice
+    from app.services import audit as audit_svc
+    from app.services import storage as storage_svc
 
     from_header = msg.get("From", "")
     from_address = email.utils.parseaddr(from_header)[1] or from_header or "unknown"
@@ -112,7 +114,7 @@ def _ingest_message(msg: email.message.Message) -> int:
     if date_str:
         try:
             ts = email.utils.parsedate_to_datetime(date_str)
-            received_at = ts.astimezone(timezone.utc)
+            received_at = ts.astimezone(UTC)
         except Exception:
             received_at = None
 

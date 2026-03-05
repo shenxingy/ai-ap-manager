@@ -1,14 +1,34 @@
 from fastapi import APIRouter
 
-from app.api.v1 import admin, auth, invoices, match, exceptions, approvals, kpi, users, vendors, entities
-from app.api.v1.match import gr_router as match_gr_router
-from app.api.v1 import fraud_incidents, recurring_patterns, analytics, import_routes, portal
+from app.api.v1 import (
+    admin,
+    analytics,
+    approvals,
+    ask_ai,
+    audit,
+    auth,
+    entities,
+    exceptions,
+    fraud_incidents,
+    import_routes,
+    invoice_templates,
+    invoices,
+    kpi,
+    match,
+    notifications,
+    override_logs,
+    portal,
+    recurring_patterns,
+    rule_recommendations,
+    rules,
+    users,
+    vendors,
+)
 from app.api.v1 import approval_matrix as am_module
-from app.api.v1 import rules, override_logs, rule_recommendations, ask_ai, audit, payments as payments_module
 from app.api.v1 import erp as erp_module
-from app.api.v1 import invoice_templates
-from app.api.v1 import notifications
 from app.api.v1 import payment_runs as payment_runs_module
+from app.api.v1 import payments as payments_module
+from app.api.v1.match import gr_router as match_gr_router
 
 api_router = APIRouter()
 

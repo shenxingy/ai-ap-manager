@@ -1,7 +1,7 @@
 """Match result endpoints — GET match result and POST trigger re-match."""
-import uuid
 import logging
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -15,8 +15,8 @@ from app.db.session import get_session
 from app.models.goods_receipt import GoodsReceipt, GRLineItem
 from app.models.inspection_report import InspectionReport
 from app.models.invoice import Invoice, InvoiceLineItem
-from app.models.matching import MatchResult, LineItemMatch
-from app.models.purchase_order import PurchaseOrder, POLineItem
+from app.models.matching import LineItemMatch, MatchResult
+from app.models.purchase_order import POLineItem, PurchaseOrder
 from app.models.user import User
 from app.schemas.match import GRLineOut, GRNSummaryOut, MatchResultOut, MatchTriggerResponse
 
@@ -235,9 +235,10 @@ async def trigger_match(
     try:
         from sqlalchemy import create_engine, update
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
-        from app.rules.match_engine import run_2way_match, run_3way_match
         from app.models.goods_receipt import GoodsReceipt
+        from app.rules.match_engine import run_2way_match, run_3way_match
 
         sync_engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
         SyncSession = sessionmaker(bind=sync_engine, expire_on_commit=False)
@@ -283,7 +284,7 @@ async def trigger_match(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Match engine error",
-        )
+        ) from None
 
     # Refresh invoice status from DB
     await db.refresh(invoice)
@@ -333,7 +334,7 @@ async def create_inspection_report(
     if gr is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found.")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Create InspectionReport
     report = InspectionReport(

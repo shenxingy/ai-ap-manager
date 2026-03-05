@@ -1,7 +1,7 @@
 """Exception queue API endpoints."""
-import uuid
 import logging
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,7 +13,6 @@ from sqlalchemy.orm import selectinload
 from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.exception_record import ExceptionComment, ExceptionRecord
-
 from app.models.user import User
 from app.schemas.exception_record import (
     ExceptionCommentCreate,
@@ -170,7 +169,7 @@ async def patch_exception(
     if patch.status is not None:
         exc.status = patch.status
         if patch.status == "resolved" and exc.resolved_at is None:
-            exc.resolved_at = datetime.now(timezone.utc)
+            exc.resolved_at = datetime.now(UTC)
             exc.resolved_by = current_user.id
     if patch.assigned_to is not None:
         exc.assigned_to = patch.assigned_to
@@ -187,8 +186,9 @@ async def patch_exception(
     await db.refresh(exc)
 
     # Audit log (async version)
-    from app.models.audit import AuditLog
     import json
+
+    from app.models.audit import AuditLog
 
     audit_entry = AuditLog(
         actor_id=current_user.id,
@@ -272,8 +272,9 @@ async def create_comment(
     await db.flush()
 
     # Audit log
-    from app.models.audit import AuditLog
     import json
+
+    from app.models.audit import AuditLog
 
     audit_entry = AuditLog(
         actor_id=current_user.id,
@@ -352,6 +353,7 @@ async def bulk_update_exceptions(
 ):
     """Batch status/assignment change for up to 100 exceptions. Each item is audit-logged."""
     import json
+
     from app.models.audit import AuditLog
 
     if len(body.items) > 100:
@@ -381,7 +383,7 @@ async def bulk_update_exceptions(
             if item.status is not None and item.status != exc.status:
                 exc.status = item.status
                 if item.status == "resolved" and exc.resolved_at is None:
-                    exc.resolved_at = datetime.now(timezone.utc)
+                    exc.resolved_at = datetime.now(UTC)
                     exc.resolved_by = current_user.id
                 changed = True
             if item.assigned_to is not None:

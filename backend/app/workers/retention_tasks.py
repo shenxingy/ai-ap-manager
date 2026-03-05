@@ -1,14 +1,14 @@
 """GDPR data retention task — soft-delete archived invoices, hard-delete old audit logs."""
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from celery import shared_task
-from sqlalchemy import create_engine, select, delete, update
+from sqlalchemy import create_engine, delete, update
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.models.invoice import Invoice
 from app.models.audit import AuditLog
+from app.models.invoice import Invoice
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def run_data_retention() -> dict:
     db = Session()
 
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # ─── Soft-delete invoices ───
         cutoff_invoices = now - timedelta(days=settings.RETENTION_DAYS_INVOICES)

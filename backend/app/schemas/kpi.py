@@ -1,6 +1,7 @@
 """KPI dashboard Pydantic schemas."""
 from datetime import date
 from decimal import Decimal
+
 from pydantic import BaseModel
 
 

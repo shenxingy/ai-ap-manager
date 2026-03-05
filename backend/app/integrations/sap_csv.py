@@ -2,7 +2,7 @@
 import csv
 import io
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,7 +117,7 @@ async def upsert_sap_pos(lines: list[dict], db: AsyncSession) -> dict:
                 vendor_id = vendor_row[0]
             else:
                 new_vendor_id = uuid.uuid4()
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 await db.execute(
                     text(
                         "INSERT INTO vendors "
@@ -138,7 +138,7 @@ async def upsert_sap_pos(lines: list[dict], db: AsyncSession) -> dict:
             continue
 
         # Compute total_amount for this PO header
-        total_amount = sum(l["quantity"] * l["unit_price"] for l in po_lines)
+        total_amount = sum(line["quantity"] * line["unit_price"] for line in po_lines)
 
         # Check if PO already exists to track created vs updated
         existing_result = await db.execute(
@@ -149,7 +149,7 @@ async def upsert_sap_pos(lines: list[dict], db: AsyncSession) -> dict:
         is_new = existing is None
 
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             await db.execute(
                 text(
                     "INSERT INTO purchase_orders "
@@ -198,7 +198,7 @@ async def upsert_sap_pos(lines: list[dict], db: AsyncSession) -> dict:
                 continue
 
             try:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 existing_line = await db.execute(
                     text(
                         "SELECT id FROM po_line_items "
