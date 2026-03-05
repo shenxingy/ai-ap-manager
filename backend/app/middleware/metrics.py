@@ -1,10 +1,10 @@
-"""Prometheus metrics middleware."""
+"""Prometheus metrics middleware (pure ASGI — no BaseHTTPMiddleware)."""
 import time
 
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 # ─── Metrics ───
 
@@ -27,27 +27,42 @@ REQUEST_LATENCY = Histogram(
 _SKIP_PATHS = {"/metrics", "/health", "/health/live", "/health/ready"}
 
 
-class PrometheusMiddleware(BaseHTTPMiddleware):
+class PrometheusMiddleware:
     """Record request count and latency for every HTTP request."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        path = request.url.path
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope["path"]
         if path in _SKIP_PATHS:
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
-        method = request.method
+        method = scope["method"]
         start = time.perf_counter()
-        response = await call_next(request)
-        latency = time.perf_counter() - start
+        status_code = 500  # default in case send is never called
 
-        REQUEST_COUNT.labels(
-            method=method,
-            path=path,
-            status_code=str(response.status_code),
-        ).inc()
-        REQUEST_LATENCY.labels(method=method, path=path).observe(latency)
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
 
-        return response
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            latency = time.perf_counter() - start
+            REQUEST_COUNT.labels(
+                method=method,
+                path=path,
+                status_code=str(status_code),
+            ).inc()
+            REQUEST_LATENCY.labels(method=method, path=path).observe(latency)
 
 
 # ─── Metrics endpoint handler ───
