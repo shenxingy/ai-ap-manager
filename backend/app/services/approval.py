@@ -499,7 +499,7 @@ def process_approval_decision(
         task_id, action, channel, invoice.id,
     )
 
-    return task
+    return task  # type: ignore[no-any-return]
 
 
 # ─── List pending tasks for approver ───

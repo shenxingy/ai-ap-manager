@@ -21,9 +21,7 @@ interface AskAiResult {
   sql?: string;
 }
 
-interface AskAiPanelProps {
-  // Component takes no props
-}
+type AskAiPanelProps = object;
 
 const SUGGESTED_QUERIES = [
   "Which vendors have the most exceptions this month?",

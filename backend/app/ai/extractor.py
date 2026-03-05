@@ -109,7 +109,7 @@ def _parse_json_response(text: str) -> dict:
         inner = [line for line in lines if not line.startswith("```")]
         text = "\n".join(inner).strip()
     try:
-        return json.loads(text)
+        return json.loads(text)  # type: ignore[no-any-return]
     except json.JSONDecodeError as exc:
         logger.warning("Failed to parse LLM JSON: %s — raw: %.200s", exc, text)
         return {}

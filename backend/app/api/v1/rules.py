@@ -400,11 +400,11 @@ async def _get_version_or_404(db: AsyncSession, version_id: uuid.UUID) -> RuleVe
     version = await db.get(RuleVersion, version_id)
     if version is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule version not found.")
-    return version
+    return version  # type: ignore[no-any-return]
 
 
 async def _get_suggestion_or_404(db: AsyncSession, suggestion_id: uuid.UUID) -> RuleSuggestion:
     suggestion = await db.get(RuleSuggestion, suggestion_id)
     if suggestion is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule suggestion not found.")
-    return suggestion
+    return suggestion  # type: ignore[no-any-return]

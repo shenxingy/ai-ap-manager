@@ -177,7 +177,7 @@ SQL:"""
             sql = "\n".join(sql.split("\n")[1:])
         if sql.endswith("```"):
             sql = "\n".join(sql.split("\n")[:-1])
-        return sql.strip()
+        return sql.strip()  # type: ignore[no-any-return]
     except Exception as exc:
         logger.error("_generate_sql LLM call failed: %s", exc)
         raise HTTPException(

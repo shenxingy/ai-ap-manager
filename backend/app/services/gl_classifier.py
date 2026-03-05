@@ -183,7 +183,7 @@ def load_latest_model() -> tuple[Pipeline | None, int | None]:
 def _download_object(client, bucket: str, object_name: str) -> bytes:
     response = client.get_object(bucket_name=bucket, object_name=object_name)
     try:
-        return response.read()
+        return response.read()  # type: ignore[no-any-return]
     finally:
         response.close()
         response.release_conn()

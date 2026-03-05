@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -34,13 +33,6 @@ import {
 } from "./components";
 
 // ─── Page ───
-
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  return {
-    title: `Invoice ${params.id} | AP Manager`,
-    description: "Invoice detail view with matching and approval status.",
-  };
-}
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
