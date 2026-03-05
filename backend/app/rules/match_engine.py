@@ -7,7 +7,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -139,8 +139,9 @@ def resolve_tolerance(
 
 def _find_po_by_id(db: Session, po_id: uuid.UUID):
     """Load PO by its UUID."""
-    from app.models.purchase_order import PurchaseOrder
     from sqlalchemy.orm import selectinload
+
+    from app.models.purchase_order import PurchaseOrder
 
     stmt = (
         select(PurchaseOrder)
@@ -152,9 +153,10 @@ def _find_po_by_id(db: Session, po_id: uuid.UUID):
 
 def _find_po_by_number(db: Session, po_number: str):
     """Load PO by po_number string (exact match, case-insensitive)."""
-    from app.models.purchase_order import PurchaseOrder
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import func
+    from sqlalchemy.orm import selectinload
+
+    from app.models.purchase_order import PurchaseOrder
 
     stmt = (
         select(PurchaseOrder)
@@ -275,8 +277,6 @@ def run_2way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     Returns: MatchResult dataclass (not the DB model).
     """
     from app.models.invoice import Invoice, InvoiceLineItem
-    from app.models.matching import MatchResult as MatchResultModel, LineItemMatch
-    from app.models.exception_record import ExceptionRecord
     from app.services import audit as audit_svc
 
     # ── 1. Load invoice ──
@@ -476,8 +476,8 @@ def run_3way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     8. Persist MatchResult with match_type="3way"
     9. Auto-approve if no exceptions (same threshold logic as 2-way)
     """
-    from app.models.invoice import Invoice, InvoiceLineItem
     from app.models.goods_receipt import GoodsReceipt, GRLineItem
+    from app.models.invoice import Invoice, InvoiceLineItem
     from app.services import audit as audit_svc
 
     # ── 1. Load invoice ──
@@ -682,7 +682,6 @@ def run_4way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
       "inspection_passed"   — InspectionReport.result == 'pass'
       "inspection_failed"   — InspectionReport.result in ('fail', 'partial')
     """
-    from app.models.invoice import Invoice
     from app.models.goods_receipt import GoodsReceipt
     from app.models.inspection_report import InspectionReport
 
@@ -738,10 +737,10 @@ def _persist_match_result(
     auto_approve_requires_match: bool = True,
 ) -> None:
     """Write MatchResult, LineItemMatch, ExceptionRecord rows; update invoice status."""
-    from app.models.matching import MatchResult as MatchResultModel, LineItemMatch
-    from app.models.exception_record import ExceptionRecord
+    from app.models.matching import LineItemMatch
+    from app.models.matching import MatchResult as MatchResultModel
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     prev_status = invoice.status
 
     # ── Delete existing match result (re-match scenario) ──

@@ -1,6 +1,6 @@
 """Celery tasks for AI feedback analysis and rule recommendations."""
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.workers.celery_app import celery_app
 
@@ -18,6 +18,7 @@ def analyze_ai_feedback(self):
     try:
         from sqlalchemy import create_engine, func, select
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.feedback import AiFeedback, RuleRecommendation
 
@@ -25,8 +26,8 @@ def analyze_ai_feedback(self):
         Session = sessionmaker(bind=engine, expire_on_commit=False)
 
         with Session() as db:
-            since = datetime.now(timezone.utc) - timedelta(days=7)
-            period_end = datetime.now(timezone.utc)
+            since = datetime.now(UTC) - timedelta(days=7)
+            period_end = datetime.now(UTC)
 
             # Count corrections by type and field
             corrections = db.execute(
@@ -136,4 +137,4 @@ def analyze_ai_feedback(self):
 
     except Exception as exc:
         logger.exception("analyze_ai_feedback failed: %s", exc)
-        raise self.retry(exc=exc, countdown=3600, max_retries=2)
+        raise self.retry(exc=exc, countdown=3600, max_retries=2) from exc

@@ -1,6 +1,6 @@
 """Recurring invoice patterns API endpoints."""
-import uuid
 import logging
+import uuid
 from datetime import datetime
 from typing import Annotated
 
@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.recurring_pattern import RecurringInvoicePattern
-from app.models.vendor import Vendor
 from app.models.user import User
+from app.models.vendor import Vendor
 
 logger = logging.getLogger(__name__)
 
@@ -150,4 +150,4 @@ async def trigger_detect_recurring_patterns(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Pattern detection failed",
-            )
+            ) from None

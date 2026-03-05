@@ -12,6 +12,7 @@ Email token endpoint (no auth):
 import logging
 import uuid
 from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -56,8 +57,8 @@ async def list_my_approvals(
     current_user=Depends(require_role("APPROVER", "ADMIN")),
 ):
     """Return pending or resolved ApprovalTasks assigned to the authenticated user."""
-    from app.services.approval import get_pending_tasks_for_approver, get_resolved_tasks_for_approver
     from app.models.invoice import Invoice
+    from app.services.approval import get_pending_tasks_for_approver, get_resolved_tasks_for_approver
 
     db = _get_sync_session()
     try:
@@ -152,8 +153,8 @@ async def approve_task(
     current_user=Depends(require_role("APPROVER", "ADMIN")),
 ):
     """Approve a pending ApprovalTask and record an override log entry."""
-    from app.services.approval import process_approval_decision
     from app.models.invoice import Invoice
+    from app.services.approval import process_approval_decision
 
     db = _get_sync_session()
     try:
@@ -168,7 +169,7 @@ async def approve_task(
             )
         except ValueError as exc:
             logger.warning("approve_task: invalid request for task %s: %s", task_id, exc)
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid approval request.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid approval request.") from None
 
         # Insert override log for manual approval decision
         from app.models.override_log import OverrideLog  # noqa: PLC0415
@@ -211,8 +212,8 @@ async def reject_task(
     current_user=Depends(require_role("APPROVER", "ADMIN")),
 ):
     """Reject a pending ApprovalTask and record an override log entry."""
-    from app.services.approval import process_approval_decision
     from app.models.invoice import Invoice
+    from app.services.approval import process_approval_decision
 
     db = _get_sync_session()
     try:
@@ -227,7 +228,7 @@ async def reject_task(
             )
         except ValueError as exc:
             logger.warning("reject_task: invalid request for task %s: %s", task_id, exc)
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid rejection request.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid rejection request.") from None
 
         # Insert override log for manual rejection decision
         from app.models.override_log import OverrideLog  # noqa: PLC0415
@@ -323,9 +324,18 @@ async def email_token_decision(
                 channel="email",
             )
         except ValueError as exc:
-            error_msg = str(exc)
+            raw_msg = str(exc).lower()
+            if "expired" in raw_msg:
+                user_msg = "This approval link has expired. Please request a new one."
+            elif "already" in raw_msg or "used" in raw_msg:
+                user_msg = "This approval link has already been used."
+            elif "not found" in raw_msg:
+                user_msg = "Approval task not found. It may have been removed."
+            else:
+                user_msg = "Unable to process this approval request. Please contact your AP team."
+            logger.warning("Email token approval failed for task %s: %s", task_id_str, exc)
             return HTMLResponse(
-                content=_html_page("Action Failed", error_msg, success=False),
+                content=_html_page("Action Failed", user_msg, success=False),
                 status_code=400,
             )
 

@@ -5,7 +5,6 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-
 # ─── Approval task output ───
 
 class ApprovalTaskOut(BaseModel):

@@ -79,7 +79,7 @@ async def ask_ai(
     if not question:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question cannot be empty.")
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     # Step 1: Ask LLM to generate SQL (sync client → run in thread pool)
     sql_query = await loop.run_in_executor(None, lambda: _generate_sql(question, client))
@@ -98,7 +98,7 @@ async def ask_ai(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Query execution failed. Try rephrasing your question.",
-        )
+        ) from None
 
     # Step 4: Ask LLM to summarize the result (sync client → run in thread pool)
     answer = await loop.run_in_executor(
@@ -183,7 +183,7 @@ SQL:"""
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to generate SQL query from AI.",
-        )
+        ) from None
 
 
 def _summarize_result(question: str, sql: str, columns: list[str], rows: list, client) -> str:
@@ -191,7 +191,7 @@ def _summarize_result(question: str, sql: str, columns: list[str], rows: list, c
     try:
         rows_preview = []
         for row in rows[:10]:  # Only first 10 rows for the summary prompt
-            rows_preview.append(dict(zip(columns, [str(v) for v in row])))
+            rows_preview.append(dict(zip(columns, [str(v) for v in row], strict=False)))
 
         prompt = f"""You are an AP analyst. A user asked: "{question}"
 

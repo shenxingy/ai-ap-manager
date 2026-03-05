@@ -1,6 +1,5 @@
 """LLM-powered root cause narrative generation for AP analytics."""
 import logging
-from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -143,9 +142,10 @@ def _log_ai_call(
 ) -> None:
     """Log AI call to ai_call_logs table."""
     try:
-        from app.core.config import settings
         from sqlalchemy import create_engine, text
         from sqlalchemy.orm import sessionmaker
+
+        from app.core.config import settings
 
         engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
         Session = sessionmaker(bind=engine)

@@ -4,7 +4,7 @@ Checks invoices for SLA violations and creates alert records.
 """
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -31,7 +31,6 @@ def check_sla_alerts(db: Session, invoice_id: str) -> list[dict]:
         List of alert dicts: [{alert_type, alert_id}]
     """
     from app.models.invoice import Invoice
-    from app.models.sla_alert import SLAAlert
 
     inv_uuid = uuid.UUID(invoice_id)
 
@@ -48,7 +47,7 @@ def check_sla_alerts(db: Session, invoice_id: str) -> list[dict]:
         return []
 
     alerts: list[dict] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     one_day_from_now = now + timedelta(days=1)
 
     # Check if overdue: due_date < now and status is PENDING/MATCHING

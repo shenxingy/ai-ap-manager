@@ -11,7 +11,7 @@ Endpoints:
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -138,7 +138,7 @@ async def upload_policy(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to store policy file. Please try again.",
-        )
+        ) from None
 
     # Create Rule (parent) + RuleVersion (draft)
     rule_name = f"policy_{original_filename[:60]}_{version_id.hex[:8]}"
@@ -310,7 +310,7 @@ async def update_rule(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"config_json is not valid JSON: {exc}",
-            )
+            ) from None
         version.config_json = body.config_json
 
     if body.change_summary is not None:
@@ -358,7 +358,7 @@ async def publish_rule(
         prev.status = "superseded"
 
     version.status = "published"
-    version.published_at = datetime.now(timezone.utc)
+    version.published_at = datetime.now(UTC)
     version.reviewed_by = current_user.id
 
     await db.commit()

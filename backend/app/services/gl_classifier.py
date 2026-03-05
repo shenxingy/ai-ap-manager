@@ -6,12 +6,11 @@ Model persisted to MinIO. Loaded lazily and cached in-process.
 # ─── Imports ───
 import io
 import logging
-from typing import Optional, Tuple
 
 import joblib
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 from app.core.config import settings
 
@@ -22,12 +21,12 @@ MODEL_PREFIX = "models/gl-coding-v"
 BUCKET = settings.MINIO_BUCKET_NAME
 
 # In-memory cache: (model, version)
-_cached_model: Optional[Tuple[Pipeline, int]] = None
+_cached_model: tuple[Pipeline, int] | None = None
 
 
 # ─── Train ───
 
-def train_model(db) -> Tuple[Pipeline, float, int]:
+def train_model(db) -> tuple[Pipeline, float, int]:
     """Train TF-IDF + LogisticRegression on confirmed GL assignments.
 
     Queries invoice_line_items joined to invoices + vendors where
@@ -37,7 +36,8 @@ def train_model(db) -> Tuple[Pipeline, float, int]:
     Raises ValueError if < MIN_TRAINING_SAMPLES training samples.
     Returns (pipeline, accuracy, sample_count).
     """
-    from sqlalchemy import select, text
+    from sqlalchemy import select
+
     from app.models.invoice import Invoice, InvoiceLineItem
     from app.models.vendor import Vendor
 
@@ -81,8 +81,8 @@ def train_model(db) -> Tuple[Pipeline, float, int]:
         )),
     ])
 
-    from sklearn.model_selection import cross_val_score
     import numpy as np
+    from sklearn.model_selection import cross_val_score
 
     # Cross-validate only if enough samples per class; otherwise just fit
     unique_labels = list(set(labels))
@@ -93,6 +93,7 @@ def train_model(db) -> Tuple[Pipeline, float, int]:
             scores = cross_val_score(pipeline, features, labels, cv=cv_folds, scoring="accuracy")
             accuracy = float(np.mean(scores))
         except Exception:
+            logger.warning("GL classifier cross-validation failed", exc_info=True)
             accuracy = 0.0
     else:
         accuracy = 0.0
@@ -131,7 +132,7 @@ def save_model_to_minio(model: Pipeline, version: int) -> str:
 
 # ─── Load from MinIO ───
 
-def load_latest_model() -> Tuple[Optional[Pipeline], Optional[int]]:
+def load_latest_model() -> tuple[Pipeline | None, int | None]:
     """Download latest gl-coding-v*.pkl from MinIO. Cache in-process.
 
     Returns (model, version) or (None, None) if no model exists.
@@ -194,7 +195,7 @@ def predict_gl_account(
     vendor_name: str,
     description: str,
     amount: float,  # noqa: ARG001 — reserved for future amount-aware features
-) -> Tuple[Optional[str], float]:
+) -> tuple[str | None, float]:
     """Returns (account_code, confidence) or (None, 0.0) if no model loaded."""
     model, version = load_latest_model()
     if model is None:

@@ -1,6 +1,6 @@
 """Entity management API endpoints — CRUD for entities."""
-import uuid
 import logging
+import uuid
 from datetime import datetime
 from typing import Annotated, Any
 

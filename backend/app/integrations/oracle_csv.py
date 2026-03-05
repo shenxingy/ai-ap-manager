@@ -2,7 +2,7 @@
 import csv
 import io
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -104,11 +104,11 @@ async def upsert_oracle_grns(lines: list[dict], db: AsyncSession) -> dict:
         try:
             try:
                 received_at = datetime.strptime(received_date_str, "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
             except ValueError:
                 received_at = datetime.strptime(received_date_str, "%m/%d/%Y").replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
         except ValueError:
             errors.append(
@@ -152,7 +152,7 @@ async def upsert_oracle_grns(lines: list[dict], db: AsyncSession) -> dict:
         is_new = existing is None
 
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             await db.execute(
                 text(
                     "INSERT INTO goods_receipts "
@@ -201,7 +201,7 @@ async def upsert_oracle_grns(lines: list[dict], db: AsyncSession) -> dict:
                 continue
 
             try:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 existing_line = await db.execute(
                     text(
                         "SELECT id FROM gr_line_items "

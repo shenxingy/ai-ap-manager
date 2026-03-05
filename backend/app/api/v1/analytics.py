@@ -4,15 +4,13 @@ import logging
 import statistics
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.analytics_report import AnalyticsReport
@@ -62,7 +60,7 @@ def _percentile(data: list[float], pct: float) -> float:
 def _safe_utc(dt: datetime) -> datetime:
     """Ensure datetime is tz-aware (UTC)."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -94,6 +92,7 @@ async def get_process_mining(
                 after = json.loads(row.after_state)
                 status = after.get("status")
             except Exception:
+                logger.debug("Skipping audit row %s: unparseable after_state", row.id)
                 continue
             if not status:
                 continue
@@ -142,7 +141,7 @@ async def get_anomalies(
 ) -> list[dict]:
     """Return vendor-window combinations whose exception rate is > 2 std deviations from their mean."""
     try:
-        since = datetime.now(timezone.utc) - timedelta(days=180)  # 6 months
+        since = datetime.now(UTC) - timedelta(days=180)  # 6 months
 
         # Load invoices in the last 6 months with vendor name
         inv_q = (
@@ -251,7 +250,7 @@ async def create_root_cause_report(
     """
     # Rate limit check: last report by this user within 60 min
     rate_limit_minutes = 60
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=rate_limit_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=rate_limit_minutes)
     recent = (await db.execute(
         select(func.count(AnalyticsReport.id)).where(
             AnalyticsReport.requester_email == current_user.email,
@@ -266,7 +265,7 @@ async def create_root_cause_report(
             detail=f"Rate limit: only 1 root cause report per {rate_limit_minutes} minutes per user. Try again later.",
         )
 
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     title = body.title or f"Root Cause Analysis — {now_str}"
 
     report = AnalyticsReport(

@@ -106,7 +106,7 @@ def _parse_json_response(text: str) -> dict:
     if text.startswith("```"):
         # Strip ```json ... ``` fences
         lines = text.split("\n")
-        inner = [l for l in lines if not l.startswith("```")]
+        inner = [line for line in lines if not line.startswith("```")]
         text = "\n".join(inner).strip()
     try:
         return json.loads(text)
@@ -204,7 +204,7 @@ def run_extraction_pass(
             "tokens_prompt": 0,
             "tokens_completion": 0,
             "latency_ms": 0,
-            "error": str(exc),
+            "error": "Extraction failed",
         }
 
 

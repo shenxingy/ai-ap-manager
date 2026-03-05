@@ -5,7 +5,7 @@ Creates ExceptionRecord entries for exact and fuzzy duplicate matches.
 """
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -29,7 +29,6 @@ def check_duplicate(db: Session, invoice_id: str) -> list[dict]:
         List of match dicts: [{match_type, matched_invoice_id}]
     """
     from app.models.invoice import Invoice
-    from app.models.exception_record import ExceptionRecord
 
     inv_uuid = uuid.UUID(invoice_id)
 
@@ -79,7 +78,7 @@ def check_duplicate(db: Session, invoice_id: str) -> list[dict]:
         date_center = invoice.invoice_date or invoice.created_at
         if date_center is not None:
             if hasattr(date_center, "tzinfo") and date_center.tzinfo is None:
-                date_center = date_center.replace(tzinfo=timezone.utc)
+                date_center = date_center.replace(tzinfo=UTC)
             date_low = date_center - timedelta(days=DATE_WINDOW_DAYS)
             date_high = date_center + timedelta(days=DATE_WINDOW_DAYS)
 
@@ -98,7 +97,7 @@ def check_duplicate(db: Session, invoice_id: str) -> list[dict]:
                 if cand_date is None:
                     continue
                 if hasattr(cand_date, "tzinfo") and cand_date.tzinfo is None:
-                    cand_date = cand_date.replace(tzinfo=timezone.utc)
+                    cand_date = cand_date.replace(tzinfo=UTC)
                 if date_low <= cand_date <= date_high:
                     # Skip if already caught as exact duplicate
                     if any(m["matched_invoice_id"] == str(cand.id) for m in matches):

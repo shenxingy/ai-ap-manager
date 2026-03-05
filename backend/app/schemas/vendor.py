@@ -6,7 +6,6 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-
 # ─── Alias schemas ───
 
 class VendorAliasOut(BaseModel):

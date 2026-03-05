@@ -1,7 +1,7 @@
 """Fraud incidents API endpoints."""
-import uuid
 import logging
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

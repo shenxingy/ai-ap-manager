@@ -1,7 +1,7 @@
 """Vendor management API endpoints — CRUD for vendors, aliases, and compliance docs."""
+import logging
 import re
 import uuid
-import logging
 from datetime import date, datetime
 from typing import Annotated, Any
 
@@ -14,8 +14,8 @@ from sqlalchemy.orm import selectinload
 from app.core.deps import require_role
 from app.db.session import get_session
 from app.models.vendor import Vendor, VendorAlias, VendorComplianceDoc
-from app.services import audit as audit_svc
 from app.schemas.vendor import (
+    InvoiceStub,
     VendorAliasCreate,
     VendorAliasOut,
     VendorCreate,
@@ -23,8 +23,8 @@ from app.schemas.vendor import (
     VendorListItem,
     VendorListResponse,
     VendorUpdate,
-    InvoiceStub,
 )
+from app.services import audit as audit_svc
 
 logger = logging.getLogger(__name__)
 
@@ -485,7 +485,7 @@ async def upload_compliance_doc(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to store compliance document. Please try again.",
-        )
+        ) from None
 
     # Upsert VendorComplianceDoc (one active row per vendor+doc_type)
     existing = (

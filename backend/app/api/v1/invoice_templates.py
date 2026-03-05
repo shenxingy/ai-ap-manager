@@ -7,7 +7,7 @@ Endpoints:
   DELETE /admin/invoice-templates/{id}     — soft-delete a template
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -132,5 +132,5 @@ async def delete_template(
     template = result.scalar_one_or_none()
     if template is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found.")
-    template.deleted_at = datetime.now(timezone.utc)
+    template.deleted_at = datetime.now(UTC)
     await db.commit()

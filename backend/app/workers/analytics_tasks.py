@@ -1,6 +1,6 @@
 """Celery tasks for analytics report generation."""
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.workers.celery_app import celery_app
 
@@ -18,6 +18,7 @@ def generate_root_cause_report(self, report_id: str):
     try:
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.analytics_report import AnalyticsReport
 
@@ -55,7 +56,7 @@ def generate_root_cause_report(self, report_id: str):
             if report:
                 report.status = "complete"
                 report.narrative = narrative
-                report.completed_at = datetime.now(timezone.utc)
+                report.completed_at = datetime.now(UTC)
                 report.prompt_tokens = prompt_tokens
                 report.completion_tokens = completion_tokens
                 report.model_used = model_used
@@ -70,6 +71,7 @@ def generate_root_cause_report(self, report_id: str):
         try:
             from sqlalchemy import create_engine, select
             from sqlalchemy.orm import sessionmaker
+
             from app.core.config import settings
             from app.models.analytics_report import AnalyticsReport
 
@@ -84,8 +86,8 @@ def generate_root_cause_report(self, report_id: str):
                     report.error_message = "Report generation failed. See server logs."
                     db.commit()
         except Exception:
-            pass
-        raise self.retry(exc=exc, countdown=300, max_retries=1)
+            logger.warning("Failed to mark report %s as failed in DB", report_id, exc_info=True)
+        raise self.retry(exc=exc, countdown=300, max_retries=1) from exc
 
 
 @celery_app.task(name="app.workers.analytics_tasks.weekly_digest")
@@ -94,8 +96,10 @@ def weekly_digest():
     logger.info("weekly_digest: starting auto-generation")
     try:
         import uuid
+
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.analytics_report import AnalyticsReport
 
@@ -103,7 +107,7 @@ def weekly_digest():
         Session = sessionmaker(bind=engine, expire_on_commit=False)
 
         report_id = str(uuid.uuid4())
-        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        now_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
         with Session() as db:
             report = AnalyticsReport(
@@ -124,7 +128,7 @@ def weekly_digest():
 
     except Exception as exc:
         logger.exception("weekly_digest failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": "Weekly digest failed"}
 
 
 def _gather_analytics_data() -> tuple[list[dict], list[dict], dict]:
@@ -132,6 +136,7 @@ def _gather_analytics_data() -> tuple[list[dict], list[dict], dict]:
     try:
         from sqlalchemy import create_engine, func, select
         from sqlalchemy.orm import sessionmaker
+
         from app.core.config import settings
         from app.models.invoice import Invoice
 

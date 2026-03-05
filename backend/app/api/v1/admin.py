@@ -1,18 +1,19 @@
 """Admin user management and exception routing endpoints."""
+import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Annotated, Optional
+from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, require_role
+from app.core.deps import require_role
 from app.core.security import hash_password
 from app.db.session import get_session
-from app.models.user import User
 from app.models.exception_routing import ExceptionRoutingRule
+from app.models.user import User
 from app.schemas.admin_user import (
     AdminUserCreate,
     AdminUserListResponse,
@@ -24,6 +25,8 @@ from app.schemas.exception_routing import (
     ExceptionRoutingRuleOut,
     ExceptionRoutingRuleUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -178,7 +181,7 @@ async def delete_user(
             detail="Cannot delete yourself",
         )
 
-    user.deleted_at = datetime.now(timezone.utc)
+    user.deleted_at = datetime.now(UTC)
     await db.commit()
 
 
@@ -274,7 +277,7 @@ async def update_exception_routing_rule(
 
 
 class EmailIngestionStatus(BaseModel):
-    last_polled_at: Optional[str]
+    last_polled_at: str | None
     total_ingested: int
     configured: bool
 
@@ -341,8 +344,9 @@ async def gl_classifier_status() -> dict:
     Returns status='not_trained' if no model has been trained yet.
     """
     import json
-    from app.services.storage import get_client
+
     from app.core.config import settings
+    from app.services.storage import get_client
 
     client = get_client()
     try:
@@ -363,6 +367,7 @@ async def gl_classifier_status() -> dict:
             "status": "ready",
         }
     except Exception:
+        logger.debug("GL classifier model not found in MinIO (expected if not yet trained)")
         return {
             "model_version": None,
             "accuracy": None,

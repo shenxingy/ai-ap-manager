@@ -1,6 +1,6 @@
 """Rule recommendations API — admin review of AI-generated rule suggestions."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -76,7 +76,7 @@ async def accept_rule_recommendation(
 
     rec.status = "accepted"
     rec.reviewed_by = current_user.id
-    rec.reviewed_at = datetime.now(timezone.utc)
+    rec.reviewed_at = datetime.now(UTC)
     rec.review_notes = body.notes
     await db.commit()
     await db.refresh(rec)
@@ -104,7 +104,7 @@ async def reject_rule_recommendation(
 
     rec.status = "rejected"
     rec.reviewed_by = current_user.id
-    rec.reviewed_at = datetime.now(timezone.utc)
+    rec.reviewed_at = datetime.now(UTC)
     rec.review_notes = body.notes
     await db.commit()
     await db.refresh(rec)
@@ -124,7 +124,7 @@ async def get_correction_stats(
     period_days: int = Query(default=30, ge=1, le=365),
 ):
     from datetime import timedelta
-    since = datetime.now(timezone.utc) - timedelta(days=period_days)
+    since = datetime.now(UTC) - timedelta(days=period_days)
 
     rows = (await db.execute(
         select(

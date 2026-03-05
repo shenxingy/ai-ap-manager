@@ -1,6 +1,6 @@
 """Invoice upload, list, and detail API endpoints."""
-import uuid
 import logging
+import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -14,8 +14,8 @@ from app.core.config import settings
 from app.core.deps import require_role
 from app.core.limiter import limiter
 from app.db.session import get_session
-from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.approval import VendorMessage
+from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.user import User
 from app.schemas.invoice import (
     AuditLogOut,
@@ -28,8 +28,8 @@ from app.schemas.invoice import (
     StatusOverrideRequest,
     StatusOverrideResponse,
 )
-from app.services import storage as storage_svc
 from app.services import audit as audit_svc
+from app.services import storage as storage_svc
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ async def upload_invoice(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to store invoice file. Please try again.",
-        )
+        ) from None
 
     # Persist Invoice record
     invoice = Invoice(
@@ -307,8 +307,8 @@ async def get_gl_suggestions(
     current_user: Annotated[User, Depends(require_role("AP_CLERK", "AP_ANALYST", "ADMIN"))],
 ):
     """Return frequency-based GL account coding suggestions for each line item on the invoice."""
-    from app.services.gl_coding import suggest_gl_codes
     from app.schemas.gl_coding import GLLineSuggestion, GLSuggestionResponse
+    from app.services.gl_coding import suggest_gl_codes
 
     raw = await suggest_gl_codes(db, invoice_id)
     suggestions = [GLLineSuggestion(**item) for item in raw]
@@ -359,6 +359,7 @@ async def get_invoice_audit(
 ):
     """Return the merged, chronologically sorted audit trail for an invoice, including vendor messages."""
     import json as _json
+
     from app.models.audit import AuditLog
     from app.schemas.invoice import AuditLogOut
 

@@ -1,8 +1,9 @@
 """Payment recording endpoint — POST /api/v1/invoices/{invoice_id}/payment
                               POST /api/v1/payments/batch"""
+import logging
 import uuid
-from datetime import date, datetime, time, timezone
-from typing import Annotated, List, Optional
+from datetime import UTC, date, datetime, time
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -14,6 +15,8 @@ from app.db.session import get_session
 from app.models.invoice import Invoice
 from app.models.user import User
 from app.services import audit as audit_svc
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/invoices", tags=["payments"])
 batch_router = APIRouter(prefix="/payments", tags=["payments"])
@@ -37,23 +40,23 @@ class PaymentRecordOut(BaseModel):
 # ─── Batch payment schemas ───
 
 class BatchPaymentRequest(BaseModel):
-    invoice_ids: List[uuid.UUID]
+    invoice_ids: list[uuid.UUID]
     payment_method: str  # ACH, WIRE, CHECK, etc.
     payment_date: date
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class BatchPaymentResult(BaseModel):
     invoice_id: uuid.UUID
     status: str  # "paid" or "skipped"
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class BatchPaymentResponse(BaseModel):
     processed: int
     succeeded: int
     failed: int
-    results: List[BatchPaymentResult]
+    results: list[BatchPaymentResult]
 
 
 @router.post(
@@ -80,7 +83,7 @@ async def record_payment(
             detail=f"Invoice must be in 'approved' state to record payment (current: {invoice.status}).",
         )
     before = {"status": invoice.status, "payment_status": invoice.payment_status}
-    payment_date = body.payment_date or datetime.now(timezone.utc)
+    payment_date = body.payment_date or datetime.now(UTC)
     invoice.payment_status = "completed"
     invoice.payment_date = payment_date
     invoice.payment_method = body.payment_method
@@ -126,7 +129,7 @@ async def batch_payment(
     current_user: Annotated[User, Depends(require_role("ADMIN"))],
 ):
     results: list[BatchPaymentResult] = []
-    payment_dt = datetime.combine(body.payment_date, time(0, 0, 0)).replace(tzinfo=timezone.utc)
+    payment_dt = datetime.combine(body.payment_date, time(0, 0, 0)).replace(tzinfo=UTC)
 
     for invoice_id in body.invoice_ids:
         # Fetch invoice (read-only, no savepoint needed)
@@ -173,6 +176,7 @@ async def batch_payment(
                 )
             results.append(BatchPaymentResult(invoice_id=invoice_id, status="paid", error=None))
         except Exception:
+            logger.warning("batch_payment: savepoint failed for invoice %s", invoice_id, exc_info=True)
             results.append(
                 BatchPaymentResult(invoice_id=invoice_id, status="skipped", error="Internal error processing invoice")
             )

@@ -2,7 +2,6 @@
 import io
 import json
 import logging
-import time
 import uuid
 
 from app.workers.celery_app import celery_app
@@ -50,13 +49,12 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
 
 def _extract_docx_text(file_bytes: bytes) -> str:
     """Extract text from a DOCX file by reading the embedded XML."""
-    import zipfile
     import re
+    import zipfile
 
     try:
-        with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
-            with z.open("word/document.xml") as f:
-                xml_content = f.read().decode("utf-8", errors="replace")
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as z, z.open("word/document.xml") as f:
+            xml_content = f.read().decode("utf-8", errors="replace")
         # Strip XML tags to get plain text
         text = re.sub(r"<[^>]+>", " ", xml_content)
         text = re.sub(r"\s+", " ", text).strip()
@@ -119,7 +117,7 @@ def _call_llm(db, policy_text: str, rule_version_id: uuid.UUID) -> dict:
         model_used = resp.model
     except Exception as exc:
         call_status = "error"
-        error_message = str(exc)
+        error_message = "LLM call failed"
         logger.error("LLM call failed for rule version %s: %s", rule_version_id, exc)
 
     # Log to ai_call_logs
@@ -170,11 +168,12 @@ def extract_rules_from_policy(self, version_id_str: str, file_key: str) -> dict:
     6. Write audit log: action=policy_parsed_by_ai
     """
     from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker, Session
+    from sqlalchemy.orm import Session, sessionmaker
+
     from app.core.config import settings
     from app.models.rule import RuleVersion
-    from app.services import storage as storage_svc
     from app.services import audit as audit_svc
+    from app.services import storage as storage_svc
 
     logger.info("extract_rules_from_policy started: version=%s file=%s", version_id_str, file_key)
 
@@ -204,7 +203,7 @@ def extract_rules_from_policy(self, version_id_str: str, file_key: str) -> dict:
             )
         except Exception as exc:
             logger.warning("MinIO download failed for %s: %s", file_key, exc)
-            raise self.retry(exc=exc, countdown=30)
+            raise self.retry(exc=exc, countdown=30) from exc
 
         # 3. Extract text
         policy_text = _extract_text_from_bytes(file_bytes, filename)
@@ -246,7 +245,7 @@ def extract_rules_from_policy(self, version_id_str: str, file_key: str) -> dict:
     except Exception as exc:
         db.rollback()
         logger.exception("extract_rules_from_policy failed for %s: %s", version_id_str, exc)
-        raise self.retry(exc=exc, countdown=60)
+        raise self.retry(exc=exc, countdown=60) from exc
 
     finally:
         db.close()

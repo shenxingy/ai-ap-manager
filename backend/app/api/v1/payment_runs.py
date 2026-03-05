@@ -1,8 +1,8 @@
 """Payment Runs API — GET|POST /payment-runs, GET|POST|PATCH /payment-runs/{run_id}"""
 import json
 import uuid
-from datetime import date, datetime, timezone
-from typing import Annotated, Optional
+from datetime import UTC, date, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -26,21 +26,21 @@ router = APIRouter()
 class GenerateRunRequest(BaseModel):
     frequency: str       # weekly, bi-weekly, monthly, etc.
     payment_method: str  # ACH, WIRE, CHECK, etc.
-    scheduled_date: Optional[date] = None
+    scheduled_date: date | None = None
 
 
 class PaymentRunSummary(BaseModel):
     id: uuid.UUID
     name: str
-    vendor_id: Optional[uuid.UUID]
-    vendor_name: Optional[str] = None
+    vendor_id: uuid.UUID | None
+    vendor_name: str | None = None
     scheduled_date: date
     frequency: str
     status: str
     total_amount: float
     invoice_count: int
     payment_method: str
-    executed_at: Optional[datetime]
+    executed_at: datetime | None
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -58,30 +58,30 @@ class GenerateRunResponse(BaseModel):
 
 class InvoiceSummaryItem(BaseModel):
     id: uuid.UUID
-    invoice_number: Optional[str]
-    vendor_id: Optional[uuid.UUID]
-    vendor_name: Optional[str] = None
-    total_amount: Optional[float]
-    currency: Optional[str]
+    invoice_number: str | None
+    vendor_id: uuid.UUID | None
+    vendor_name: str | None = None
+    total_amount: float | None
+    currency: str | None
     status: str
-    payment_status: Optional[str]
+    payment_status: str | None
     model_config = {"from_attributes": True}
 
 
 class PaymentRunDetail(BaseModel):
     id: uuid.UUID
     name: str
-    vendor_id: Optional[uuid.UUID]
-    vendor_name: Optional[str] = None
+    vendor_id: uuid.UUID | None
+    vendor_name: str | None = None
     scheduled_date: date
     frequency: str
     status: str
     total_amount: float
     invoice_count: int
     payment_method: str
-    executed_at: Optional[datetime]
-    executed_by: Optional[uuid.UUID]
-    notes: Optional[str]
+    executed_at: datetime | None
+    executed_by: uuid.UUID | None
+    notes: str | None
     created_at: datetime
     invoices: list[InvoiceSummaryItem]
 
@@ -101,8 +101,8 @@ class ExecuteRunResponse(BaseModel):
 async def list_payment_runs(
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("ADMIN"))],
-    run_status: Optional[str] = Query(default=None, alias="status"),
-    vendor_id: Optional[uuid.UUID] = Query(default=None),
+    run_status: str | None = Query(default=None, alias="status"),
+    vendor_id: uuid.UUID | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
 ):
@@ -166,7 +166,7 @@ async def generate_payment_runs(
         return GenerateRunResponse(runs_created=0, invoices_assigned=0, runs=[])
 
     # Group by vendor_id
-    groups: dict[Optional[uuid.UUID], list[Invoice]] = {}
+    groups: dict[uuid.UUID | None, list[Invoice]] = {}
     for inv in invoices:
         groups.setdefault(inv.vendor_id, []).append(inv)
 
@@ -242,7 +242,7 @@ async def get_payment_run(
     if run is None:
         raise HTTPException(status_code=404, detail="Payment run not found.")
 
-    vendor_name: Optional[str] = None
+    vendor_name: str | None = None
     if run.vendor_id:
         v_result = await db.execute(select(Vendor.name).where(Vendor.id == run.vendor_id))
         vendor_name = v_result.scalar_one_or_none()
@@ -304,7 +304,7 @@ async def execute_payment_run(
             detail=f"Payment run must be 'pending' to execute (current: {run.status}).",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     executed_count = 0
     total_paid = 0.0
 
