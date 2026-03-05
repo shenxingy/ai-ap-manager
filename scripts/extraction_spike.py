@@ -30,7 +30,7 @@ def test_tesseract(pdf_path: str) -> tuple[str, float]:
     try:
         import pytesseract
         from pdf2image import convert_from_path
-        from PIL import Image
+        from PIL import Image  # noqa: F401
 
         print("\n[1] Testing Tesseract OCR...")
         t0 = time.time()
@@ -88,7 +88,7 @@ Invoice text:
         print(f"    total_amount:   {result.get('total_amount')} (conf: {result.get('confidence_total_amount', '?')})")
         return result
     except json.JSONDecodeError:
-        print(f"    WARNING: Could not parse JSON output")
+        print("    WARNING: Could not parse JSON output")
         print(f"    Raw output: {raw_output[:300]}")
         return {}
 
