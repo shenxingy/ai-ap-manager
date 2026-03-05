@@ -66,6 +66,10 @@ async def ask_ai(
     Requires LLM_PROVIDER_ASK_AI != 'none'. When set to 'none', returns 503.
     ClaudeCodeClient (subprocess) is explicitly banned for this endpoint by config validation.
     """
+    question = body.question.strip()
+    if not question:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question cannot be empty.")
+
     from app.ai.llm_client import NullClient, get_llm_client
 
     client = get_llm_client("ask_ai")
@@ -74,10 +78,6 @@ async def ask_ai(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Ask AI is not configured. Set LLM_PROVIDER_ASK_AI=anthropic or LLM_PROVIDER_ASK_AI=ollama.",
         )
-
-    question = body.question.strip()
-    if not question:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question cannot be empty.")
 
     loop = asyncio.get_running_loop()
 

@@ -183,16 +183,14 @@ async def test_ask_ai_no_api_key_returns_503():
 async def test_ask_ai_empty_question_returns_400():
     """POST /api/v1/ask-ai with empty question should return 400."""
     mock_session = make_mock_session()
-    app.dependency_overrides[get_session] = make_session_override(mock_session)
     app.dependency_overrides[get_readonly_session] = make_session_override(mock_session)
     app.dependency_overrides[get_current_user] = override_get_current_user
     try:
-        with patch("app.api.v1.ask_ai._generate_sql", side_effect=Exception("no api key")):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-                response = await client.post(
-                    "/api/v1/ask-ai",
-                    json={"question": "   "},
-                )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/ask-ai",
+                json={"question": "   "},
+            )
     finally:
         app.dependency_overrides.clear()
 
@@ -202,6 +200,8 @@ async def test_ask_ai_empty_question_returns_400():
 @pytest.mark.asyncio
 async def test_ask_ai_invalid_body_returns_422():
     """POST /api/v1/ask-ai with missing question field returns 422."""
+    mock_session = make_mock_session()
+    app.dependency_overrides[get_readonly_session] = make_session_override(mock_session)
     app.dependency_overrides[get_current_user] = override_get_current_user
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
