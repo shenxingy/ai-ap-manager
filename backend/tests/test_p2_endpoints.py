@@ -161,6 +161,8 @@ async def test_bulk_approve_invalid_body_returns_422():
 @pytest.mark.asyncio
 async def test_ask_ai_no_api_key_returns_503():
     """POST /api/v1/ask-ai should return 503 when ANTHROPIC_API_KEY is not configured."""
+    mock_session = make_mock_session()
+    app.dependency_overrides[get_readonly_session] = make_session_override(mock_session)
     app.dependency_overrides[get_current_user] = override_get_current_user
     try:
         with patch("app.core.config.settings") as mock_settings:
