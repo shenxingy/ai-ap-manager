@@ -152,6 +152,7 @@ async def test_ask_ai_requires_auth():
     """POST /api/v1/ask-ai without Bearer token must return 401."""
     mock_session = make_mock_session()
     app.dependency_overrides[get_session] = make_session_override(mock_session)
+    app.dependency_overrides[get_readonly_session] = make_session_override(mock_session)
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
