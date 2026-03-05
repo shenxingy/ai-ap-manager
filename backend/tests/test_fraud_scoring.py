@@ -4,14 +4,10 @@ DB queries are replaced with MagicMock. No real database required.
 """
 import uuid
 from decimal import Decimal
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from app.services.fraud_scoring import score_invoice, SIGNAL_WEIGHTS
 from app.core.config import settings
-
+from app.services.fraud_scoring import SIGNAL_WEIGHTS, score_invoice
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

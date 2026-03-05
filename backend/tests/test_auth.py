@@ -1,10 +1,10 @@
 """Tests for authentication endpoints."""
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch, MagicMock
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +92,7 @@ async def test_login_invalid_credentials_returns_401():
 async def test_me_with_valid_token_returns_user():
     """GET /api/v1/auth/me with valid Bearer token should return user data."""
     import uuid
+
     from app.core.security import create_access_token
 
     user_id = str(uuid.uuid4())

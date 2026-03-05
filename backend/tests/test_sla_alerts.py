@@ -4,14 +4,10 @@ Tests overdue and approaching invoice deadline detection. Uses mocked
 database sessions following the existing test patterns.
 """
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.models.invoice import Invoice
-from app.models.sla_alert import SLAAlert
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +69,7 @@ def test_overdue_invoice_flagged(mock_ensure_alert):
     alert_id = uuid.uuid4()
 
     # Create invoice with due_date = yesterday
-    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    yesterday = datetime.now(UTC) - timedelta(days=1)
     invoice = _make_invoice(
         invoice_id=inv_id,
         invoice_number="INV-001",
@@ -117,7 +113,7 @@ def test_upcoming_invoice_flagged(mock_ensure_alert):
     alert_id = uuid.uuid4()
 
     # Create invoice with due_date = tomorrow
-    tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+    tomorrow = datetime.now(UTC) + timedelta(days=1)
     invoice = _make_invoice(
         invoice_id=inv_id,
         invoice_number="INV-002",
@@ -158,7 +154,7 @@ def test_no_alert_for_matched_invoice():
     inv_id = uuid.uuid4()
 
     # Create invoice with due_date = yesterday but status MATCHED
-    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    yesterday = datetime.now(UTC) - timedelta(days=1)
     invoice = _make_invoice(
         invoice_id=inv_id,
         invoice_number="INV-003",
@@ -222,7 +218,7 @@ def test_no_duplicate_alert_for_existing_open_alert():
     inv_id = uuid.uuid4()
 
     # Create invoice with due_date = yesterday
-    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    yesterday = datetime.now(UTC) - timedelta(days=1)
     invoice = _make_invoice(
         invoice_id=inv_id,
         invoice_number="INV-005",

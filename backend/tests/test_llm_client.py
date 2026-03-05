@@ -17,7 +17,6 @@ from app.ai.llm_client import (
     get_llm_client,
 )
 
-
 # ─── NullClient ───
 
 class TestNullClient:
@@ -265,7 +264,6 @@ class TestGetLlmClient:
 def _make_client_with_settings(use_case: str = "extraction", **settings_kwargs):
     """Helper: build Settings with custom values and invoke get_llm_client() with them patched in."""
     from app.core.config import Settings
-    from app.ai.llm_client import get_llm_client
 
     defaults = dict(
         LLM_PROVIDER="none",

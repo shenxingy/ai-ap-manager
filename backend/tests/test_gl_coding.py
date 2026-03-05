@@ -8,18 +8,15 @@ Tests the deterministic components:
 """
 import uuid
 from collections import Counter
-from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.services.gl_coding import (
     CATEGORY_GL_MAP,
-    MIN_SIMILARITY_SCORE,
     _word_similarity,
     suggest_gl_codes,
 )
-
 
 # ─── _word_similarity ─────────────────────────────────────────────────────────
 

@@ -1,14 +1,14 @@
 """Security and edge case tests — OWASP A01/A05, payment authorization."""
 import uuid
-import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from app.main import app
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from app.core.deps import get_current_user
 from app.core.security import create_access_token
 from app.db.session import get_session
-from app.core.deps import get_current_user
-
+from app.main import app
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 

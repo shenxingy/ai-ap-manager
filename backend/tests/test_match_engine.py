@@ -7,10 +7,7 @@ import uuid
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.rules.match_engine import run_2way_match, run_3way_match
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -8,7 +8,6 @@ Formulas:
   touchless_rate = auto_approved / total_approved   (where auto_approved = approved with NO approval task)
   exception_rate = total_exceptions / total_received
 """
-import pytest
 
 
 # ─── Touchless rate ───────────────────────────────────────────────────────────

@@ -7,10 +7,9 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,9 +175,8 @@ def test_predict_gl_account_no_model():
     import app.services.gl_classifier as gl_mod
     from app.services.gl_classifier import predict_gl_account
 
-    with patch.object(gl_mod, "_cached_model", None):
-        with patch.object(gl_mod, "load_latest_model", return_value=(None, None)):
-            result = predict_gl_account("Test Vendor", "supplies", 100)
+    with patch.object(gl_mod, "_cached_model", None), patch.object(gl_mod, "load_latest_model", return_value=(None, None)):
+        result = predict_gl_account("Test Vendor", "supplies", 100)
 
     assert result == (None, 0.0)
 
