@@ -11,16 +11,15 @@ Enforce append-only semantics on audit_logs at the DB level:
 This prevents any application code (or direct psql sessions using the
 app role) from modifying or removing historical audit records.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = 'c1f9a2d3e4b5'
-down_revision: Union[str, None] = 'b8479ee361ad'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = 'b8479ee361ad'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

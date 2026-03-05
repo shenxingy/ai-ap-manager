@@ -5,9 +5,10 @@ Revises: gap9_multi_entity
 Create Date: 2026-03-01
 
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "gap6_inspection_reports"

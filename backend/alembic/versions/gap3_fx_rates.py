@@ -4,8 +4,9 @@ Revision ID: gap3_fx_rates
 Revises: gap11_vendor_risk_scores
 Create Date: 2026-03-01 00:00:00.000000
 """
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = 'gap3_fx_rates'
 down_revision = 'gap11_vendor_risk_scores'

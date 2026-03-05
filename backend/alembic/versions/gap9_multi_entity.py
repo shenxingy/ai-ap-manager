@@ -4,9 +4,10 @@ Revision ID: gap9_multi_entity
 Revises: gap3_fx_rates
 Create Date: 2026-03-01 00:00:00.000000
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = 'gap9_multi_entity'
 down_revision = 'gap3_fx_rates'
