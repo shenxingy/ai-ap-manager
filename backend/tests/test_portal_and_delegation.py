@@ -12,13 +12,12 @@ from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-from app.main import app
 from app.core.deps import get_current_user, get_current_vendor_id
 from app.db.session import get_session
+from app.main import app
 from app.services.approval import create_approval_task
-
 
 # ─── Shared fixtures ──────────────────────────────────────────────────────────
 

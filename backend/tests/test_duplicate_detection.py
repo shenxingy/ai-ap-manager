@@ -4,15 +4,11 @@ Tests exact and fuzzy duplicate detection logic. Uses mocked database
 sessions following the existing test patterns.
 """
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from app.models.invoice import Invoice
-from app.models.exception_record import ExceptionRecord
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,7 +30,7 @@ def _make_invoice(
     inv.total_amount = Decimal(str(total_amount)) if total_amount else None
     inv.normalized_amount_usd = Decimal(str(normalized_amount_usd)) if normalized_amount_usd else None
     inv.invoice_date = invoice_date
-    inv.created_at = invoice_date or datetime.now(timezone.utc)
+    inv.created_at = invoice_date or datetime.now(UTC)
     inv.status = status
     inv.deleted_at = None
     inv.is_duplicate = False
@@ -164,7 +160,7 @@ def test_fuzzy_duplicate(mock_ensure_exc):
     dup_id = uuid.uuid4()
 
     # Create invoice with amount $1000 and date today
-    invoice_date = datetime.now(timezone.utc)
+    invoice_date = datetime.now(UTC)
     invoice = _make_invoice(
         invoice_id=inv_id,
         vendor_id=vendor_id,
@@ -211,7 +207,6 @@ def test_no_duplicate_different_vendor():
     from app.services.duplicate_detection import check_duplicate
 
     vendor1 = uuid.uuid4()
-    vendor2 = uuid.uuid4()
     inv_id = uuid.uuid4()
 
     # Create invoice from vendor1

@@ -1,14 +1,13 @@
 """Tests for P2 endpoints: overdue invoices, bulk actions, ask-ai, rule recommendations, analytics."""
 import uuid
-import pytest
-from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.main import app
-from app.core.security import create_access_token
-from app.db.session import get_session
-from app.core.deps import get_current_user
+import pytest
+from httpx import ASGITransport, AsyncClient
 
+from app.core.deps import get_current_user
+from app.db.session import get_session
+from app.main import app
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

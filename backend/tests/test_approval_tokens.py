@@ -6,14 +6,13 @@ Tests cover:
   - Reuse rejection check (via process_approval_decision)
 """
 import uuid
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
 
 from app.core.security import create_approval_token, verify_approval_token
-from app.services.approval import process_approval_decision, _compute_token_hash
-
+from app.services.approval import _compute_token_hash, process_approval_decision
 
 # ─── Token HMAC tests ─────────────────────────────────────────────────────────
 
@@ -72,7 +71,7 @@ def test_expired_token():
     mock_token.token_hash = _compute_token_hash(raw_token)
     mock_token.action = "approve"
     mock_token.is_used = False
-    mock_token.expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+    mock_token.expires_at = datetime.now(UTC) - timedelta(days=1)
 
     task = _make_task_mock(task_id)
     db = _make_db_for_email_decision(task, mock_token)
@@ -96,7 +95,7 @@ def test_reuse_rejected():
     mock_token.token_hash = _compute_token_hash(raw_token)
     mock_token.action = "approve"
     mock_token.is_used = True   # already used
-    mock_token.expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+    mock_token.expires_at = datetime.now(UTC) + timedelta(days=1)
 
     task = _make_task_mock(task_id)
     db = _make_db_for_email_decision(task, mock_token)

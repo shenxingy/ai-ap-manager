@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -107,8 +106,6 @@ async def test_vendor_not_found_returns_none():
     Tests that querying for a non-existent vendor returns None, which
     the endpoint converts to a 404 response.
     """
-    nonexistent_id = uuid.uuid4()
-
     mock_result = MagicMock()
     mock_result.scalar_one_or_none = AsyncMock(return_value=None)
 

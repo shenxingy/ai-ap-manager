@@ -6,20 +6,19 @@ Tests the helper functions in app/workers/rules_tasks.py:
   - _call_llm: JSON parsing, error handling, api_call_log writes
   - extract_rules_from_policy: state transition draft → in_review
 """
+import contextlib
 import io
 import json
 import uuid
 import zipfile
 from unittest.mock import MagicMock, patch
 
-import pytest
-
+from app.ai.llm_client import LLMResponse
 from app.workers.rules_tasks import (
-    _extract_text_from_bytes,
-    _extract_docx_text,
     _call_llm,
+    _extract_docx_text,
+    _extract_text_from_bytes,
 )
-
 
 # ─── _extract_text_from_bytes ─────────────────────────────────────────────────
 
@@ -71,8 +70,6 @@ def test_extract_docx_via_dispatch():
 # ─── _call_llm JSON parsing ───────────────────────────────────────────────────
 # _call_llm now uses get_llm_client("policy") from the abstraction layer.
 # We mock get_llm_client to return a fake LLM client for these unit tests.
-
-from app.ai.llm_client import LLMResponse
 
 
 def _make_db_for_llm() -> MagicMock:
@@ -174,20 +171,20 @@ def test_extract_rules_state_transition():
     mock_session_factory = MagicMock()
     mock_session_factory.return_value = db
 
-    with patch("sqlalchemy.create_engine", return_value=mock_engine):
-        with patch("sqlalchemy.orm.sessionmaker", return_value=mock_session_factory):
-            with patch("app.core.config.settings") as mock_settings:
-                mock_settings.DATABASE_URL_SYNC = "postgresql://mock"
-                mock_settings.MINIO_BUCKET_NAME = "ap-documents"
-                # storage_svc imported lazily as module; patch the function on the module
-                with patch("app.services.storage.download_file", return_value=b"Invoice tolerance 3%"):
-                    with patch("app.workers.rules_tasks._call_llm", return_value=extracted_config):
-                        with patch("app.services.audit.log"):
-                            from app.workers.rules_tasks import extract_rules_from_policy
-                            try:
-                                extract_rules_from_policy.run(version_id_str, file_key)
-                            except Exception:
-                                pass  # Celery retry may raise; state mutation precedes it
+    with (
+        patch("sqlalchemy.create_engine", return_value=mock_engine),
+        patch("sqlalchemy.orm.sessionmaker", return_value=mock_session_factory),
+        patch("app.core.config.settings") as mock_settings,
+        patch("app.services.storage.download_file", return_value=b"Invoice tolerance 3%"),
+        patch("app.workers.rules_tasks._call_llm", return_value=extracted_config),
+        patch("app.services.audit.log"),
+    ):
+        mock_settings.DATABASE_URL_SYNC = "postgresql://mock"
+        mock_settings.MINIO_BUCKET_NAME = "ap-documents"
+        from app.workers.rules_tasks import extract_rules_from_policy
+        with contextlib.suppress(Exception):
+            # Celery retry may raise; state mutation precedes it
+            extract_rules_from_policy.run(version_id_str, file_key)
 
     assert mock_version.status == "in_review"
     assert mock_version.ai_extracted is True
