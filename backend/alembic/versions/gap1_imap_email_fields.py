@@ -4,8 +4,9 @@ Revision ID: gap1_imap_email_fields
 Revises: f4a5b6c7d8e9
 Create Date: 2026-03-01 00:00:00.000000
 """
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = 'gap1_imap_email_fields'
 down_revision = 'f4a5b6c7d8e9'

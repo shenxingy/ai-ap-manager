@@ -4,9 +4,10 @@ Revision ID: gap11_vendor_risk_scores
 Revises: gap1_imap_email_fields
 Create Date: 2026-03-01 00:00:00.000000
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = 'gap11_vendor_risk_scores'
 down_revision = 'gap1_imap_email_fields'
