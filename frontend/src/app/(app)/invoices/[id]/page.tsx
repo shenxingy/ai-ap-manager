@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import React from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import type {
@@ -20,50 +17,24 @@ import type {
   VendorMessage,
   ComplianceDoc,
 } from "./types";
+import { fraudBadge, RecordPaymentDialog } from "./components";
+import { useInvoiceActions } from "./useInvoiceActions";
 import {
-  ConfidenceDot,
-  GlConfBadge,
-  fraudBadge,
-  matchLineClass,
-  matchStatusLabel,
-  matchStatusClass,
-  matchTypeBadge,
-  InspectionBadge,
-  RecordPaymentDialog,
-} from "./components";
+  DetailsTab,
+  LineItemsTab,
+  MatchTab,
+  ExceptionsTab,
+  ApprovalsTab,
+  AuditTab,
+  CommunicationsTab,
+} from "./tabs";
 
 // ─── Page ───
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
-
-  // Action bar state
-  const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  // Field editing state
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [savingField, setSavingField] = useState(false);
-
-  // Extraction comparison state
-  const [comparisonOpen, setComparisonOpen] = useState(false);
-
-  // GL editing state
-  const [glEdits, setGlEdits] = useState<Record<string, { gl_account: string; cost_center: string }>>({});
-  const [savingGl, setSavingGl] = useState<string | null>(null);
-  const [confirmedLineIds, setConfirmedLineIds] = useState<Set<string>>(new Set());
-
-  // Communications compose state
-  const [msgBody, setMsgBody] = useState("");
-  const [msgMode, setMsgMode] = useState<"internal" | "vendor">("vendor");
-
-  function showToast(message: string, type: "success" | "error") {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  }
+  const actions = useInvoiceActions(id);
 
   // ─── Queries ───
 
@@ -125,328 +96,86 @@ export default function InvoiceDetailPage() {
     mutationFn: (payload: { body: string; is_internal: boolean }) =>
       api.post(`/invoices/${id}/messages`, payload).then((r) => r.data),
     onSuccess: () => {
-      setMsgBody("");
+      actions.setMsgBody("");
       void refetchMessages();
     },
   });
-
-  // ─── Action Handlers ───
-
-  async function handleRerunExtraction() {
-    setLoadingAction("extract");
-    try {
-      await api.post(`/invoices/${id}/extract`);
-      await queryClient.invalidateQueries({ queryKey: ["invoice", id] });
-      showToast("Extraction re-queued", "success");
-    } catch {
-      showToast("Failed to re-run extraction", "error");
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  async function handleRetriggerMatch() {
-    setLoadingAction("match");
-    try {
-      await api.post(`/invoices/${id}/match`);
-      await queryClient.invalidateQueries({ queryKey: ["invoice-match", id] });
-      showToast("Re-match triggered", "success");
-    } catch {
-      showToast("Failed to trigger re-match", "error");
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  async function handleRerun3WayMatch() {
-    setLoadingAction("match3way");
-    try {
-      await api.post(`/invoices/${id}/match`, null, { params: { match_type: "3way" } });
-      await queryClient.invalidateQueries({ queryKey: ["invoice-match", id] });
-      await queryClient.invalidateQueries({ queryKey: ["invoice", id] });
-      showToast("3-Way match complete", "success");
-    } catch {
-      showToast("Failed to run 3-way match", "error");
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  async function handleDownload() {
-    setLoadingAction("download");
-    try {
-      const response = await api.get(`/invoices/${id}/download`, { responseType: "blob" });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${invoice?.invoice_number || id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showToast("Download started", "success");
-    } catch {
-      showToast("Download failed", "error");
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  async function handleSaveField(fieldName: string, value: string) {
-    setSavingField(true);
-    try {
-      await api.patch(`/invoices/${id}/fields`, { field_name: fieldName, corrected_value: value });
-      await queryClient.invalidateQueries({ queryKey: ["invoice", id] });
-      setEditingField(null);
-      showToast("Field updated", "success");
-    } catch {
-      showToast("Failed to save field", "error");
-    } finally {
-      setSavingField(false);
-    }
-  }
-
-  async function handleConfirmGl(lineId: string) {
-    const edit = glEdits[lineId];
-    if (!edit?.gl_account) return;
-    setSavingGl(lineId);
-    try {
-      await api.put(`/invoices/${id}/lines/${lineId}/gl`, edit);
-      await queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-      setConfirmedLineIds((prev) => { const next = new Set(prev); next.add(lineId); return next; });
-      showToast("GL code confirmed", "success");
-    } catch {
-      showToast("Failed to save GL code", "error");
-    } finally {
-      setSavingGl(null);
-    }
-  }
-
-  async function handleConfirmAllGl() {
-    const lineIds = Object.keys(glEdits);
-    if (lineIds.length === 0) {
-      showToast("No GL codes to confirm", "error");
-      return;
-    }
-    setSavingGl("all");
-    try {
-      const payload = {
-        lines: lineIds.map((lineId) => ({
-          line_id: lineId,
-          gl_account: glEdits[lineId].gl_account,
-          cost_center: glEdits[lineId].cost_center || null,
-        })),
-      };
-      const res = await api.put(`/invoices/${id}/lines/gl-bulk`, payload);
-      await queryClient.invalidateQueries({ queryKey: ["invoice-lines", id] });
-      setConfirmedLineIds((prev) => { const next = new Set(prev); lineIds.forEach((lid) => next.add(lid)); return next; });
-      const { updated, errors } = res.data;
-      if (errors === 0) showToast(`All ${updated} GL codes confirmed`, "success");
-      else showToast(`${errors} failed, ${updated} saved`, "error");
-    } catch {
-      showToast("Failed to confirm GL codes", "error");
-    } finally {
-      setSavingGl(null);
-    }
-  }
 
   if (!invoice) {
     return <div className="py-12 text-center text-gray-500">Loading invoice...</div>;
   }
 
-  // ─── Detail Fields Config ───
-
-  const detailFields = [
-    {
-      label: "Invoice Number",
-      value: invoice.invoice_number,
-      fieldName: "invoice_number",
-      rawValue: invoice.invoice_number,
-      editable: true,
-      confidence: invoice.extracted_fields?.invoice_number?.confidence ?? invoice.confidence_score,
-      isOverridden: !!invoice.extracted_fields?.invoice_number?.is_overridden,
-    },
-    {
-      label: "Vendor",
-      value: invoice.vendor_name_raw,
-      fieldName: "vendor_name_raw",
-      rawValue: invoice.vendor_name_raw,
-      editable: true,
-      confidence: invoice.extracted_fields?.vendor_name_raw?.confidence ?? invoice.confidence_score,
-      isOverridden: !!invoice.extracted_fields?.vendor_name_raw?.is_overridden,
-    },
-    {
-      label: "Amount",
-      value: `${invoice.currency} ${invoice.total_amount?.toLocaleString()}`,
-      fieldName: "total_amount",
-      rawValue: String(invoice.total_amount),
-      editable: true,
-      confidence: invoice.extracted_fields?.total_amount?.confidence ?? invoice.confidence_score,
-      isOverridden: !!invoice.extracted_fields?.total_amount?.is_overridden,
-    },
-    {
-      label: "Status",
-      value: invoice.status,
-      fieldName: "status",
-      rawValue: invoice.status,
-      editable: false,
-      confidence: undefined as number | null | undefined,
-      isOverridden: false,
-    },
-    {
-      label: "Invoice Date",
-      value: invoice.invoice_date ? format(new Date(invoice.invoice_date), "MMM d, yyyy") : "—",
-      fieldName: "invoice_date",
-      rawValue: invoice.invoice_date ?? "",
-      editable: true,
-      confidence: invoice.extracted_fields?.invoice_date?.confidence ?? invoice.confidence_score,
-      isOverridden: !!invoice.extracted_fields?.invoice_date?.is_overridden,
-    },
-    {
-      label: "Due Date",
-      value: invoice.due_date ? format(new Date(invoice.due_date), "MMM d, yyyy") : "—",
-      fieldName: "due_date",
-      rawValue: invoice.due_date ?? "",
-      editable: true,
-      confidence: invoice.extracted_fields?.due_date?.confidence ?? invoice.confidence_score,
-      isOverridden: !!invoice.extracted_fields?.due_date?.is_overridden,
-    },
-    {
-      label: "Received",
-      value: format(new Date(invoice.created_at), "MMM d, yyyy HH:mm"),
-      fieldName: "created_at",
-      rawValue: invoice.created_at,
-      editable: false,
-      confidence: undefined as number | null | undefined,
-      isOverridden: false,
-    },
-    {
-      label: "Fraud Score",
-      value: fraudBadge(invoice.fraud_score),
-      fieldName: "fraud_score",
-      rawValue: String(invoice.fraud_score),
-      editable: false,
-      confidence: undefined as number | null | undefined,
-      isOverridden: false,
-    },
-  ];
+  // ─── Render ───
 
   return (
     <div className="space-y-5">
-      {/* Dual Authorization Required — CRITICAL fraud score */}
+      {/* Fraud Banners */}
       {invoice.fraud_score != null && invoice.fraud_score >= 0.9 && (
         <div className="border-l-4 border-l-red-700 bg-red-50 p-4 rounded">
           <p className="text-sm font-semibold text-red-900">⚠️ Dual Authorization Required</p>
-          <p className="text-sm text-red-800 mt-1">
-            This invoice&apos;s CRITICAL fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) requires 2 ADMIN approvals before payment.
-          </p>
+          <p className="text-sm text-red-800 mt-1">This invoice&apos;s CRITICAL fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) requires 2 ADMIN approvals before payment.</p>
         </div>
       )}
-
-      {/* High Fraud Warning (non-critical) */}
       {invoice.fraud_score != null && invoice.fraud_score >= 0.6 && invoice.fraud_score < 0.9 && (
         <div className="border-l-4 border-l-amber-500 bg-amber-50 p-4 rounded">
           <p className="text-sm font-semibold text-amber-800">⚠ Fraud Risk Alert</p>
-          <p className="text-sm text-amber-700 mt-1">
-            This invoice has a high fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) and requires immediate review before approval.
-          </p>
+          <p className="text-sm text-amber-700 mt-1">This invoice has a high fraud score ({(invoice.fraud_score * 100).toFixed(0)}%) and requires immediate review before approval.</p>
         </div>
       )}
 
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Invoice {invoice.invoice_number || invoice.id.slice(0, 8)}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">Invoice {invoice.invoice_number || invoice.id.slice(0, 8)}</h2>
           <p className="text-gray-500 mt-0.5">{invoice.vendor_name_raw}</p>
         </div>
         <div className="flex items-center gap-2 ml-auto flex-wrap">
           <span className="text-xl font-semibold text-gray-700">
-            {invoice.currency}{" "}
-            {invoice.total_amount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {invoice.currency} {invoice.total_amount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </span>
           <Badge>{invoice.status}</Badge>
-          {invoice.payment_status && (
-            <Badge variant="outline" className="border-green-400 text-green-700">
-              Paid
-            </Badge>
-          )}
+          {invoice.payment_status && <Badge variant="outline" className="border-green-400 text-green-700">Paid</Badge>}
           <Badge variant="outline">{fraudBadge(invoice.fraud_score)}</Badge>
-          {invoice.is_duplicate && (
-            <Badge variant="destructive">Duplicate</Badge>
-          )}
+          {invoice.is_duplicate && <Badge variant="destructive">Duplicate</Badge>}
         </div>
       </div>
 
-      {/* Compliance Warning Banner */}
+      {/* Info Banners */}
       {vendorCompliance.some((doc) => doc.status === "expired" || doc.status === "missing") && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded text-sm">
-          ⚠️ Vendor has expired or missing compliance documents
-        </div>
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded text-sm">⚠️ Vendor has expired or missing compliance documents</div>
       )}
-
-      {/* Recurring Invoice Banner */}
       {invoice.is_recurring && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2 rounded text-sm">
-          🔄 Recurring invoice detected — 1-click approval may be available
-        </div>
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2 rounded text-sm">🔄 Recurring invoice detected — 1-click approval may be available</div>
       )}
-
-      {/* Duplicate Invoice Banner */}
       {invoice.is_duplicate && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-2 rounded text-sm">
-          ⚠️ Duplicate invoice detected — this invoice matches an existing submission and requires review before approval.
-        </div>
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-2 rounded text-sm">⚠️ Duplicate invoice detected — this invoice matches an existing submission and requires review before approval.</div>
       )}
 
       {/* Action Bar */}
       <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={handleRerunExtraction}
-          disabled={loadingAction !== null}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
-        >
-          {loadingAction === "extract" ? (
-            <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <span>⟳</span>
-          )}
-          Re-run Extraction
-        </button>
-        <button
-          onClick={handleRetriggerMatch}
-          disabled={loadingAction !== null}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
-        >
-          {loadingAction === "match" ? (
-            <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <span>⚡</span>
-          )}
-          Trigger Re-match
-        </button>
-        <button
-          onClick={handleDownload}
-          disabled={loadingAction !== null}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
-        >
-          {loadingAction === "download" ? (
-            <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <span>↓</span>
-          )}
-          Download Original
-        </button>
+        {([
+          { key: "extract", icon: "⟳", label: "Re-run Extraction", onClick: actions.handleRerunExtraction },
+          { key: "match", icon: "⚡", label: "Trigger Re-match", onClick: actions.handleRetriggerMatch },
+          { key: "download", icon: "↓", label: "Download Original", onClick: () => actions.handleDownload(invoice.invoice_number) },
+        ] as const).map((btn) => (
+          <button
+            key={btn.key}
+            onClick={btn.onClick}
+            disabled={actions.loadingAction !== null}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {actions.loadingAction === btn.key
+              ? <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              : <span>{btn.icon}</span>}
+            {btn.label}
+          </button>
+        ))}
         {invoice.status === "approved" && user?.role === "ADMIN" && (
-          <RecordPaymentDialog
-            invoiceId={invoice.id}
-            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["invoice", id] })}
-          />
+          <RecordPaymentDialog invoiceId={invoice.id} onSuccess={() => actions.invalidateInvoice()} />
         )}
       </div>
 
-      {/* Tabs */}
+      {/* ─── Tabs ─── */}
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
@@ -465,827 +194,80 @@ export default function InvoiceDetailPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Details */}
         <TabsContent value="details">
-          <Card>
-            <CardContent className="pt-4">
-              <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                {detailFields.map((field) => (
-                  <div
-                    key={field.fieldName}
-                    className={`group ${
-                      field.isOverridden
-                        ? "rounded px-2 py-1 bg-amber-50 border border-amber-200"
-                        : ""
-                    }`}
-                  >
-                    <dt className="text-gray-500 flex items-center gap-0.5">
-                      {field.label}
-                      <ConfidenceDot score={field.confidence} />
-                    </dt>
-                    <dd className="font-medium mt-0.5 flex items-center gap-2">
-                      {editingField === field.fieldName ? (
-                        <span className="flex items-center gap-1.5">
-                          <input
-                            autoFocus
-                            className="border border-gray-300 rounded px-2 py-0.5 text-sm w-40 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveField(field.fieldName, editValue);
-                              if (e.key === "Escape") setEditingField(null);
-                            }}
-                          />
-                          <button
-                            onClick={() => handleSaveField(field.fieldName, editValue)}
-                            disabled={savingField}
-                            className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            {savingField ? "…" : "Save"}
-                          </button>
-                          <button
-                            onClick={() => setEditingField(null)}
-                            className="text-xs text-gray-400 hover:text-gray-600"
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ) : (
-                        <>
-                          {field.value}
-                          {field.editable && (
-                            <button
-                              onClick={() => {
-                                setEditingField(field.fieldName);
-                                setEditValue(field.rawValue);
-                              }}
-                              className="text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                              title="Edit field"
-                            >
-                              ✏
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-
-              {/* ─── FX Normalized Amount ─── */}
-              {invoice.normalized_amount_usd != null && invoice.currency !== "USD" && (
-                <p className="text-sm text-muted-foreground mt-3">
-                  ≈ ${invoice.normalized_amount_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
-                  {invoice.fx_rate_used != null && invoice.fx_rate_date != null && (
-                    <span> (rate: {invoice.fx_rate_used} on {invoice.fx_rate_date})</span>
-                  )}
-                </p>
-              )}
-
-              {/* ─── Extraction Pass Comparison ─── */}
-              {(() => {
-                const results = invoice.extraction_results ?? [];
-                const passA = results.find((r) => r.pass_number === 1);
-                const passB = results.find((r) => r.pass_number === 2);
-                if (!passA || !passB) return null;
-                const discrepancies = Array.from(
-                  new Set([...passA.discrepancy_fields, ...passB.discrepancy_fields])
-                );
-                const hasDiscrepancies = discrepancies.length > 0;
-                return (
-                  <div className="mt-5 border-t pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Extraction Comparison</span>
-                      {hasDiscrepancies && (
-                        <button
-                          onClick={() => setComparisonOpen((o) => !o)}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                        >
-                          {comparisonOpen ? "▲ Hide" : "▼ Show"} {discrepancies.length} discrepant field{discrepancies.length !== 1 ? "s" : ""}
-                        </button>
-                      )}
-                    </div>
-                    {!hasDiscrepancies ? (
-                      <p className="text-sm text-green-600 flex items-center gap-1">
-                        <span>✓</span> Both extraction passes agree
-                      </p>
-                    ) : comparisonOpen && (
-                      <table className="w-full text-xs border-collapse">
-                        <thead>
-                          <tr className="text-left text-gray-500 border-b">
-                            <th className="pb-1.5 pr-3 font-medium w-1/4">Field</th>
-                            <th className="pb-1.5 pr-3 font-medium w-[37.5%]">Pass A</th>
-                            <th className="pb-1.5 font-medium w-[37.5%]">Pass B</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {discrepancies.map((field) => (
-                            <tr key={field} className="border-b border-amber-100 last:border-0">
-                              <td className="py-1.5 pr-3 font-medium text-gray-600">{field}</td>
-                              <td className="py-1.5 pr-3 bg-amber-50 text-amber-900 px-1.5 rounded-l">
-                                {String(passA.extracted_fields[field] ?? "—")}
-                              </td>
-                              <td className="py-1.5 bg-amber-50 text-amber-900 px-1.5 rounded-r">
-                                {String(passB.extracted_fields[field] ?? "—")}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
+          <DetailsTab
+            invoice={invoice}
+            editingField={actions.editingField}
+            editValue={actions.editValue}
+            savingField={actions.savingField}
+            comparisonOpen={actions.comparisonOpen}
+            setEditingField={actions.setEditingField}
+            setEditValue={actions.setEditValue}
+            setComparisonOpen={actions.setComparisonOpen}
+            handleSaveField={actions.handleSaveField}
+          />
         </TabsContent>
 
-        {/* Line Items */}
         <TabsContent value="lines">
-          <Card>
-            <CardContent className="p-0">
-              {/* Confirm All button */}
-              <div className="flex justify-end p-3 border-b">
-                <button
-                  onClick={handleConfirmAllGl}
-                  disabled={savingGl !== null || Object.keys(glEdits).length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {savingGl === "all" && (
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  )}
-                  Confirm All Coding
-                </button>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>GL Account</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lineItems.map((li) => {
-                    const suggEntry = glSuggestions?.[li.id];
-                    const suggestion = suggEntry?.gl_account ?? li.gl_suggestion ?? null;
-                    const suggestionConfidence = suggEntry?.confidence_pct ?? li.gl_suggestion_confidence;
-                    const glEdit = glEdits[li.id] ?? {
-                      gl_account: li.gl_code ?? "",
-                      cost_center: li.cost_center ?? "",
-                    };
-                    const isConfirmed = confirmedLineIds.has(li.id);
-                    return (
-                      <TableRow key={li.id}>
-                        <TableCell>{li.description}</TableCell>
-                        <TableCell className="text-right">{li.quantity}</TableCell>
-                        <TableCell className="text-right">${li.unit_price?.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">${li.total_price?.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <div className="space-y-1 min-w-[140px]">
-                            <div className="relative">
-                              <input
-                                className={`border rounded px-2 py-0.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                                  isConfirmed
-                                    ? "border-green-400 bg-green-50 text-gray-900"
-                                    : "border-gray-200"
-                                }`}
-                                placeholder="GL Account"
-                                value={glEdit.gl_account}
-                                onChange={(e) => {
-                                  setConfirmedLineIds((prev) => { const next = new Set(prev); next.delete(li.id); return next; });
-                                  setGlEdits((prev) => ({
-                                    ...prev,
-                                    [li.id]: { ...glEdit, gl_account: e.target.value },
-                                  }));
-                                }}
-                              />
-                              {isConfirmed && (
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500 text-xs">✓</span>
-                              )}
-                            </div>
-                            {!isConfirmed && suggestion && (
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <span className="text-xs text-gray-400 italic">{suggestion}</span>
-                                <GlConfBadge score={suggestionConfidence} />
-                                <button
-                                  onClick={() =>
-                                    setGlEdits((prev) => ({
-                                      ...prev,
-                                      [li.id]: { ...glEdit, gl_account: suggestion },
-                                    }))
-                                  }
-                                  className="text-xs text-blue-500 hover:text-blue-700 underline"
-                                >
-                                  Use
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <button
-                            onClick={() => handleConfirmGl(li.id)}
-                            disabled={savingGl !== null || !glEdit.gl_account}
-                            className={`text-xs px-2 py-1 rounded disabled:opacity-40 whitespace-nowrap ${
-                              isConfirmed
-                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                : "bg-gray-100 hover:bg-gray-200"
-                            }`}
-                          >
-                            {savingGl === li.id ? (
-                              <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" />
-                            ) : isConfirmed ? (
-                              "✓ Confirmed"
-                            ) : (
-                              "Confirm GL"
-                            )}
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {lineItems.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-400 py-6">
-                        No line items found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <LineItemsTab
+            lineItems={lineItems}
+            glSuggestions={glSuggestions}
+            glEdits={actions.glEdits}
+            savingGl={actions.savingGl}
+            confirmedLineIds={actions.confirmedLineIds}
+            setGlEdits={actions.setGlEdits}
+            setConfirmedLineIds={actions.setConfirmedLineIds}
+            handleConfirmGl={actions.handleConfirmGl}
+            handleConfirmAllGl={actions.handleConfirmAllGl}
+          />
         </TabsContent>
 
-        {/* Match */}
         <TabsContent value="match">
-          <Card>
-            <CardContent className="pt-4">
-              {!match ? (
-                <p className="text-gray-400 text-sm">No match data available.</p>
-              ) : (
-                <div className="space-y-5">
-                  {/* Header row: match type badge + re-run button */}
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-3">
-                      {(() => {
-                        const { label, cls } = matchTypeBadge(match.match_type);
-                        return (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
-                            {label}
-                          </span>
-                        );
-                      })()}
-                      <span
-                        className={
-                          match.match_status === "matched"
-                            ? "text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded"
-                            : match.match_status === "partial"
-                            ? "text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded"
-                            : "text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded"
-                        }
-                      >
-                        {match.match_status.toUpperCase()}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleRerun3WayMatch}
-                      disabled={loadingAction !== null}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                    >
-                      {loadingAction === "match3way" ? (
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span>⚡</span>
-                      )}
-                      Re-run 3-Way Match
-                    </button>
-                  </div>
-
-                  {/* INSPECTION_FAILED banner */}
-                  {match.match_status.toUpperCase().includes("INSPECTION_FAILED") && (
-                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                      Cannot approve until inspection report passes
-                    </div>
-                  )}
-
-                  {/* Summary fields */}
-                  <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                    {[
-                      ["PO Number", match.po_number || "—"],
-                      ["GR Number", match.gr_number || (match.match_type === "3way" ? "—" : null)],
-                      [
-                        "Matched At",
-                        match.matched_at ? format(new Date(match.matched_at), "MMM d, yyyy HH:mm") : "—",
-                      ],
-                      [
-                        "Amount Variance",
-                        match.amount_variance_pct != null
-                          ? `${(match.amount_variance_pct * 100).toFixed(2)}%`
-                          : "—",
-                      ],
-                    ]
-                      .filter(([, v]) => v !== null)
-                      .map(([label, value]) => (
-                        <div key={label as string}>
-                          <dt className="text-gray-500">{label}</dt>
-                          <dd className="font-medium mt-0.5">{value}</dd>
-                        </div>
-                      ))}
-                  </dl>
-
-                  {/* GRN Summary (3-way only) */}
-                  {match.match_type === "3way" && match.grn_data && (
-                    <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className="text-sm font-semibold text-purple-800">GRN Summary</span>
-                        <span className="text-xs text-purple-600 font-mono">{match.grn_data.gr_number}</span>
-                        <span className="text-xs text-gray-500">
-                          Received {format(new Date(match.grn_data.received_at), "MMM d, yyyy")}
-                        </span>
-                      </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Line#</TableHead>
-                            <TableHead className="text-xs">Description</TableHead>
-                            <TableHead className="text-right text-xs">Qty Received</TableHead>
-                            <TableHead className="text-xs">Unit</TableHead>
-                            <TableHead className="text-xs">Inspection</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {match.grn_data.lines.map((line) => (
-                            <TableRow key={line.id}>
-                              <TableCell className="text-xs text-gray-500">{line.line_number}</TableCell>
-                              <TableCell className="text-sm">{line.description}</TableCell>
-                              <TableCell className="text-right text-sm font-medium">{line.qty_received}</TableCell>
-                              <TableCell className="text-xs text-gray-500">{line.unit || "—"}</TableCell>
-                              <TableCell><InspectionBadge status={match.grn_data!.inspection_status} /></TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-
-                  {/* Line Matches */}
-                  {match.line_matches && match.line_matches.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Line Match Detail</p>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="text-right">Invoice Amt</TableHead>
-                            <TableHead className="text-right">PO Amt</TableHead>
-                            {match.match_type === "3way" && (
-                              <>
-                                <TableHead className="text-right">Qty Inv</TableHead>
-                                <TableHead className="text-right">Qty PO</TableHead>
-                                <TableHead className="text-right">Qty Recv</TableHead>
-                              </>
-                            )}
-                            <TableHead className="text-right">Price Var %</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {match.line_matches.map((line) => (
-                            <React.Fragment key={line.id}>
-                            <TableRow className={matchLineClass(line.status)}>
-                              <TableCell>{line.description || "—"}</TableCell>
-                              <TableCell className="text-right">
-                                {line.invoice_amount != null ? `$${line.invoice_amount.toFixed(2)}` : "—"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {line.po_amount != null ? `$${line.po_amount.toFixed(2)}` : "—"}
-                              </TableCell>
-                              {match.match_type === "3way" && (
-                                <>
-                                  <TableCell className="text-right">
-                                    {line.qty_invoiced != null ? line.qty_invoiced : "—"}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {line.qty_on_po != null ? line.qty_on_po : "—"}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {line.qty_received != null ? line.qty_received : "—"}
-                                  </TableCell>
-                                </>
-                              )}
-                              <TableCell className="text-right">
-                                {line.price_variance_pct != null
-                                  ? `${(line.price_variance_pct * 100).toFixed(2)}%`
-                                  : "—"}
-                              </TableCell>
-                              <TableCell>
-                                <span className={matchStatusClass(line.status)}>
-                                  {matchStatusLabel(line.status)}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                            {line.exception_code === "GRN_NOT_FOUND" && (
-                              <TableRow className="bg-amber-50">
-                                <TableCell
-                                  colSpan={match.match_type === "3way" ? 8 : 5}
-                                  className="py-2 px-4"
-                                >
-                                  <span className="text-xs text-amber-700 font-medium">
-                                    ⚠️ No Goods Receipt found for this PO line — invoice quantity cannot be verified against receipt.
-                                  </span>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            </React.Fragment>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                  {(!match.line_matches || match.line_matches.length === 0) && (
-                    <p className="text-sm text-gray-400">No line-level match data available.</p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <MatchTab
+            match={match}
+            loadingAction={actions.loadingAction}
+            handleRerun3WayMatch={actions.handleRerun3WayMatch}
+          />
         </TabsContent>
 
-        {/* Exceptions */}
         <TabsContent value="exceptions">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Raised At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {exceptions.map((ex) => (
-                    <TableRow key={ex.id}>
-                      <TableCell className="font-mono text-xs">{ex.code}</TableCell>
-                      <TableCell>
-                        <Badge variant={ex.severity === "HIGH" ? "destructive" : "secondary"}>
-                          {ex.severity}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{ex.status}</TableCell>
-                      <TableCell>{ex.description}</TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {format(new Date(ex.created_at), "MMM d, yyyy")}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {exceptions.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-gray-400 py-6">
-                        No exceptions.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ExceptionsTab exceptions={exceptions} />
         </TabsContent>
 
-        {/* Approvals */}
         <TabsContent value="approvals">
-          {/* Chain timeline — only shown when chain_step is set */}
-          {approvals.some((t) => t.chain_step !== null) && (() => {
-            const chainTotal = approvals.find((t) => t.chain_total !== null)?.chain_total ?? 0;
-            const steps = Array.from({ length: chainTotal }, (_, i) => {
-              const stepNum = i + 1;
-              const stepTasks = approvals.filter((t) => t.chain_step === stepNum);
-              const isCompleted = stepTasks.length > 0 && stepTasks.every(
-                (t) => t.status === "approved" || t.status === "rejected"
-              );
-              const isPending = stepTasks.some((t) => t.status === "pending");
-              const assignees = stepTasks.map((t) => t.assignee_name).join(", ");
-              return { stepNum, isCompleted, isPending, assignees };
-            });
-
-            return (
-              <Card className="mb-4">
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-start justify-center gap-0">
-                    {steps.map((step, idx) => (
-                      <React.Fragment key={step.stepNum}>
-                        {/* Step node */}
-                        <div className="flex flex-col items-center w-24">
-                          <div
-                            className={`flex items-center justify-center w-9 h-9 rounded-full border-2 text-sm font-semibold ${
-                              step.isCompleted
-                                ? "border-green-500 bg-green-50 text-green-600"
-                                : step.isPending
-                                ? "border-yellow-400 bg-yellow-50 text-yellow-600"
-                                : "border-gray-300 bg-white text-gray-400"
-                            }`}
-                          >
-                            {step.isCompleted ? (
-                              <span>✓</span>
-                            ) : step.isPending ? (
-                              <span>⏳</span>
-                            ) : (
-                              <span>○</span>
-                            )}
-                          </div>
-                          <p className="mt-1.5 text-xs font-medium text-gray-600 text-center">
-                            Step {step.stepNum}
-                          </p>
-                          {step.assignees && (
-                            <p className="text-xs text-gray-400 text-center leading-tight mt-0.5 max-w-full truncate">
-                              {step.assignees}
-                            </p>
-                          )}
-                        </div>
-                        {/* Connector */}
-                        {idx < steps.length - 1 && (
-                          <div
-                            className={`flex-1 h-0.5 mt-4 mx-1 ${
-                              steps[idx].isCompleted ? "bg-green-400" : "bg-gray-200"
-                            }`}
-                          />
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* Approval Chain Timeline — Vertical Stepper */}
-          {(() => {
-            const chainTotal = approvals.find((t) => t.chain_total !== null)?.chain_total ?? 0;
-            if (chainTotal === 0 && approvals.length > 0) {
-              // Non-chain approvals: show as single vertical step
-              const sortedTasks = [...approvals].sort(
-                (a, b) => new Date(a.assigned_at).getTime() - new Date(b.assigned_at).getTime()
-              );
-              return (
-                <div className="space-y-3 mb-6">
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Approval Steps ({sortedTasks.length} step{sortedTasks.length > 1 ? 's' : ''})
-                  </h3>
-                  {sortedTasks.map((task, idx) => (
-                    <div key={task.id} className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
-                        task.status === 'approved' ? 'bg-green-500' :
-                        task.status === 'rejected' ? 'bg-red-500' :
-                        task.status === 'partially_approved' ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}>{idx + 1}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{task.assignee_name}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                            task.status === 'approved' ? 'border-green-300 text-green-700' :
-                            task.status === 'rejected' ? 'border-red-300 text-red-700' :
-                            task.status === 'partially_approved' ? 'border-blue-300 text-blue-700' :
-                            'border-gray-300 text-gray-600'
-                          }`}>{task.status}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-0.5">Assigned: {format(new Date(task.assigned_at), "MMM d, yyyy")}</div>
-                        {task.decided_at && <div className="text-xs text-gray-500">Decided: {format(new Date(task.decided_at), "MMM d, yyyy")}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            }
-            if (chainTotal === 0) return null;
-            // Chain approvals: show by step
-            const steps = Array.from({ length: chainTotal }, (_, i) => {
-              const stepNum = i + 1;
-              const stepTasks = approvals.filter((t) => t.chain_step === stepNum);
-              const isCompleted = stepTasks.length > 0 && stepTasks.every(
-                (t) => t.status === "approved" || t.status === "rejected"
-              );
-              const isPending = stepTasks.some((t) => t.status === "pending");
-              const assignees = stepTasks.map((t) => t.assignee_name).join(", ");
-              const statusMap: Record<string, boolean> = {};
-              stepTasks.forEach((t) => {
-                statusMap[t.status] = true;
-              });
-              const statuses = Object.keys(statusMap);
-              const decidedAt = stepTasks.find((t) => t.decided_at)?.decided_at;
-              return { stepNum, isCompleted, isPending, assignees, statuses, decidedAt };
-            });
-            return (
-              <div className="space-y-3 mb-6">
-                <h3 className="text-sm font-medium text-gray-700">
-                  Approval Chain ({chainTotal} step{chainTotal > 1 ? 's' : ''})
-                </h3>
-                {steps.map((step) => (
-                  <div key={step.stepNum} className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
-                      step.isCompleted ? 'bg-green-500' :
-                      step.isPending ? 'bg-yellow-500' : 'bg-gray-300'
-                    }`}>{step.stepNum}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Step {step.stepNum}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                          step.isCompleted ? 'border-green-300 text-green-700' :
-                          step.isPending ? 'border-yellow-300 text-yellow-700' :
-                          'border-gray-300 text-gray-600'
-                        }`}>{step.statuses.join(', ')}</span>
-                      </div>
-                      {step.assignees && <div className="text-xs text-gray-600 mt-0.5">Assignee(s): {step.assignees}</div>}
-                      {step.decidedAt && <div className="text-xs text-gray-500">Decided: {format(new Date(step.decidedAt), "MMM d, yyyy")}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Assignee</TableHead>
-                    <TableHead>Step</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned At</TableHead>
-                    <TableHead>Decided At</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {approvals.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell>{task.assignee_name}</TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {task.chain_step && task.chain_total
-                          ? `${task.chain_step}/${task.chain_total}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge>{task.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {format(new Date(task.assigned_at), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {task.decided_at ? format(new Date(task.decided_at), "MMM d, yyyy") : "—"}
-                      </TableCell>
-                      <TableCell>{task.notes || "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                  {approvals.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-400 py-6">
-                        No approval tasks.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ApprovalsTab approvals={approvals} />
         </TabsContent>
 
-        {/* Audit Log */}
         <TabsContent value="audit">
-          <Card>
-            <CardContent className="pt-4">
-              <ol className="relative border-l border-gray-200 space-y-4 ml-3">
-                {auditLog.map((entry) => (
-                  <li key={entry.id} className="ml-4">
-                    <div className="absolute w-2.5 h-2.5 bg-gray-400 rounded-full mt-1 -left-1.5 border border-white" />
-                    <p className="text-sm font-medium text-gray-900">{entry.action}</p>
-                    <p className="text-xs text-gray-500">
-                      {entry.actor} · {format(new Date(entry.created_at), "MMM d, yyyy HH:mm")}
-                    </p>
-                    {entry.detail && (
-                      <p className="text-xs text-gray-400 mt-0.5">{entry.detail}</p>
-                    )}
-                  </li>
-                ))}
-                {auditLog.length === 0 && (
-                  <li className="ml-4 text-sm text-gray-400">No audit entries.</li>
-                )}
-              </ol>
-            </CardContent>
-          </Card>
+          <AuditTab auditLog={auditLog} />
         </TabsContent>
 
-        {/* Communications */}
         <TabsContent value="communications">
-          <Card>
-            <CardContent className="pt-4 space-y-4">
-              {/* Message thread */}
-              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
-                {messages.length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-6">No messages yet.</p>
-                )}
-                {messages.map((msg) => {
-                  const isInbound = msg.direction === "inbound";
-                  const isInternal = msg.is_internal;
-                  const isRight = !isInternal && !isInbound;
-
-                  let bgClass = "bg-gray-100";
-                  let label = "Internal Note";
-                  if (!isInternal && !isInbound) {
-                    bgClass = "bg-blue-100";
-                    label = "Sent to Vendor";
-                  } else if (isInbound) {
-                    bgClass = "bg-green-100";
-                    label = "Vendor Reply";
-                  }
-
-                  return (
-                    <div key={msg.id} className={`flex ${isRight ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[70%] rounded-lg px-4 py-3 ${bgClass}`}>
-                        <p className="text-xs font-semibold text-gray-600 mb-1">{label}</p>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{msg.body}</p>
-                        <p className="text-xs text-gray-400 mt-1.5">
-                          {msg.sender_email || "System"} ·{" "}
-                          {format(new Date(msg.created_at), "MMM d, yyyy HH:mm")}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Compose area */}
-              <div className="border-t pt-4 space-y-3">
-                {/* Mode toggle */}
-                <div className="flex rounded-md border border-gray-200 w-fit">
-                  <button
-                    onClick={() => setMsgMode("vendor")}
-                    className={`px-3 py-1.5 text-sm rounded-l-md transition-colors ${
-                      msgMode === "vendor"
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    Send to Vendor
-                  </button>
-                  <button
-                    onClick={() => setMsgMode("internal")}
-                    className={`px-3 py-1.5 text-sm rounded-r-md transition-colors ${
-                      msgMode === "internal"
-                        ? "bg-gray-600 text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    Internal Note
-                  </button>
-                </div>
-
-                <textarea
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                  rows={3}
-                  placeholder={msgMode === "internal" ? "Add an internal note…" : "Write a message to the vendor…"}
-                  value={msgBody}
-                  onChange={(e) => setMsgBody(e.target.value)}
-                />
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={() =>
-                      sendMessageMutation.mutate({
-                        body: msgBody,
-                        is_internal: msgMode === "internal",
-                      })
-                    }
-                    disabled={!msgBody.trim() || sendMessageMutation.isPending}
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    {sendMessageMutation.isPending && (
-                      <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    )}
-                    Send
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <CommunicationsTab
+            messages={messages}
+            msgBody={actions.msgBody}
+            msgMode={actions.msgMode}
+            isSending={sendMessageMutation.isPending}
+            setMsgBody={actions.setMsgBody}
+            setMsgMode={actions.setMsgMode}
+            onSend={() =>
+              sendMessageMutation.mutate({
+                body: actions.msgBody,
+                is_internal: actions.msgMode === "internal",
+              })
+            }
+          />
         </TabsContent>
       </Tabs>
 
       {/* Toast */}
-      {toast && (
+      {actions.toast && (
         <div
           className={`fixed bottom-4 right-4 z-50 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium text-white transition-opacity ${
-            toast.type === "success" ? "bg-green-600" : "bg-red-600"
+            actions.toast.type === "success" ? "bg-green-600" : "bg-red-600"
           }`}
         >
-          {toast.message}
+          {actions.toast.message}
         </div>
       )}
     </div>
