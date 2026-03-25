@@ -4,13 +4,14 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import require_role
+from app.core.limiter import limiter
 from app.db.session import get_session
 from app.models.audit import AuditLog
 from app.models.invoice import Invoice
@@ -139,6 +140,7 @@ async def list_payment_runs(
 
 # ─── POST /generate ───
 
+@limiter.limit("30/minute")
 @router.post(
     "/generate",
     response_model=GenerateRunResponse,
@@ -146,6 +148,7 @@ async def list_payment_runs(
     summary="Generate payment runs from approved invoices grouped by vendor (ADMIN only)",
 )
 async def generate_payment_runs(
+    request: Request,
     body: GenerateRunRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("ADMIN"))],
@@ -280,12 +283,14 @@ async def get_payment_run(
 
 # ─── POST /{run_id}/execute ───
 
+@limiter.limit("30/minute")
 @router.post(
     "/{run_id}/execute",
     response_model=ExecuteRunResponse,
     summary="Execute a pending payment run — marks invoices paid and closes the run (ADMIN only)",
 )
 async def execute_payment_run(
+    request: Request,
     run_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
     current_user: Annotated[User, Depends(require_role("ADMIN"))],

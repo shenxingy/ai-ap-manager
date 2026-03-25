@@ -14,13 +14,14 @@ from datetime import datetime
 from typing import Annotated
 
 import pydantic
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_current_vendor_id, require_role
+from app.core.limiter import limiter
 from app.core.security import create_vendor_access_token
 from app.db.session import get_session
 from app.models.approval import VendorMessage
@@ -257,6 +258,7 @@ async def get_vendor_invoice(
     return VendorInvoiceItem.model_validate(invoice)
 
 
+@limiter.limit("20/minute")
 @router.post(
     "/invoices/{invoice_id}/reply",
     response_model=VendorReplyResponse,
@@ -264,6 +266,7 @@ async def get_vendor_invoice(
     summary="Vendor reply to an invoice inquiry",
 )
 async def vendor_reply(
+    request: Request,
     invoice_id: uuid.UUID,
     body: VendorReplyIn,
     token: Annotated[str, Query(description="Vendor reply token")],
@@ -319,6 +322,7 @@ async def vendor_reply(
     )
 
 
+@limiter.limit("20/minute")
 @router.post(
     "/invoices/{invoice_id}/dispute",
     response_model=VendorDisputeResponse,
@@ -326,6 +330,7 @@ async def vendor_reply(
     summary="Vendor submits a formal dispute for an invoice",
 )
 async def submit_vendor_dispute(
+    request: Request,
     invoice_id: uuid.UUID,
     body: VendorDisputeIn,
     db: Annotated[AsyncSession, Depends(get_session)],
