@@ -1110,11 +1110,11 @@
 
 ## Tech Debt
 
-- [ ] 🟡 Refactor `frontend/src/app/(app)/invoices/[id]/page.tsx` (1293 lines) — split into 6 tab components
-- [ ] 🟡 Add rate limiting to approval/reject, vendor portal reply/dispute, and payment batch endpoints
+- [x] 🟡 Refactor `frontend/src/app/(app)/invoices/[id]/page.tsx` (1293→275 lines) — split into 7 tab components + custom hook
+- [x] 🟡 Add rate limiting to approval/reject, vendor portal reply/dispute, and payment batch endpoints
 - [ ] 🟡 Add CSRF protection for state-mutating endpoints (approval, payment)
 - [ ] 🟡 Implement token revocation / logout endpoint
-- [ ] 🟡 Add section markers to large frontend files missing them (`AppShell.tsx`, `approvals/page.tsx`)
+- [x] 🟡 Add section markers to large frontend files missing them (`AppShell.tsx`, `approvals/page.tsx`)
 - [ ] 🟡 Refactor large admin pages (700+ lines) — extract sub-components
 - [ ] 🔵 Add Jest test setup for frontend
 - [ ] 🔵 Store vendor reply token hash in DB for full revocation support
