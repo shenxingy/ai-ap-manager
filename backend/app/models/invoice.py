@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.payment_run import PaymentRun
+    from app.models.vendor import Vendor
 
 
 class Invoice(Base, UUIDMixin, TimestampMixin):
@@ -82,11 +89,12 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("payment_runs.id"), nullable=True, index=True
     )
 
-    line_items: Mapped[list["InvoiceLineItem"]] = relationship("InvoiceLineItem", back_populates="invoice")
-    extraction_results: Mapped[list["ExtractionResult"]] = relationship(
+    vendor: Mapped[Vendor | None] = relationship("Vendor", foreign_keys=[vendor_id])
+    line_items: Mapped[list[InvoiceLineItem]] = relationship("InvoiceLineItem", back_populates="invoice")
+    extraction_results: Mapped[list[ExtractionResult]] = relationship(
         "ExtractionResult", back_populates="invoice"
     )
-    payment_run: Mapped["PaymentRun | None"] = relationship("PaymentRun", back_populates="invoices")  # noqa: F821
+    payment_run: Mapped[PaymentRun | None] = relationship("PaymentRun", back_populates="invoices")
 
 
 class InvoiceLineItem(Base, UUIDMixin, TimestampMixin):
@@ -122,7 +130,7 @@ class InvoiceLineItem(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("po_line_items.id"), nullable=True
     )
 
-    invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="line_items")
+    invoice: Mapped[Invoice] = relationship("Invoice", back_populates="line_items")
 
 
 class ExtractionResult(Base, UUIDMixin, TimestampMixin):
@@ -141,4 +149,4 @@ class ExtractionResult(Base, UUIDMixin, TimestampMixin):
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     discrepancy_fields: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list of fields that differed between passes
 
-    invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="extraction_results")
+    invoice: Mapped[Invoice] = relationship("Invoice", back_populates="extraction_results")

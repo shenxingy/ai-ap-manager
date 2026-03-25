@@ -82,7 +82,7 @@ def score_invoice(db: Session, invoice_id: uuid.UUID) -> dict[str, Any]:
         )
         hist_invoices = db.execute(hist_stmt).scalars().all()
         if len(hist_invoices) >= 3:
-            avg = sum(float(h.total_amount) for h in hist_invoices) / len(hist_invoices)
+            avg = sum(float(h.total_amount or 0) for h in hist_invoices) / len(hist_invoices)
             if avg > 0 and inv_total > 2.0 * avg:
                 triggered.append("amount_spike")
                 total_score += SIGNAL_WEIGHTS["amount_spike"]
