@@ -4,6 +4,7 @@ import logging
 import uuid
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.models.audit import AuditLog
@@ -11,8 +12,7 @@ from app.models.audit import AuditLog
 logger = logging.getLogger(__name__)
 
 
-def log(
-    db: Session,
+def _build_entry(
     action: str,
     entity_type: str,
     entity_id: uuid.UUID | str | None = None,
@@ -22,21 +22,7 @@ def log(
     after: Any | None = None,
     notes: str | None = None,
 ) -> AuditLog:
-    """Write a single audit log entry.
-
-    Args:
-        db: Sync SQLAlchemy session (Celery tasks) or async session (API layer).
-            Pass a sync session here; async callers should use log_async instead.
-        action: Short verb, e.g. 'invoice.uploaded', 'invoice.status_changed'.
-        entity_type: Table/domain name, e.g. 'invoice', 'exception'.
-        entity_id: PK of the affected record.
-        actor_id: User who performed the action (None for system actions).
-        actor_email: Denormalised email (preserved if user is later deleted).
-        before: Dict snapshot of state before the action (JSON-serialisable).
-        after: Dict snapshot of state after the action.
-        notes: Free-text annotation.
-    """
-    entry = AuditLog(
+    return AuditLog(
         actor_id=uuid.UUID(str(actor_id)) if actor_id else None,
         actor_email=actor_email,
         action=action,
@@ -46,7 +32,39 @@ def log(
         after_state=json.dumps(after, default=str) if after is not None else None,
         notes=notes,
     )
+
+
+def log(
+    db: Session | AsyncSession,
+    action: str,
+    entity_type: str,
+    entity_id: uuid.UUID | str | None = None,
+    actor_id: uuid.UUID | str | None = None,
+    actor_email: str | None = None,
+    before: Any | None = None,
+    after: Any | None = None,
+    notes: str | None = None,
+) -> AuditLog:
+    """Write a single audit log entry (sync path).
+
+    For async callers (FastAPI routes), this adds the entry to the session
+    without calling flush — the caller is responsible for awaiting db.flush()
+    or db.commit() to persist.
+
+    For sync callers (Celery tasks), this calls db.flush() to get the id.
+    """
+    entry = _build_entry(
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        actor_id=actor_id,
+        actor_email=actor_email,
+        before=before,
+        after=after,
+        notes=notes,
+    )
     db.add(entry)
-    db.flush()  # get id without committing; caller controls the transaction
+    if not isinstance(db, AsyncSession):
+        db.flush()
     logger.debug("Audit: %s %s/%s", action, entity_type, entity_id)
     return entry
