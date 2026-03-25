@@ -116,6 +116,8 @@ class Settings(BaseSettings):
                 raise ValueError("JWT_SECRET must be changed from default in production.")
             if "dev-approval" in self.APPROVAL_TOKEN_SECRET or "change-in-production" in self.APPROVAL_TOKEN_SECRET:
                 raise ValueError("APPROVAL_TOKEN_SECRET must be changed from default in production.")
+            if self.MINIO_ACCESS_KEY == "minioadmin" or self.MINIO_SECRET_KEY == "minioadmin":
+                raise ValueError("MINIO_ACCESS_KEY and MINIO_SECRET_KEY must be changed from defaults in production.")
 
         return self
 
