@@ -178,7 +178,8 @@ async def upsert_oracle_grns(lines: list[dict], db: AsyncSession) -> dict:
                 text("SELECT id FROM goods_receipts WHERE gr_number = :gr_number"),
                 {"gr_number": receipt_number},
             )
-            gr_id = gr_result.fetchone()[0]
+            gr_row = gr_result.fetchone()
+            gr_id = gr_row[0] if gr_row else None
 
             if is_new:
                 created += 1

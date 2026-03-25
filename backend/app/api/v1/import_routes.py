@@ -122,10 +122,10 @@ async def import_pos(
 
         # Resolve vendor
         if vendor_name not in vendor_cache:
-            result = await db.execute(
+            vendor_result = await db.execute(
                 select(Vendor).where(Vendor.name == vendor_name, Vendor.deleted_at.is_(None))
             )
-            vendor = result.scalar_one_or_none()
+            vendor = vendor_result.scalar_one_or_none()
             if vendor is None:
                 # Create vendor on-the-fly
                 vendor = Vendor(name=vendor_name, currency=currency, payment_terms=30)
@@ -135,10 +135,10 @@ async def import_pos(
         vendor = vendor_cache[vendor_name]
 
         # Upsert PO by po_number
-        result = await db.execute(
+        po_result = await db.execute(
             select(PurchaseOrder).where(PurchaseOrder.po_number == po_number)
         )
-        existing = result.scalar_one_or_none()
+        existing = po_result.scalar_one_or_none()
 
         if existing:
             existing.vendor_id = vendor.id
@@ -218,10 +218,10 @@ async def import_grns(
 
         # Resolve PO
         if po_number not in po_cache:
-            result = await db.execute(
+            po_result = await db.execute(
                 select(PurchaseOrder).where(PurchaseOrder.po_number == po_number)
             )
-            po_cache[po_number] = result.scalar_one_or_none()
+            po_cache[po_number] = po_result.scalar_one_or_none()
 
         po = po_cache[po_number]
         if po is None:
@@ -230,10 +230,10 @@ async def import_grns(
             continue
 
         # Upsert GRN by gr_number
-        result = await db.execute(
+        grn_result = await db.execute(
             select(GoodsReceipt).where(GoodsReceipt.gr_number == gr_number)
         )
-        existing = result.scalar_one_or_none()
+        existing = grn_result.scalar_one_or_none()
 
         if existing:
             existing.po_id = po.id

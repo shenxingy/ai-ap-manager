@@ -72,7 +72,7 @@ def upload_file(
     client.put_object(
         bucket_name=bucket,
         object_name=object_name,
-        data=stream,
+        data=stream,  # type: ignore[arg-type]
         length=length,
         content_type=content_type,
     )

@@ -89,7 +89,7 @@ async def get_process_mining(
         timelines: dict[str, dict[str, datetime]] = defaultdict(dict)
         for row in rows:
             try:
-                after = json.loads(row.after_state)
+                after = json.loads(row.after_state) if row.after_state else {}
                 status = after.get("status")
             except Exception:
                 logger.debug("Skipping audit row %s: unparseable after_state", row.id)
