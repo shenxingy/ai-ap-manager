@@ -325,7 +325,7 @@ def process_approval_decision(
         invoice.status = "rejected"
         db.flush()
 
-        after_snapshot = {
+        after_snapshot: dict[str, object] = {
             "invoice_status": invoice.status,
             "task_status": task.status,
             "decision_channel": channel,
