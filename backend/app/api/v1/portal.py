@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
+import pydantic
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -54,7 +55,7 @@ router = APIRouter(prefix="/portal", tags=["portal"])
 class VendorReplyIn(BaseModel):
     """Vendor reply message body."""
 
-    body: str
+    body: str = pydantic.Field(min_length=1, max_length=10000)
 
 
 class VendorReplyResponse(BaseModel):
@@ -74,8 +75,8 @@ class VendorInviteResponse(BaseModel):
 
 
 class VendorDisputeIn(BaseModel):
-    reason: str
-    description: str
+    reason: str = pydantic.Field(min_length=1, max_length=500)
+    description: str = pydantic.Field(min_length=1, max_length=10000)
 
 
 class VendorDisputeResponse(BaseModel):
@@ -122,34 +123,49 @@ class VendorTemplateItem(BaseModel):
 
 def create_vendor_reply_token(invoice_id: str) -> tuple[str, str]:
     """
-    Create a vendor reply token for an invoice.
+    Create a self-verifying vendor reply token for an invoice.
 
-    Returns (raw_token, token_hash).
-    raw_token is sent to vendor in email URL; token_hash would be stored in DB if needed.
+    Token format: vendor_reply:{invoice_id}:{uuid}:{hmac_signature}
+    The HMAC is computed over the prefix (vendor_reply:{invoice_id}:{uuid}).
+
+    Returns (signed_token, signature).
+    signed_token is sent to vendor in email URL.
     """
-    raw = f"vendor_reply:{invoice_id}:{uuid.uuid4()}"
-    token_hash = hmac.new(
+    prefix = f"vendor_reply:{invoice_id}:{uuid.uuid4()}"
+    signature = hmac.new(
         settings.APPROVAL_TOKEN_SECRET.encode(),
-        raw.encode(),
+        prefix.encode(),
         hashlib.sha256,
     ).hexdigest()
-    return raw, token_hash
+    signed_token = f"{prefix}:{signature}"
+    return signed_token, signature
 
 
 def verify_vendor_reply_token(raw_token: str) -> str | None:
     """
-    Verify a vendor reply token and extract the invoice_id.
+    Verify a vendor reply token HMAC signature and extract the invoice_id.
 
-    Returns invoice_id if valid, None if invalid or expired.
+    Returns invoice_id if valid, None if HMAC verification fails.
+    Token format: vendor_reply:{invoice_id}:{uuid}:{hmac_signature}
     """
     try:
         parts = raw_token.split(":")
-        if len(parts) != 3 or parts[0] != "vendor_reply":
+        if len(parts) != 4 or parts[0] != "vendor_reply":
             return None
 
         invoice_id_str = parts[1]
-        # Verify format is a valid UUID
-        uuid.UUID(invoice_id_str)
+        uuid.UUID(invoice_id_str)  # Validate UUID format
+
+        # Recompute HMAC over prefix and compare with provided signature
+        prefix = f"{parts[0]}:{parts[1]}:{parts[2]}"
+        expected_sig = hmac.new(
+            settings.APPROVAL_TOKEN_SECRET.encode(),
+            prefix.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+        if not hmac.compare_digest(expected_sig, parts[3]):
+            return None
 
         return invoice_id_str
 
