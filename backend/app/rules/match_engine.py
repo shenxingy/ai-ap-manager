@@ -299,7 +299,7 @@ def run_2way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     tolerance = resolve_tolerance(
         base_tolerance,
         vendor_id=invoice.vendor_id,
-        category=invoice.category,
+        category=getattr(invoice, "category", None),
         currency=invoice.currency,
     )
     amt_tol_pct = float(tolerance["amount_tolerance_pct"])
@@ -498,7 +498,7 @@ def run_3way_match(db: Session, invoice_id: uuid.UUID) -> MatchResult:
     tolerance = resolve_tolerance(
         base_tolerance,
         vendor_id=invoice.vendor_id,
-        category=invoice.category,
+        category=getattr(invoice, "category", None),
         currency=invoice.currency,
     )
     qty_tol_pct = float(tolerance["qty_tolerance_pct"])

@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.invoice import Invoice
 
 
 class PaymentRun(Base, UUIDMixin, TimestampMixin):
@@ -52,4 +58,4 @@ class PaymentRun(Base, UUIDMixin, TimestampMixin):
     # Optional narrative notes for the payment run (context, instructions, etc.)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    invoices: Mapped[list["Invoice"]] = relationship("Invoice", back_populates="payment_run")  # noqa: F821
+    invoices: Mapped[list[Invoice]] = relationship("Invoice", back_populates="payment_run")
