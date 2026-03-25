@@ -13,7 +13,7 @@ import logging
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import create_engine, select
@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 from app.core.deps import require_role
+from app.core.limiter import limiter
 from app.schemas.approval import (
     ApprovalDecisionRequest,
     ApprovalListResponse,
@@ -142,12 +143,14 @@ async def get_approval_task(
 
 # ─── In-app: approve ───
 
+@limiter.limit("30/minute")
 @router.post(
     "/{task_id}/approve",
     response_model=ApprovalTaskOut,
     summary="Approve an invoice (in-app, JWT required)",
 )
 async def approve_task(
+    request: Request,
     task_id: uuid.UUID,
     body: ApprovalDecisionRequest,
     current_user=Depends(require_role("APPROVER", "ADMIN")),
@@ -201,12 +204,14 @@ async def approve_task(
 
 # ─── In-app: reject ───
 
+@limiter.limit("30/minute")
 @router.post(
     "/{task_id}/reject",
     response_model=ApprovalTaskOut,
     summary="Reject an invoice (in-app, JWT required)",
 )
 async def reject_task(
+    request: Request,
     task_id: uuid.UUID,
     body: ApprovalDecisionRequest,
     current_user=Depends(require_role("APPROVER", "ADMIN")),
