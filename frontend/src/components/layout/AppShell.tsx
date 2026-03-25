@@ -1,5 +1,7 @@
 "use client";
 
+// ─── Imports ───
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,6 +12,8 @@ import { Bell, LogOut, Menu, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { AskAiPanel } from "@/components/AskAiPanel";
+
+// ─── Types & Interfaces ───
 
 interface Notification {
   id: string;
@@ -25,6 +29,8 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+// ─── Main Component ───
+
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const { token, user, setAuth, logout } = useAuthStore();
@@ -32,6 +38,8 @@ export function AppShell({ children }: AppShellProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
+  // ─── Data Fetching ───
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["notifications"],
@@ -46,6 +54,8 @@ export function AppShell({ children }: AppShellProps) {
     mutationFn: () => api.post("/notifications/read-all"),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
+
+  // ─── Effects ───
 
   // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
@@ -86,12 +96,16 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [token, user, setAuth, logout, router]);
 
+  // ─── Event Handlers ───
+
   const handleLogout = () => {
     logout();
     router.push("/login");
   };
 
   if (!token) return null;
+
+  // ─── Render ───
 
   return (
     <div className="flex min-h-screen bg-gray-50">

@@ -1,5 +1,7 @@
 "use client";
 
+// ─── Imports ───
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,6 +67,8 @@ function DecisionModal({
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // ─── Data Fetching & Mutations ───
+
   const { data: matchResult } = useQuery<MatchResult>({
     queryKey: ["match", task?.invoice_id],
     queryFn: () =>
@@ -100,12 +104,16 @@ function DecisionModal({
   const isOpen = !!task && !!decision;
   const canSubmit = decision === "approve" || (decision === "reject" && notes.trim());
 
+  // ─── Render Helpers ───
+
   const getStatusColor = (status: string) => {
     if (status === "matched") return "bg-green-100 text-green-800";
     if (status === "partial") return "bg-amber-100 text-amber-800";
     if (status === "exception") return "bg-red-100 text-red-800";
     return "bg-gray-100 text-gray-800";
   };
+
+  // ─── Event Handlers ───
 
   const handleSubmit = () => {
     const confirmMsg =
@@ -312,12 +320,16 @@ function PastDecisionsTable({ tasks }: { tasks: ApprovalTask[] }) {
 // ─── Page ───
 
 export default function ApprovalsPage() {
+  // ─── Hooks & State ───
+
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [selectedTask, setSelectedTask] = useState<ApprovalTask | null>(null);
   const [decision, setDecision] = useState<DecisionType | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+
+  // ─── Data Fetching ───
 
   const { data: pendingData } = useQuery<ApprovalListResponse>({
     queryKey: ["approvals", "pending"],
@@ -334,6 +346,8 @@ export default function ApprovalsPage() {
   const resolvedTasks = resolvedData?.items ?? [];
 
   const allSelected = tasks.length > 0 && selectedIds.size === tasks.length;
+
+  // ─── Selection & Bulk Actions ───
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -366,6 +380,8 @@ export default function ApprovalsPage() {
     onError: () => showSuccess("Bulk approve failed. Please try again."),
   });
 
+  // ─── Event Handlers ───
+
   const openDecision = (task: ApprovalTask, d: DecisionType) => {
     setSelectedTask(task);
     setDecision(d);
@@ -380,6 +396,8 @@ export default function ApprovalsPage() {
     setToast(message);
     setTimeout(() => setToast(null), 3500);
   };
+
+  // ─── Render ───
 
   return (
     <div className="space-y-4">
