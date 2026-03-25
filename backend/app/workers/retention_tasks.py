@@ -47,7 +47,7 @@ def run_data_retention() -> dict:
             .values(deleted_at=now)
         )
         result_invoices = db.execute(invoices_stmt)
-        invoices_count = result_invoices.rowcount
+        invoices_count = result_invoices.rowcount  # type: ignore[attr-defined]
         db.commit()
         logger.info(f"Soft-deleted {invoices_count} invoices older than {cutoff_invoices}")
 
@@ -55,7 +55,7 @@ def run_data_retention() -> dict:
         cutoff_audit = now - timedelta(days=settings.RETENTION_DAYS_AUDIT_LOGS)
         audit_stmt = delete(AuditLog).where(AuditLog.created_at < cutoff_audit)
         result_audit = db.execute(audit_stmt)
-        audit_logs_count = result_audit.rowcount
+        audit_logs_count = result_audit.rowcount  # type: ignore[attr-defined]
         db.commit()
         logger.info(f"Hard-deleted {audit_logs_count} audit logs older than {cutoff_audit}")
 

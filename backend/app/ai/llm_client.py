@@ -100,7 +100,7 @@ class OllamaClient(BaseLLMClient):
         start = time.monotonic()
         resp = self._client.chat.completions.create(
             model=self._model,
-            messages=all_messages,
+            messages=all_messages,  # type: ignore[arg-type]
             max_tokens=max_tokens,
         )
         latency_ms = int((time.monotonic() - start) * 1000)

@@ -539,17 +539,17 @@ async def update_gl_coding(
 ):
     """Update GL account and optionally cost center for an invoice line item."""
     # Load invoice
-    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
-    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    inv_stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(inv_stmt)).scalar_one_or_none()
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
 
     # Load line item
-    stmt = select(InvoiceLineItem).where(
+    line_stmt = select(InvoiceLineItem).where(
         InvoiceLineItem.id == line_id,
         InvoiceLineItem.invoice_id == invoice_id,
     )
-    line_item = (await db.execute(stmt)).scalar_one_or_none()
+    line_item = (await db.execute(line_stmt)).scalar_one_or_none()
     if line_item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line item not found.")
 
@@ -619,8 +619,8 @@ async def bulk_update_gl_coding(
 ):
     """Update GL account coding for multiple line items in one request."""
     # Verify invoice exists
-    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
-    invoice = (await db.execute(stmt)).scalar_one_or_none()
+    inv_stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.deleted_at.is_(None))
+    invoice = (await db.execute(inv_stmt)).scalar_one_or_none()
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
 
@@ -628,11 +628,11 @@ async def bulk_update_gl_coding(
     errors = 0
 
     for item in body.lines:
-        stmt = select(InvoiceLineItem).where(
+        line_stmt = select(InvoiceLineItem).where(
             InvoiceLineItem.id == item.line_id,
             InvoiceLineItem.invoice_id == invoice_id,
         )
-        line_item = (await db.execute(stmt)).scalar_one_or_none()
+        line_item = (await db.execute(line_stmt)).scalar_one_or_none()
         if line_item is None:
             errors += 1
             continue

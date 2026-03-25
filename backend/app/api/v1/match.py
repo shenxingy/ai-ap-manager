@@ -140,27 +140,27 @@ async def get_match_result(
 
         inv_lines: dict[uuid.UUID, InvoiceLineItem] = {}
         if inv_line_ids:
-            rows = await db.execute(
+            inv_rows = await db.execute(
                 select(InvoiceLineItem).where(InvoiceLineItem.id.in_(inv_line_ids))
             )
-            for li in rows.scalars():
-                inv_lines[li.id] = li
+            for inv_li in inv_rows.scalars():
+                inv_lines[inv_li.id] = inv_li
 
         po_lines: dict[uuid.UUID, POLineItem] = {}
         if po_line_ids:
-            rows = await db.execute(
+            po_rows = await db.execute(
                 select(POLineItem).where(POLineItem.id.in_(po_line_ids))
             )
-            for li in rows.scalars():
-                po_lines[li.id] = li
+            for po_li in po_rows.scalars():
+                po_lines[po_li.id] = po_li
 
         gr_lines: dict[uuid.UUID, GRLineItem] = {}
         if gr_line_ids:
-            rows = await db.execute(
+            gr_rows = await db.execute(
                 select(GRLineItem).where(GRLineItem.id.in_(gr_line_ids))
             )
-            for li in rows.scalars():
-                gr_lines[li.id] = li
+            for gr_li in gr_rows.scalars():
+                gr_lines[gr_li.id] = gr_li
 
         # Build lookup from ORM line_matches (keyed by id for safe mapping)
         orm_lm_by_id: dict[uuid.UUID, LineItemMatch] = {lm.id: lm for lm in match_result.line_matches}
@@ -169,16 +169,16 @@ async def get_match_result(
             orm_lm = orm_lm_by_id.get(lm_out.id)
             if not orm_lm:
                 continue
-            inv_li = inv_lines.get(orm_lm.invoice_line_id)
-            po_li = po_lines.get(orm_lm.po_line_id) if orm_lm.po_line_id else None
-            gr_li = gr_lines.get(orm_lm.gr_line_id) if orm_lm.gr_line_id else None
+            inv_li_detail = inv_lines.get(orm_lm.invoice_line_id)
+            po_li_detail = po_lines.get(orm_lm.po_line_id) if orm_lm.po_line_id else None
+            gr_li_detail = gr_lines.get(orm_lm.gr_line_id) if orm_lm.gr_line_id else None
 
-            lm_out.description = inv_li.description if inv_li else None
-            lm_out.invoice_amount = float(inv_li.line_total) if inv_li and inv_li.line_total is not None else None
-            lm_out.qty_invoiced = float(inv_li.quantity) if inv_li and inv_li.quantity is not None else None
-            lm_out.po_amount = float(po_li.unit_price * po_li.quantity) if po_li else None
-            lm_out.qty_on_po = float(po_li.quantity) if po_li else None
-            lm_out.qty_received = float(gr_li.quantity) if gr_li else None
+            lm_out.description = inv_li_detail.description if inv_li_detail else None
+            lm_out.invoice_amount = float(inv_li_detail.line_total) if inv_li_detail and inv_li_detail.line_total is not None else None
+            lm_out.qty_invoiced = float(inv_li_detail.quantity) if inv_li_detail and inv_li_detail.quantity is not None else None
+            lm_out.po_amount = float(po_li_detail.unit_price * po_li_detail.quantity) if po_li_detail else None
+            lm_out.qty_on_po = float(po_li_detail.quantity) if po_li_detail else None
+            lm_out.qty_received = float(gr_li_detail.quantity) if gr_li_detail else None
 
             # Populate GRN_NOT_FOUND exception code for 3-way lines missing a GR line
             if out.match_type == "3way" and orm_lm.gr_line_id is None:

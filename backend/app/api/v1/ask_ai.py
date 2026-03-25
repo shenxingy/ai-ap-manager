@@ -1,6 +1,7 @@
 """Ask AI endpoint — natural language queries over AP data with SQL whitelist safety."""
 import asyncio
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -90,7 +91,7 @@ async def ask_ai(
     # Step 3: Execute and summarize
     try:
         result = await db.execute(text(sql_query))
-        rows = result.fetchmany(50)  # Cap at 50 rows
+        rows = list(result.fetchmany(50))  # Cap at 50 rows
         columns = list(result.keys()) if result.keys() else []
         row_count = len(rows)
     except Exception as exc:
@@ -133,7 +134,6 @@ def _validate_sql_safety(sql: str) -> None:
             )
 
     # Check that only allowed tables are referenced (basic FROM/JOIN extraction)
-    import re
     table_refs = re.findall(r'(?:from|join)\s+([a-zA-Z_][a-zA-Z_0-9]*)', sql_lower)
     for table in table_refs:
         if table not in ALLOWED_TABLES:

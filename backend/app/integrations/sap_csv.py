@@ -175,7 +175,8 @@ async def upsert_sap_pos(lines: list[dict], db: AsyncSession) -> dict:
                 text("SELECT id FROM purchase_orders WHERE po_number = :po_number"),
                 {"po_number": po_number},
             )
-            po_id = po_result.fetchone()[0]
+            po_row = po_result.fetchone()
+            po_id = po_row[0] if po_row else None
 
             if is_new:
                 created += 1

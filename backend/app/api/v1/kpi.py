@@ -32,7 +32,7 @@ FORECAST_STATUSES = {"ingested", "extracting", "extracted", "matching", "matched
 async def get_kpi_summary(
     days: int = Query(default=30, ge=1, le=365, description="Lookback window in days"),
     entity_id: uuid.UUID | None = Query(default=None, description="Filter by entity ID"),
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,  # type: ignore[assignment]
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return aggregate KPI counts and rates for the requested lookback window."""
@@ -120,7 +120,7 @@ async def get_kpi_summary(
 
 @router.get("/sla-summary", summary="SLA overdue and approaching-due invoice counts")
 async def get_sla_summary(
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,  # type: ignore[assignment]
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return counts of invoices approaching their due date and already overdue."""
@@ -155,7 +155,7 @@ async def get_kpi_trends(
     period: str = Query(default="daily", pattern="^(daily|weekly)$"),
     days: int = Query(default=30, ge=7, le=365),
     entity_id: uuid.UUID | None = Query(default=None, description="Filter by entity ID"),
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,  # type: ignore[assignment]
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return time-series trend data bucketed by day or week for the requested period."""
@@ -221,7 +221,7 @@ async def get_kpi_trends(
 
 @router.get("/cash-flow-forecast", summary="12-week cash flow forecast from pending invoices")
 async def get_cash_flow_forecast(
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,  # type: ignore[assignment]
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Return 12 weeks of expected outflows bucketed by payment week.
@@ -267,7 +267,7 @@ async def get_cash_flow_forecast(
         ws = pay_date - timedelta(days=pay_date.weekday())
 
         if ws in buckets:
-            buckets[ws]["expected_outflow"] += float(inv.total_amount)
+            buckets[ws]["expected_outflow"] += float(inv.total_amount or 0)
             buckets[ws]["invoice_count"] += 1
             buckets[ws]["conf_sum"] += confidence
 
@@ -290,7 +290,7 @@ async def get_cash_flow_forecast(
 
 @router.get("/cash-flow-export", summary="Cash flow forecast exported as CSV")
 async def get_cash_flow_export(
-    db: Annotated[AsyncSession, Depends(get_session)] = ...,
+    db: Annotated[AsyncSession, Depends(get_session)] = ...,  # type: ignore[assignment]
     current_user=Depends(require_role("AP_CLERK", "AP_ANALYST", "AP_MANAGER", "APPROVER", "ADMIN", "AUDITOR")),
 ):
     """Stream pending invoices as CSV for treasury/cash-flow planning."""
