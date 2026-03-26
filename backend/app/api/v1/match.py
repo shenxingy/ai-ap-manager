@@ -43,8 +43,7 @@ class InspectionReportOut(BaseModel):
     inspected_at: datetime
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ─── GET /invoices/{invoice_id}/match ───
@@ -185,7 +184,7 @@ async def get_match_result(
                 lm_out.exception_code = "GRN_NOT_FOUND"
 
             # Populate grn_lines_used from the GR number already fetched above
-            if gr_li is not None and out.gr_number:
+            if gr_li_detail is not None and out.gr_number:
                 lm_out.grn_lines_used = [out.gr_number]
 
     return out

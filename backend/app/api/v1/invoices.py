@@ -197,9 +197,8 @@ async def list_invoices(
     if date_to:
         stmt = stmt.where(Invoice.created_at <= date_to)
     if overdue:
-        from sqlalchemy import func as sqlfunc
         stmt = stmt.where(
-            Invoice.due_date < sqlfunc.now(),
+            Invoice.due_date < func.now(),
             Invoice.status.in_(["ingested", "extracting", "extracted", "matching", "matched", "exception"]),
         )
 
@@ -470,9 +469,6 @@ async def correct_invoice_field(
         )
 
     # Write audit log
-    await db.execute(
-        select(1)  # dummy select to ensure db session is ready for flush
-    )
     audit_svc.log(
         db,
         action="field_corrected",
