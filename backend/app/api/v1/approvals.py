@@ -34,16 +34,17 @@ router = APIRouter()
 
 
 # ─── Sync session factory for approval service calls ───
+# Engine is created once at module load to avoid connection-pool leaks.
+_sync_engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True, pool_size=5)
+_SyncSessionLocal = sessionmaker(bind=_sync_engine, expire_on_commit=False)
+
 
 def _get_sync_session() -> Session:
-    """Create a one-off sync session for approval service calls.
+    """Return a new sync session from the shared engine.
 
     The approval service uses sync SQLAlchemy (shared with Celery tasks).
-    API handlers create a fresh engine+session per request.
     """
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-    return SessionLocal()
+    return _SyncSessionLocal()
 
 
 # ─── In-app: list pending tasks ───
