@@ -304,9 +304,9 @@ async def email_ingestion_status(
     )
     total_ingested = count_result.scalar_one()
 
-    email_host = getattr(settings, "EMAIL_HOST", None)
-    email_user = getattr(settings, "EMAIL_USER", None)
-    email_password = getattr(settings, "EMAIL_PASSWORD", None)
+    email_host = getattr(settings, "IMAP_HOST", None)
+    email_user = getattr(settings, "IMAP_USER", None)
+    email_password = getattr(settings, "IMAP_PASSWORD", None)
     configured = bool(email_host and email_user and email_password)
 
     return EmailIngestionStatus(
