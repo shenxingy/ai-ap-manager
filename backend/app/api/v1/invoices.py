@@ -793,7 +793,7 @@ async def send_vendor_message(
     msg = VendorMessage(
         invoice_id=invoice_id,
         sender_id=current_user.id,
-        sender_email=body.sender_email or current_user.email,
+        sender_email=current_user.email,  # always use authenticated user's email
         direction="outbound",
         body=body.body,
         is_internal=body.is_internal,
