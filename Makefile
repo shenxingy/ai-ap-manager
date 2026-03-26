@@ -35,7 +35,7 @@ shell-db:
 
 # ─── Development ───
 backend-dev:
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8002
 
 frontend-dev:
 	cd frontend && npm run dev

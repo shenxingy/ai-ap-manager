@@ -49,7 +49,7 @@ That's it. The script will:
 | Service | URL |
 |---------|-----|
 | Dashboard | http://localhost:3000 |
-| API Docs (Swagger) | http://localhost:8002/docs |
+| API Docs (Swagger) | http://localhost:8002/api/docs |
 | MinIO Console | http://localhost:9001 |
 
 **Demo accounts** (password: `changeme123`):
