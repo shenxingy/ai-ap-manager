@@ -16,12 +16,11 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
 
-from app.core.config import settings
 from app.core.deps import require_role
 from app.core.limiter import limiter
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.schemas.approval import (
     ApprovalDecisionRequest,
     ApprovalListResponse,
@@ -31,20 +30,6 @@ from app.schemas.approval import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-# ─── Sync session factory for approval service calls ───
-# Engine is created once at module load to avoid connection-pool leaks.
-_sync_engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True, pool_size=5)
-_SyncSessionLocal = sessionmaker(bind=_sync_engine, expire_on_commit=False)
-
-
-def _get_sync_session() -> Session:
-    """Return a new sync session from the shared engine.
-
-    The approval service uses sync SQLAlchemy (shared with Celery tasks).
-    """
-    return _SyncSessionLocal()
 
 
 # ─── In-app: list pending tasks ───

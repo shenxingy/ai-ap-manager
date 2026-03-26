@@ -11,20 +11,12 @@ import logging
 import uuid
 from datetime import datetime
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
-from app.core.config import settings
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
-
-
-def _get_sync_session():
-    """Return a sync SQLAlchemy session. Caller must close it."""
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
-    return Session()
 
 
 @celery_app.task(name="vendor_risk.compute_vendor_risk_scores")

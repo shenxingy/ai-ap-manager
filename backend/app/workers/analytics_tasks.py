@@ -2,6 +2,7 @@
 import logging
 from datetime import UTC, datetime
 
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -16,16 +17,12 @@ def generate_root_cause_report(self, report_id: str):
     """
     logger.info("generate_root_cause_report: starting for report %s", report_id)
     try:
-        from sqlalchemy import create_engine, select
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import select
 
-        from app.core.config import settings
         from app.models.analytics_report import AnalyticsReport
 
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
-
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             report = db.execute(
                 select(AnalyticsReport).where(AnalyticsReport.id == report_id)
             ).scalars().first()
@@ -36,6 +33,8 @@ def generate_root_cause_report(self, report_id: str):
 
             report.status = "generating"
             db.commit()
+        finally:
+            db.close()
 
         # Gather data (using sync HTTP calls to internal endpoints via direct DB queries)
         process_data, anomaly_data, kpi_summary = _gather_analytics_data()
@@ -49,8 +48,9 @@ def generate_root_cause_report(self, report_id: str):
             report_id=report_id,
         )
 
-        with Session() as db:
-            report = db.execute(
+        db2 = _get_sync_session()
+        try:
+            report = db2.execute(
                 select(AnalyticsReport).where(AnalyticsReport.id == report_id)
             ).scalars().first()
             if report:
@@ -60,7 +60,9 @@ def generate_root_cause_report(self, report_id: str):
                 report.prompt_tokens = prompt_tokens
                 report.completion_tokens = completion_tokens
                 report.model_used = model_used
-                db.commit()
+                db2.commit()
+        finally:
+            db2.close()
 
         logger.info("generate_root_cause_report: completed for report %s", report_id)
         return {"status": "complete", "report_id": report_id}
@@ -69,22 +71,21 @@ def generate_root_cause_report(self, report_id: str):
         logger.exception("generate_root_cause_report failed for %s: %s", report_id, exc)
         # Mark report as failed
         try:
-            from sqlalchemy import create_engine, select
-            from sqlalchemy.orm import sessionmaker
+            from sqlalchemy import select
 
-            from app.core.config import settings
             from app.models.analytics_report import AnalyticsReport
 
-            engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-            Session = sessionmaker(bind=engine, expire_on_commit=False)
-            with Session() as db:
-                report = db.execute(
+            db_fail = _get_sync_session()
+            try:
+                report = db_fail.execute(
                     select(AnalyticsReport).where(AnalyticsReport.id == report_id)
                 ).scalars().first()
                 if report:
                     report.status = "failed"
                     report.error_message = "Report generation failed. See server logs."
-                    db.commit()
+                    db_fail.commit()
+            finally:
+                db_fail.close()
         except Exception:
             logger.warning("Failed to mark report %s as failed in DB", report_id, exc_info=True)
         raise self.retry(exc=exc, countdown=300, max_retries=1) from exc
@@ -97,19 +98,13 @@ def weekly_digest():
     try:
         import uuid
 
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-
-        from app.core.config import settings
         from app.models.analytics_report import AnalyticsReport
-
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
 
         report_id = str(uuid.uuid4())
         now_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             report = AnalyticsReport(
                 id=report_id,
                 title=f"Weekly AP Digest — {now_str}",
@@ -119,6 +114,8 @@ def weekly_digest():
             )
             db.add(report)
             db.commit()
+        finally:
+            db.close()
 
         # Trigger narrative generation
         generate_root_cause_report.delay(report_id)
@@ -134,16 +131,12 @@ def weekly_digest():
 def _gather_analytics_data() -> tuple[list[dict], list[dict], dict]:
     """Gather process mining, anomaly, and KPI data from the database directly."""
     try:
-        from sqlalchemy import create_engine, func, select
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import func, select
 
-        from app.core.config import settings
         from app.models.invoice import Invoice
 
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
-
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             total = db.execute(select(func.count(Invoice.id)).where(Invoice.deleted_at.is_(None))).scalar() or 0
             pending = db.execute(
                 select(func.count(Invoice.id)).where(
@@ -157,6 +150,8 @@ def _gather_analytics_data() -> tuple[list[dict], list[dict], dict]:
                     Invoice.status == "exception",
                 )
             ).scalar() or 0
+        finally:
+            db.close()
 
         kpi_summary = {
             "total_invoices": total,

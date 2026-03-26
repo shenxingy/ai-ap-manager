@@ -2,6 +2,7 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -16,16 +17,12 @@ def analyze_ai_feedback(self):
     """
     logger.info("analyze_ai_feedback: starting weekly analysis")
     try:
-        from sqlalchemy import create_engine, func, select
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import func, select
 
-        from app.core.config import settings
         from app.models.feedback import AiFeedback, RuleRecommendation
 
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
-
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             since = datetime.now(UTC) - timedelta(days=7)
             period_end = datetime.now(UTC)
 
@@ -44,6 +41,7 @@ def analyze_ai_feedback(self):
             total_corrections = sum(row.cnt for row in corrections)
             if total_corrections == 0:
                 logger.info("analyze_ai_feedback: no corrections in past 7 days, skipping")
+                db.close()
                 return {"status": "skipped", "reason": "no_corrections"}
 
             # Field corrections: group by field_name for tolerance rule suggestions
@@ -125,15 +123,18 @@ def analyze_ai_feedback(self):
                 recommendations_created += 1
 
             db.commit()
-            logger.info(
-                "analyze_ai_feedback: created %d recommendations from %d corrections",
-                recommendations_created, total_corrections,
-            )
-            return {
-                "status": "complete",
-                "total_corrections": total_corrections,
-                "recommendations_created": recommendations_created,
-            }
+        finally:
+            db.close()
+
+        logger.info(
+            "analyze_ai_feedback: created %d recommendations from %d corrections",
+            recommendations_created, total_corrections,
+        )
+        return {
+            "status": "complete",
+            "total_corrections": total_corrections,
+            "recommendations_created": recommendations_created,
+        }
 
     except Exception as exc:
         logger.exception("analyze_ai_feedback failed: %s", exc)

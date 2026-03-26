@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_session
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.models.goods_receipt import GoodsReceipt, GRLineItem
 from app.models.inspection_report import InspectionReport
 from app.models.invoice import Invoice, InvoiceLineItem
@@ -232,16 +233,12 @@ async def trigger_match(
     # (match_engine uses sync SQLAlchemy; we cannot call it from async context directly
     #  without running in an executor — here we use a simple sync session)
     try:
-        from sqlalchemy import create_engine, update
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import update
 
-        from app.core.config import settings
         from app.models.goods_receipt import GoodsReceipt
         from app.rules.match_engine import run_2way_match, run_3way_match
 
-        sync_engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        SyncSession = sessionmaker(bind=sync_engine, expire_on_commit=False)
-        sync_db = SyncSession()
+        sync_db = _get_sync_session()
 
         try:
             # Set status to matching
@@ -276,7 +273,6 @@ async def trigger_match(
             # match engine commits and sets invoice.status
         finally:
             sync_db.close()
-            sync_engine.dispose()
 
     except Exception as exc:
         logger.exception("Re-match failed for invoice %s: %s", invoice_id, exc)

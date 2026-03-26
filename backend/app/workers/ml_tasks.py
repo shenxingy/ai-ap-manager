@@ -7,19 +7,9 @@ from datetime import UTC, datetime
 
 from celery import shared_task
 
+from app.db.sync_session import get_sync_session as _get_sync_session
+
 logger = logging.getLogger(__name__)
-
-
-def _get_sync_session():
-    """Return a sync SQLAlchemy session. Caller must close it."""
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-
-    from app.core.config import settings
-
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
-    return Session()
 
 
 @shared_task(name="retrain_gl_classifier")

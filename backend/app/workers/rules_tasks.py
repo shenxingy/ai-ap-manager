@@ -4,6 +4,7 @@ import json
 import logging
 import uuid
 
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -167,8 +168,7 @@ def extract_rules_from_policy(self, version_id_str: str, file_key: str) -> dict:
     5. Update RuleVersion: config_json=extracted, status=in_review, ai_extracted=True
     6. Write audit log: action=policy_parsed_by_ai
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session, sessionmaker
+    from sqlalchemy.orm import Session
 
     from app.core.config import settings
     from app.models.rule import RuleVersion
@@ -177,9 +177,7 @@ def extract_rules_from_policy(self, version_id_str: str, file_key: str) -> dict:
 
     logger.info("extract_rules_from_policy started: version=%s file=%s", version_id_str, file_key)
 
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-    db: Session = SessionLocal()
+    db: Session = _get_sync_session()
 
     version_uuid = uuid.UUID(version_id_str)
     filename = file_key.rsplit("/", 1)[-1]  # last path segment

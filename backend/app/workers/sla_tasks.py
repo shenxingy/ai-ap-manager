@@ -2,6 +2,7 @@
 import logging
 from datetime import UTC, date, datetime
 
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -24,15 +25,11 @@ def check_sla_alerts():
     """
     logger.info("check_sla_alerts: starting daily SLA check")
     try:
-        from sqlalchemy import create_engine, func, select
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import func, select
 
         from app.core.config import settings
         from app.models.invoice import Invoice
         from app.models.sla_alert import SlaAlert
-
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
 
         now = datetime.now(UTC)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -40,7 +37,8 @@ def check_sla_alerts():
 
         stats = {"warnings": 0, "critical": 0, "skipped_dedup": 0}
 
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             # Load pending invoices with a due_date
             invoices = db.execute(
                 select(Invoice).where(
@@ -102,6 +100,8 @@ def check_sla_alerts():
                     )
 
             db.commit()
+        finally:
+            db.close()
 
         logger.info(
             "check_sla_alerts: complete — warnings=%d, critical=%d, dedup_skipped=%d",
@@ -128,19 +128,15 @@ def expire_compliance_docs():
     """
     logger.info("expire_compliance_docs: starting weekly compliance doc expiry check")
     try:
-        from sqlalchemy import create_engine, select
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import select
 
-        from app.core.config import settings
         from app.models.vendor import VendorComplianceDoc
-
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
 
         today = date.today()
         stats = {"expired": 0}
 
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             # Load docs that are past expiry and in active/approved status
             docs = db.execute(
                 select(VendorComplianceDoc).where(
@@ -150,14 +146,17 @@ def expire_compliance_docs():
             ).scalars().all()
 
             for doc in docs:
+                prev_status = doc.status
                 doc.status = "expired"
                 stats["expired"] += 1
                 logger.info(
                     "Expired compliance doc %s for vendor %s (was %s)",
-                    doc.id, doc.vendor_id, "approved" if doc.status == "approved" else "active",
+                    doc.id, doc.vendor_id, prev_status,
                 )
 
             db.commit()
+        finally:
+            db.close()
 
         logger.info(
             "expire_compliance_docs: complete — expired=%d docs",
@@ -184,20 +183,16 @@ def escalate_overdue_approvals():
     """
     logger.info("escalate_overdue_approvals: starting daily approval escalation")
     try:
-        from sqlalchemy import create_engine, select
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import select
 
-        from app.core.config import settings
         from app.models.approval import ApprovalTask
         from app.models.user import User
-
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
 
         now = datetime.now(UTC)
         stats = {"escalated": 0, "already_admin": 0, "no_admin_found": 0}
 
-        with Session() as db:
+        db = _get_sync_session()
+        try:
             # Find first ADMIN user
             admin_user = db.execute(
                 select(User).where(User.role == "ADMIN", User.deleted_at.is_(None))
@@ -206,6 +201,7 @@ def escalate_overdue_approvals():
             if not admin_user:
                 stats["no_admin_found"] = 1
                 logger.warning("escalate_overdue_approvals: No ADMIN user found to escalate to")
+                db.close()
                 return stats
 
             # Load pending approval tasks past their due_at
@@ -234,6 +230,8 @@ def escalate_overdue_approvals():
 
             db.flush()
             db.commit()
+        finally:
+            db.close()
 
         logger.info(
             "escalate_overdue_approvals: complete — escalated=%d, already_admin=%d",

@@ -3,10 +3,10 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from celery import shared_task
-from sqlalchemy import create_engine, delete, update
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import delete, update
 
 from app.core.config import settings
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.models.audit import AuditLog
 from app.models.invoice import Invoice
 
@@ -27,10 +27,7 @@ def run_data_retention() -> dict:
     if not settings.RETENTION_ENABLED:
         return {"status": "skipped", "reason": "RETENTION_ENABLED=False"}
 
-    # Create sync engine and session
-    engine = create_engine(settings.DATABASE_URL_SYNC, echo=False)
-    Session = sessionmaker(bind=engine)
-    db = Session()
+    db = _get_sync_session()
 
     try:
         now = datetime.now(UTC)
@@ -49,7 +46,7 @@ def run_data_retention() -> dict:
         result_invoices = db.execute(invoices_stmt)
         invoices_count = result_invoices.rowcount  # type: ignore[attr-defined]
         db.commit()
-        logger.info(f"Soft-deleted {invoices_count} invoices older than {cutoff_invoices}")
+        logger.info("Soft-deleted %d invoices older than %s", invoices_count, cutoff_invoices)
 
         # ─── Hard-delete audit logs ───
         cutoff_audit = now - timedelta(days=settings.RETENTION_DAYS_AUDIT_LOGS)
@@ -57,7 +54,7 @@ def run_data_retention() -> dict:
         result_audit = db.execute(audit_stmt)
         audit_logs_count = result_audit.rowcount  # type: ignore[attr-defined]
         db.commit()
-        logger.info(f"Hard-deleted {audit_logs_count} audit logs older than {cutoff_audit}")
+        logger.info("Hard-deleted %d audit logs older than %s", audit_logs_count, cutoff_audit)
 
         # ─── Log retention action to audit_logs ───
         retention_log = AuditLog(
@@ -80,13 +77,12 @@ def run_data_retention() -> dict:
 
     except Exception as e:
         db.rollback()
-        logger.exception(f"Data retention job failed: {e}")
+        logger.exception("Data retention job failed: %s", e)
         return {
             "status": "error",
             "invoices_soft_deleted": 0,
             "audit_logs_deleted": 0,
-            "error": str(e),
+            "error": "Data retention job failed",
         }
     finally:
         db.close()
-        engine.dispose()
