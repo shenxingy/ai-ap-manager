@@ -5,23 +5,10 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
-
-
-# ─── Sync DB session factory (Celery workers are synchronous) ───
-
-def _get_sync_session():
-    """Return a sync SQLAlchemy session. Caller must close it."""
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-
-    from app.core.config import settings
-
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
-    return Session()
 
 
 # ─── OCR helpers ───
@@ -454,10 +441,10 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
             vendor_stmt = vendor_stmt.where(Vendor.id == _uuid.UUID(vendor_id))
         vendors_result = db.execute(vendor_stmt).scalars().all()
 
-        for vendor_id in vendors_result:
+        for vid in vendors_result:
             invoices = db.execute(
                 select(Invoice).where(
-                    Invoice.vendor_id == vendor_id,
+                    Invoice.vendor_id == vid,
                     Invoice.status == "approved",
                     Invoice.deleted_at.is_(None),
                     Invoice.invoice_date.isnot(None),
@@ -471,8 +458,9 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
 
             # Compute day intervals between consecutive invoice dates
             dates = sorted([
-                inv.invoice_date.date() if hasattr(inv.invoice_date, 'date') else inv.invoice_date
+                inv.invoice_date.date() if hasattr(inv.invoice_date, 'date') else inv.invoice_date  # type: ignore[union-attr]
                 for inv in invoices
+                if inv.invoice_date is not None
             ])
             intervals = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
             if not intervals:
@@ -498,7 +486,7 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
             # Upsert pattern
             existing = db.execute(
                 select(RecurringInvoicePattern).where(
-                    RecurringInvoicePattern.vendor_id == vendor_id
+                    RecurringInvoicePattern.vendor_id == vid
                 )
             ).scalars().first()
 
@@ -506,11 +494,11 @@ def detect_recurring_patterns(self, vendor_id: str | None = None) -> dict:
 
             if existing:
                 existing.frequency_days = best_freq
-                existing.avg_amount = Decimal(str(round(avg_amount, 4)))
+                existing.avg_amount = Decimal(str(round(avg_amount, 4)))  # type: ignore[assignment]
                 existing.last_detected_at = now_utc
             else:
                 pattern = RecurringInvoicePattern(
-                    vendor_id=vendor_id,
+                    vendor_id=vid,
                     frequency_days=best_freq,
                     avg_amount=Decimal(str(round(avg_amount, 4))),
                     tolerance_pct=0.10,

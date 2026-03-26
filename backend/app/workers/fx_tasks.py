@@ -11,23 +11,16 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import UTC, date, datetime
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
 from app.core.config import settings
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
 ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 ECB_NS = "http://www.ecb.int/vocabulary/2002-08-01/eurofxref"
-
-
-def _get_sync_session():
-    """Return a sync SQLAlchemy session. Caller must close it."""
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
-    return Session()
 
 
 def _fetch_ecb_rates() -> tuple[date, dict[str, float]]:

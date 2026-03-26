@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
+from app.db.sync_session import get_sync_session as _get_sync_session
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -25,19 +26,6 @@ MIME_BY_EXT = {
     ".jpeg": "image/jpeg",
     ".tiff": "image/tiff",
 }
-
-
-# ─── Sync DB session ───
-
-def _get_sync_session():
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-
-    from app.core.config import settings
-
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
-    return Session()
 
 
 # ─── Task ───
