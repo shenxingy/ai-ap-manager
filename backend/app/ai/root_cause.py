@@ -142,14 +142,12 @@ def _log_ai_call(
 ) -> None:
     """Log AI call to ai_call_logs table."""
     try:
-        from sqlalchemy import create_engine, text
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import text
 
-        from app.core.config import settings
+        from app.db.sync_session import get_sync_session as _get_sync_session
 
-        engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-        Session = sessionmaker(bind=engine)
-        with Session() as session:
+        session = _get_sync_session()
+        try:
             session.execute(
                 text("""
                     INSERT INTO ai_call_logs
@@ -171,5 +169,7 @@ def _log_ai_call(
                 },
             )
             session.commit()
+        finally:
+            session.close()
     except Exception as exc:
         logger.warning("Failed to log AI call: %s", exc)
