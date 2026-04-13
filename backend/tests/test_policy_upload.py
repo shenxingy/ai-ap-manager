@@ -172,8 +172,7 @@ def test_extract_rules_state_transition():
     mock_session_factory.return_value = db
 
     with (
-        patch("sqlalchemy.create_engine", return_value=mock_engine),
-        patch("sqlalchemy.orm.sessionmaker", return_value=mock_session_factory),
+        patch("app.workers.rules_tasks._get_sync_session", return_value=db),
         patch("app.core.config.settings") as mock_settings,
         patch("app.services.storage.download_file", return_value=b"Invoice tolerance 3%"),
         patch("app.workers.rules_tasks._call_llm", return_value=extracted_config),
