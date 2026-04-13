@@ -99,7 +99,7 @@ async def _check_redis() -> str:
     try:
         import redis.asyncio as aioredis
         r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
-        await r.ping()
+        await r.ping()  # type: ignore[misc]
         await r.aclose()
         return "ok"
     except Exception as exc:

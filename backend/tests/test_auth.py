@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 
@@ -33,7 +34,7 @@ async def test_login_valid_credentials_returns_jwt():
     async def mock_execute(*args, **kwargs):
         return mock_result
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = mock_execute
 
     async def override_get_session():

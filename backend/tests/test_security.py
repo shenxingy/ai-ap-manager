@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.core.security import create_access_token
@@ -48,7 +49,7 @@ def make_mock_session():
     mock_result.scalar_one_or_none.return_value = None
     mock_result.scalars.return_value.all.return_value = []
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = AsyncMock(return_value=mock_result)
     mock_session.commit = AsyncMock()
     return mock_session
@@ -206,7 +207,7 @@ async def test_payment_requires_approved_status():
     async def mock_execute(*args, **kwargs):
         return mock_result
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = mock_execute
     mock_session.commit = AsyncMock()
 
@@ -246,7 +247,7 @@ async def test_payment_records_successfully_for_approved_invoice():
     async def mock_execute(*args, **kwargs):
         return mock_result
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = mock_execute
     mock_session.commit = AsyncMock()
 
