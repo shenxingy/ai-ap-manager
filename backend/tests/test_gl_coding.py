@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import app.services.gl_classifier  # ensure module is loaded for patching
 from app.services.gl_coding import (
     CATEGORY_GL_MAP,
     _word_similarity,
